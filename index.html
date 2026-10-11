@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>中醫方證資料庫</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="方證資料庫">
+<meta name="theme-color" content="#edf1ee">
+<style>
+:root{--bg:#edf1ee;--ink:#17242a;--muted:#566769;--line:#c9d4cf;--accent:#2d6cb0;--surface:#f8faf8;--bad:#a8322b}
+@media (prefers-color-scheme:dark){:root{--bg:#11191c;--ink:#e2e9e6;--muted:#94a5a4;--line:#32434a;--accent:#8fbbe3;--surface:#19242a;--bad:#f0938a;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;display:grid;place-items:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+main{width:100%;max-width:22rem}
+h1{font-family:"Songti TC","Noto Serif TC",serif;font-size:1.5rem;letter-spacing:.06em;margin:0 0 4px}
+#msg{color:var(--muted);margin:0 0 20px;min-height:1.7em}
+#msg.bad{color:var(--bad)}
+label{display:block;font-size:.875rem;color:var(--muted);margin-bottom:4px}
+input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:10px 12px}
+button{width:100%;font:inherit;font-weight:700;color:var(--bg);background:var(--accent);border:0;border-radius:3px;padding:11px 12px;margin-top:12px;cursor:pointer}
+button:disabled{opacity:.6}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{color:var(--muted);font-size:.8125rem;margin:20px 0 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>中醫方證資料庫</h1>
+  <p id="msg" role="status">載入中…</p>
+  <form id="f" hidden>
+    <label for="pw">密碼</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button id="go" type="submit">解鎖</button>
+  </form>
+  <p class="hint" id="hint" hidden>第一次開啟需要網路和密碼。解鎖一次之後，這台裝置會記住，沒有網路也能開。</p>
+</main>
+<script>
+(() => {   // 包起來，解鎖後換上 App 的內容時名稱才不會互相衝突
+const KEY = 'tcm-app-key-v1', ITER = 600000;
+const $ = id => document.getElementById(id);
+const say = (t, bad) => { $('msg').textContent = t; $('msg').className = bad ? 'bad' : ''; };
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+let blob = null;
+
+async function derive(pw, salt) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITER }, k, 512));
+}
+/* 檔案格式：'TCM1' + salt(16) + iv(16) + AES-256-CBC 密文 + HMAC-SHA256(32) */
+async function unlock(keys, remember) {
+  const body = blob.slice(0, blob.length - 32), tag = blob.slice(blob.length - 32);
+  const mk = await crypto.subtle.importKey('raw', keys.slice(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  if (!await crypto.subtle.verify('HMAC', mk, tag, body)) return false;
+  const ek = await crypto.subtle.importKey('raw', keys.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
+  const html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: body.slice(20, 36) }, ek, body.slice(36)));
+  if (remember) { try { localStorage.setItem(KEY, btoa(String.fromCharCode.apply(null, keys))); } catch (e) {} }
+  document.open(); document.write(html); document.close();
+  return true;
+}
+(async () => {
+  try {
+    const r = await fetch('data.enc', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    blob = new Uint8Array(await r.arrayBuffer());
+    if (String.fromCharCode.apply(null, blob.slice(0, 4)) !== 'TCM1') throw new Error('檔案格式不對');
+  } catch (e) {
+    say(navigator.onLine === false ? '現在沒有網路，而這台裝置還沒有開啟過。請先連上網路開一次。' : '載入失敗：' + e.message, true);
+    return;
+  }
+  let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved) {
+    try { if (await unlock(Uint8Array.from(atob(saved), c => c.charCodeAt(0)), false)) return; } catch (e) {}
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+  say('請輸入密碼。'); $('f').hidden = false; $('hint').hidden = false; $('pw').focus();
+})();
+$('f').addEventListener('submit', async e => {
+  e.preventDefault(); $('go').disabled = true; say('解鎖中…');
+  try {
+    if (await unlock(await derive($('pw').value, blob.slice(4, 20)), true)) return;
+    say('密碼不對，請再試一次。', true);
+  } catch (err) { say('解鎖失敗：' + err.message, true); }
+  $('go').disabled = false; $('pw').select();
+});
+})();
+</script>
+</body>
+</html>
