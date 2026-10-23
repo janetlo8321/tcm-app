@@ -278,3 +278,13 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
 }
 .bz-rh { justify-content: flex-start; }
 .bz-rh > span { margin-left: auto; }
+
+/* ---- 加一味藥：溫／寒涼／中性 分類（同藥物總表的分類檢索顏色） ---- */
+.bz-addrow .bz-cas { flex: 1; min-width: 0; }
+.bz-l1 .bz-sec { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px; font-size: 13px; font-weight: 700; color: var(--bz-muted); }
+.bz-l1 .bz-sec::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--bz-k); }
+.bz-l1 .bz-sec small { font-weight: 400; font-size: 12px; }
+.bz-l1 .bz-sec:not(:first-child) { margin-top: 4px; border-top: .5px solid var(--bz-line); padding-top: 10px; }
+.bz-l1 .or { --bz-k: #e3a650; } .bz-l1 .bl { --bz-k: #7db8de; } .bz-l1 .gy { --bz-k: #b9b9b9; }
+.bz-l1 li.or > button, .bz-l1 li.bl > button, .bz-l1 li.gy > button { border-left: 3px solid var(--bz-k); border-radius: 2px 8px 8px 2px; background: color-mix(in srgb, var(--bz-k) 14%, transparent); margin-bottom: 2px; }
+.bz-l1 li.or > button:hover, .bz-l1 li.bl > button:hover, .bz-l1 li.gy > button:hover, .bz-l1 li.or > button.on, .bz-l1 li.bl > button.on, .bz-l1 li.gy > button.on { background: var(--bz-acc); }

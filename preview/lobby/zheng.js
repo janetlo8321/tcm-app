@@ -248,7 +248,6 @@
     L.organLook.keep = r ? new Set(r.organs) : null;
     L.organLook.glow = r ? new THREE.Color(COLOR[cur]) : null;
     L.organLook.fade = cur ? (r && r.organs.length ? 0.3 : 0.6) : 1;
-    L.layers.skeleton.visible = !!(r && r.bones) || bonesBefore;
     if (r) {
       // 下方有清單，區域放在畫面上半部
       const tgt = wide() ? V3(r.p.x * 0.6, r.p.y, 0) : V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);   // 電腦：清單在左、報告單在右，人在中間
@@ -261,7 +260,7 @@
     drawList();
   }
 
-  let bonesBefore = false, organsBefore = false, merBefore = true, ptBefore = true;
+  let jjBefore = true, bonesBefore = false, organsBefore = false, merBefore = true, ptBefore = true;
   function setMode(v) {
     if (on === v) return;
     on = v;
@@ -272,7 +271,10 @@
       L.select(null);
       bonesBefore = L.layers.skeleton.visible;
       organsBefore = L.layers.organs.visible;
-      L.layers.organs.visible = true;   // 病證區域要看到臟腑
+      L.layers.organs.visible = false;   // 病證區域只看皮膚：不顯示臟腑、骨頭、腦
+      L.layers.skeleton.visible = false;
+      jjBefore = !!(L.layers.jingjin && L.layers.jingjin.visible);
+      if (L.layers.jingjin) L.layers.jingjin.visible = false;
       merBefore = view.showMeridians;
       ptBefore = view.showPoints;
       view.showMeridians = false; L.meridianGroup.visible = false;
@@ -290,6 +292,7 @@
       view.showPoints = ptBefore; L.pointsObj.visible = ptBefore;
       L.layers.skeleton.visible = bonesBefore;
       L.layers.organs.visible = organsBefore;
+      if (L.layers.jingjin) L.layers.jingjin.visible = jjBefore;
       L.organLook.keep = null; L.organLook.glow = null; L.organLook.fade = 1;
       hideReport();
       zfly = null;

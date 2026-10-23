@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 01:28';
+  const UPDATED = '10/24 01:33';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -950,8 +950,9 @@
       const dim = anySel && m.id !== selectedId ? 0.5 : 1;   // 選了一條經絡：其他經絡透明 50%
       const cu = m.coreMat.uniforms, hu = m.haloMat.uniforms;
       cu.uColor.value.copy(COL_IDLE).lerp(COL_LIT, g);
-      cu.uOpacity.value = (anySel && m.id !== selectedId ? 0.5 * 0.3 : (0.3 + 0.25 * zoomIn) * dim) * (1 - g) + 0.9 * g;
-      cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque) * (anySel && m.id !== selectedId ? 0.5 : 1);
+      // 藍綠色（沒選到）的經絡線再透明 50%
+      cu.uOpacity.value = 0.5 * (anySel && m.id !== selectedId ? 0.5 * 0.3 : (0.3 + 0.25 * zoomIn) * dim) * (1 - g) + 0.9 * g;
+      cu.uBack.value = (0.35 * (1 - g) * 0.5 + 0.55 * g) * (1 - view.opaque) * (anySel && m.id !== selectedId ? 0.5 : 1);
       cu.uTime.value = t;
       cu.uFlow.value = 0;
       cu.uRadius.value = 0.03 * (1 + 0.9 * g);

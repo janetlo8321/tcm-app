@@ -55,6 +55,7 @@
     ['骨骼', () => L.layers.skeleton.visible, v => { L.layers.skeleton.visible = v; }],
     ['臟腑', () => L.layers.organs.visible, v => { L.layers.organs.visible = v; }],
     ['顱面骨・咽喉', () => L.layers.face.visible, v => { L.layers.face.visible = v; }],
+    ['經筋（左半身）', () => !!(L.layers.jingjin && L.layers.jingjin.visible), v => { if (L.layers.jingjin) L.layers.jingjin.visible = v; }],
     ['經絡', () => view.showMeridians, v => { view.showMeridians = v; L.meridianGroup.visible = v; }],
     ['穴位', () => view.showPoints, v => { view.showPoints = v; L.pointsObj.visible = v; }],
     ['穴道名', () => view.showPointNames, v => { view.showPointNames = v; if (v && !view.showPoints) { view.showPoints = true; L.pointsObj.visible = true; } }],

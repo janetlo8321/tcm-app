@@ -206,6 +206,24 @@
   }
   function herbsOf(name) { const c = fxComp(name); return c ? c.hs.map(h => ({ n: h.n, id: h.id || null })) : []; }
   const herbId = n => { const h = typeof NB_HERB !== 'undefined' && NB_HERB[n]; return h ? h.id : null; };
+  // 加一味藥：照藥物總表的分類檢索，先分溫、寒涼、中性，再分類，第二層是這一類的藥
+  let HGC = null;
+  const herbName = g => (by[g] && by[g].name) || g;
+  function herbGroups() {
+    if (HGC) return HGC;
+    let cats = [];
+    try { cats = typeof sheetCats === 'function' ? sheetCats() : []; } catch (e) { cats = []; }
+    const kind = t => typeof XL_ORANGE !== 'undefined' && XL_ORANGE.has(t) ? ['溫', 'or'] : typeof XL_BLUE !== 'undefined' && XL_BLUE.has(t) ? ['寒涼', 'bl'] : ['中性', 'gy'];
+    const out = [];
+    ['溫', '寒涼', '中性'].forEach(k => cats.forEach(c => {
+      const [sec, cls] = kind(c.t);
+      if (sec !== k || !c.hs || !c.hs.length) return;
+      const seen = new Set(), items = [];
+      c.hs.forEach(x => { if (x.g && !seen.has(x.g)) { seen.add(x.g); items.push({ v: x.g, t: herbName(x.g) }); } });
+      if (items.length) out.push({ name: c.t, items, sec, cls });
+    }));
+    return (HGC = out);
+  }
   function allHerbNames() { return (DB.herbs || []).map(h => h.name).sort((a, b) => a.localeCompare(b, 'zh-Hant')); }
   function allFormulaNames(first) {
     const set = new Set(first);
@@ -243,7 +261,7 @@
     return `<div class="bz-cas" data-cas="${key}">
       <button type="button" class="bz-cas-btn" aria-haspopup="true" aria-expanded="false"><span>${E(label)}</span></button>
       <div class="bz-cas-pop" role="menu">
-        <ul class="bz-l1">${groups.map((g, i) => `<li><button type="button" data-g="${i}" class="${i === gi && val ? 'cur' : ''}">${E(g.name)}<small>${g.items.length}</small><i>›</i></button></li>`).join('')}
+        <ul class="bz-l1">${groups.map((g, i) => `${g.sec && (!i || groups[i - 1].sec !== g.sec) ? `<li class="bz-sec ${g.cls}">${E(g.sec)}<small>${groups.filter(x => x.sec === g.sec).length} 類</small></li>` : ''}<li${g.cls ? ` class="${g.cls}"` : ''}><button type="button" data-g="${i}" class="${i === gi && val ? 'cur' : ''}">${E(g.name)}<small>${g.items.length}</small><i>›</i></button></li>`).join('')}
           ${(direct || []).map(d => `<li><button type="button" class="bz-dir" data-pick="${E(d.v)}">${E(d.t)}</button></li>`).join('')}</ul>
         <div class="bz-l2" hidden></div>
       </div></div>`;
@@ -280,6 +298,14 @@
   }
   function pickCas(key, v) {
     const r = report;
+    if (key === 'herb') {
+      if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
+      r._t_herb = false;
+      const nm = herbName(v);
+      if (nm && !r.herbs.some(h => h.n === nm)) r.herbs.push({ n: nm, id: by[v] ? v : herbId(nm) });
+      keep(draw);
+      return;
+    }
     if (key === 'cc') { show(v, true); return; }
     if (key === 'fx') {
       if (v === OTHER) { r.fx = OTHER; r.herbs = []; keep(draw); focusLater('[data-v="fxOther"]'); return; }
@@ -301,6 +327,7 @@
     const { local } = allFormulaNames(curPat ? curPat.fx.map(f => f.name) : []);
     const fxTyped = r.fx === OTHER;
     const SX = uniq('sx').filter(v => !r.sx.includes(v));
+    const HG = herbGroups();
 
     root.innerHTML = `
       <div class="bz-top">
@@ -328,7 +355,8 @@
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
-            <div class="bz-addrow"><select data-f="herb">${opt('', '加一味藥…', true)}${allHerbNames().map(n => opt(n, n)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
+            <div class="bz-addrow">${HG.length ? cascade('herb', '加一味藥…', HG, null, null, [{ v: OTHER, t: '⊕ 其他（自訂）' }])
+              : `<select data-f="herb">${opt('', '加一味藥…', true)}${allHerbNames().map(n => opt(n, n)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>`}
               ${r._t_herb ? `<input type="text" data-add="herb" placeholder="輸入藥名後按 Enter">` : ''}</div></div>
           <div class="bz-fld wide"><span class="bz-lb">藥物加減</span>
             ${r.adj.map((v, i) => `<div class="bz-adj"><input type="text" data-adj="${i}" value="${E(v)}" placeholder="例如：痛甚加延胡索、川楝子"><button type="button" data-del="adj" data-i="${i}" aria-label="刪除這一列">×</button></div>`).join('')}
