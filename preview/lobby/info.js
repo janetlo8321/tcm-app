@@ -2,34 +2,38 @@
  * 經絡資訊介面（點兩下經絡）
  *   銅人 0.5 秒阻尼拉近成這條經的特寫（電腦：人在左；手機：人在上）
  *   右側（手機在下方）Liquid Glass 毛玻璃欄，內容由上而下每 0.3 秒依序出現
- *   目前放的是基本資料與《靈樞・經脈》循行；之後匯入的內容接在 EXTRA 裡
+ *   內容：標題旁穴數與流注時辰、五輸與特定穴表、講義的循行／病候／經筋／絡脈／經別／歌訣
  * ========================================================= */
 (() => {
   'use strict';
   const L = window.TCMLobby;
   if (!L) return;
   const { stage, camera, controls, byId, points: PT } = L;
+  let openId = null;
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const E = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // 經絡的基本資料（教科書通行說法）
-  const BASE = {
-    LU: { time: '寅時 3–5 點', pair: 'LI', el: '金', qx: '多氣少血' },
-    LI: { time: '卯時 5–7 點', pair: 'LU', el: '金', qx: '多氣多血' },
-    ST: { time: '辰時 7–9 點', pair: 'SP', el: '土', qx: '多氣多血' },
-    SP: { time: '巳時 9–11 點', pair: 'ST', el: '土', qx: '多氣少血' },
-    HT: { time: '午時 11–13 點', pair: 'SI', el: '火', qx: '多氣少血' },
-    SI: { time: '未時 13–15 點', pair: 'HT', el: '火', qx: '多血少氣' },
-    BL: { time: '申時 15–17 點', pair: 'KI', el: '水', qx: '多血少氣' },
-    KI: { time: '酉時 17–19 點', pair: 'BL', el: '水', qx: '多氣少血' },
-    PC: { time: '戌時 19–21 點', pair: 'SJ', el: '火（相火）', qx: '多血少氣' },
-    SJ: { time: '亥時 21–23 點', pair: 'PC', el: '火（相火）', qx: '多氣少血' },
-    GB: { time: '子時 23–1 點', pair: 'LR', el: '木', qx: '多氣少血' },
-    LR: { time: '丑時 1–3 點', pair: 'GB', el: '木', qx: '多血少氣' },
-    REN: { note: '陰脈之海' },
-    DU: { note: '陽脈之海' }
+  // 經絡循行時辰（子午流注）
+  const TIME = {
+    LU: '03:00~05:00',
+    LI: '05:00~07:00',
+    ST: '07:00~09:00',
+    SP: '09:00~11:00',
+    HT: '11:00~13:00',
+    SI: '13:00~15:00',
+    BL: '15:00~17:00',
+    KI: '17:00~19:00',
+    PC: '19:00~21:00',
+    SJ: '21:00~23:00',
+    GB: '23:00~01:00',
+    LR: '01:00~03:00'
   };
-  const EXTRA = {};   // 之後匯入的內容：{ LU: [{ h: '主治', list: [...] } 或 { h, p: '段落' }] }
+  const ALIAS = { REN: '陰脈之海', DU: '陽脈之海' };
+  // 十二經的經文與歌訣：model/jing.json（整理自使用者提供的《十二正經》講義：循行、病候、經筋、絡脈、經別、穴歌、五輸穴歌、原絡穴）
+  let JING = {};
+  fetch('model/jing.json').then(r => r.json()).then(d => { JING = d; if (openId) body.innerHTML = content(byId[openId]); }).catch(() => {});
+  const EXTRA = {};   // 之後再匯入的內容：{ LU: [{ h: '主治', list: [...] } 或 { h, p: '段落' }] }
+  const YIN = ['井木', '滎火', '輸土', '經金', '合水'], YANG = ['井金', '滎水', '輸木', '經火', '合土'];
 
   /* ---------- 介面 ---------- */
   const panel = document.createElement('aside');
@@ -39,34 +43,31 @@
   stage.appendChild(panel);
   const body = panel.querySelector('.ip-body');
 
+  // 經文：● 開頭的另起一行；「是動則病」「是主…所生病者」「其病」加粗
+  const para = t => E(t).split('●').map((x, i) => x ? `${i ? '<br>●' : ''}${x}` : '').join('')
+    .replace(/(是動則病|是主[^，、者]{1,2}所生病者|其病：?|其實|其病實)/g, '<b>$1</b>');
   function content(m) {
-    const b = BASE[m.id] || {};
     const pts = m.ptNames || [];
     const major = pts.filter(p => p.major).map(p => p.name);
-    const tour = (L.tour && L.tour.TOURS[m.id]) || [];
+    const j = JING[m.id];
     const items = [];
-    items.push(`<header class="ip-h"><small>${m.bilateral ? '十二正經' : '奇經八脈'}</small><h2>${E(m.name)}</h2></header>`);
-    const facts = [
-      ['穴數', `${pts.length} 穴${m.bilateral ? '（左右各一）' : ''}`],
-      pts.length ? ['起止', `${pts[0].name} → ${pts[pts.length - 1].name}`] : null,
-      b.time ? ['流注', b.time] : null,
-      b.pair ? ['表裡', byId[b.pair] ? byId[b.pair].name : b.pair] : null,
-      b.el ? ['五行', b.el] : null,
-      b.qx ? ['氣血', b.qx] : null,
-      b.note ? ['別稱', b.note] : null
-    ].filter(Boolean);
-    items.push(`<dl class="ip-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${E(v)}</dd></div>`).join('')}</dl>`);
+    items.push(`<header class="ip-h"><small>${m.bilateral ? '十二正經' : '奇經八脈'}</small><h2>${E(m.name)}<span class="ip-n">${pts.length}穴</span>${TIME[m.id] ? `<span class="ip-n">${TIME[m.id]}</span>` : ''}</h2>${ALIAS[m.id] ? `<p class="ip-alias">${ALIAS[m.id]}</p>` : ''}</header>`);
+    if (j) {
+      const yang = !!j.te[5], kinds = yang ? YANG : YIN;
+      const te = ['募', '背俞', '原', '絡', '郄'].concat(yang ? ['下合'] : []);
+      items.push(`<table class="ip-tb"><tr>${kinds.map(k => `<th>${k}</th>`).join('')}${yang ? '<th></th>' : ''}</tr><tr>${j.shu.map(n => `<td>${E(n)}</td>`).join('')}${yang ? '<td></td>' : ''}</tr>` +
+        `<tr>${te.map(k => `<th>${k}</th>`).join('')}</tr><tr>${j.te.map(n => `<td>${E(n)}</td>`).join('')}</tr></table>`);
+    }
     if (major.length) items.push(`<section><h3>常用穴</h3><div class="ip-chips">${major.map(n => `<span>${E(n)}</span>`).join('')}</div></section>`);
-    if (tour.length) items.push(`<section><h3>循行<small>《靈樞・經脈》</small></h3><ol class="ip-ol">${tour.map(s => `<li>${E(s.t)}</li>`).join('')}</ol></section>`);
-    items.push(`<section><h3>全部穴位</h3><p class="ip-p">${pts.map(p => E(p.name)).join('、')}</p></section>`);
+    if (j) j.secs.forEach(x => items.push(`<section class="ip-sec${/歌/.test(x.h) ? ' song' : ''}"><h3>${E(x.h)}</h3>${/歌/.test(x.h) ? `<p class="ip-p ip-verse">${(x.p.join('').match(/.{1,7}/g) || []).map(l => `<span>${E(l)}</span>`).join('')}</p>` : x.p.map(t => `<p class="ip-p">${para(t)}</p>`).join('')}</section>`));
+    else items.push(`<section><h3>全部穴位</h3><p class="ip-p">${pts.map(p => E(p.name)).join('、')}</p></section>`);
     (EXTRA[m.id] || []).forEach(x => items.push(`<section><h3>${E(x.h)}</h3>${x.list ? `<ul class="ip-ul">${x.list.map(v => `<li>${E(v)}</li>`).join('')}</ul>` : `<p class="ip-p">${E(x.p)}</p>`}</section>`));
-    if (!EXTRA[m.id]) items.push(`<section class="ip-todo"><h3>主治・病候</h3><p class="ip-p">待匯入</p></section>`);
     return items.map((h, i) => `<div class="ip-it" style="animation-delay:${(0.15 + i * 0.3).toFixed(2)}s">${h}</div>`).join('');
   }
 
   /* ---------- 鏡頭：0.5 秒阻尼拉近 ---------- */
   const wide = () => stage.clientWidth > stage.clientHeight;
-  let anim = null, back = null, openId = null;
+  let anim = null, back = null;
   const _s0 = new THREE.Spherical(), _s1 = new THREE.Spherical(), _o = new THREE.Vector3();
   function flyTo(tgt, pos, ms) {
     anim = {

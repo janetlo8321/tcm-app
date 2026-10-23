@@ -2,7 +2,9 @@
  * 病證區域（左上角小人）
  *   點小人 → 同一個人身上出現各「證」系統的區域
  *   點區域 → 鏡頭移過去、相關臟腑亮起，下方列出這一系的病
- *   點病名 → 進入資料庫，直接打開那一個病證的八綱辨證
+ *   點病名 → 右側毛玻璃欄出現辨證報告單（資料庫已解鎖時，各欄是資料庫的下拉選單；
+ *            還沒解鎖時先給空白模板，可以自己打字；按「›」進資料庫看完整的）
+ *   電腦：病名清單在人的左邊、報告單在右邊；手機：清單在下方，點病名後報告單從下方升起
  *   分類照資料庫「病證」的系統；氣血津液、血液、內分泌、小兒、癌症、其他屬全身，放在下方
  *   病名清單：model/zz.json（tools/zz.py 由 tcm-notes 病證.json 產生）
  * ========================================================= */
@@ -58,6 +60,13 @@
   sheet.innerHTML = '<header class="zz-bar"><span>病證區域<small>點身上的區域或系統</small></span><button type="button" aria-label="離開病證區域">✕</button></header>' +
     '<nav class="zz-sys" aria-label="病證系統"></nav><div class="zz-list" role="list"></div>';
   stage.appendChild(sheet);
+  const repEl = document.createElement('aside');
+  repEl.className = 'zz-rep';
+  repEl.setAttribute('aria-label', '辨證報告單');
+  repEl.innerHTML = '<button type="button" class="zz-rep-back">‹ 病名清單</button><div class="zz-rep-body"></div>';
+  stage.appendChild(repEl);
+  const repBody = repEl.querySelector('.zz-rep-body');
+  repEl.querySelector('.zz-rep-back').addEventListener('click', () => repEl.classList.remove('show'));
   const bar = sheet.querySelector('.zz-bar');
   const sysEl = sheet.querySelector('.zz-sys'), listEl = sheet.querySelector('.zz-list');
 
@@ -146,20 +155,83 @@
       b.className = 'zz-dz';
       b.setAttribute('role', 'listitem');
       b.textContent = d.name;
+      b.dataset.id = d.id;
+      if (d.id === repId) b.classList.add('active');
       b.addEventListener('click', () => openDisease(d.id));
       listEl.appendChild(b);
     });
     listEl.scrollTop = 0;
   }
-  function openDisease(id) {
-    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go: id, bz: true }, '*');   // 進入資料庫後直接打開八綱辨證
-    else location.href = '../#' + encodeURIComponent(id);
+  /* ---------- 右側報告單 ---------- */
+  // 資料庫解鎖、進去過一次之後，外層就是資料庫本身（同網域），可以直接借它的八綱辨證
+  const app = () => { try { const P = window.parent; return P !== window && P.TCMBZ && P.TCMBZ.mount ? P.TCMBZ : null; } catch (e) { return null; } };
+  let repId = null;
+  const today = () => { const d = new Date(); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
+  const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function nameOf(id) {
+    for (const sy of (DATA ? DATA.systems : [])) { const d = sy.diseases.find(x => x.id === id); if (d) return d.name; }
+    return '';
   }
-
+  function template(id) {   // 還沒解鎖：同樣的報告單，每一欄自己打字
+    const f = (lb, ph, v, cls) => `<label class="bz-fld${cls ? ' ' + cls : ''}"><span class="bz-lb">${lb}</span><input type="text" value="${esc(v)}" placeholder="${ph}"></label>`;
+    return `<div id="bz" class="bz-embed"><div class="bz-body"><div class="bz-rep">
+      <div class="bz-rh"><button type="button" class="bz-go" data-zgo aria-label="進入資料庫" title="進入資料庫">›</button>
+        <label class="bz-name">姓名<input type="text" placeholder="輸入" autocomplete="off"></label><span>${today()}</span></div>
+      <p class="zz-lock">資料庫解鎖後，各欄會有資料庫的下拉選單；現在可以先自己輸入</p>
+      <div class="bz-form">
+        ${f('主訴', '輸入', id ? nameOf(id) : '')}${f('伴隨症狀', '輸入')}
+        ${f('舌象', '輸入')}${f('脈象', '輸入')}
+        <div class="bz-fld"><span class="bz-lb">證型</span><div class="bz-bgs"><span class="bz-bg2"><button type="button">陰</button><button type="button">陽</button></span><span class="bz-bg2"><button type="button">虛</button><button type="button">實</button></span></div></div>
+        ${f('處方', '輸入')}
+        ${f('藥物', '輸入', '', 'wide')}
+        <div class="bz-fld wide"><span class="bz-lb">藥物加減</span><div class="zz-adj"></div><button type="button" class="bz-plus" data-zadj>⊕ 加一列</button></div>
+      </div>
+      <label class="bz-note">醫囑 / 備註<textarea rows="3" placeholder="輸入"></textarea></label>
+      <div class="bz-acts"><button type="button" data-zprint>列印</button><button type="button" data-zclear>清空</button></div>
+    </div></div></div>`;
+  }
+  repBody.addEventListener('click', e => {
+    const t = e.target;
+    if (t.closest('[data-zgo]')) { enterDb(repId); return; }
+    const bg = t.closest('.bz-bg2 button');
+    if (bg) { const on = bg.classList.contains('on'); bg.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on')); bg.classList.toggle('on', !on); return; }
+    if (t.closest('[data-zadj]')) { const d = document.createElement('div'); d.className = 'bz-adj'; d.innerHTML = '<input type="text" placeholder="例如：痛甚加延胡索、川楝子"><button type="button" aria-label="刪除這一列">×</button>'; repBody.querySelector('.zz-adj').appendChild(d); d.querySelector('input').focus(); return; }
+    if (t.closest('.bz-adj button')) { t.closest('.bz-adj').remove(); return; }
+    if (t.closest('[data-zprint]')) { window.print(); return; }
+    if (t.closest('[data-zclear]')) showReport(repId, true);
+  });
+  function showReport(id, blank) {
+    repId = id;
+    const A = app();
+    if (A && id && !blank) repBody.innerHTML = '';   // 換掉空白模板
+    if (A && id && !blank && A.mount(repBody, id, enterDb)) { repBody.classList.add('live'); }
+    else {
+      if (A) { A.unmount(); A.close(); }
+      repBody.classList.remove('live');
+      repBody.innerHTML = template(id);
+    }
+    repBody.scrollTop = 0;
+    if (id) repEl.classList.add('show');
+  }
+  function hideReport() {
+    const A = app();
+    if (A && repBody.classList.contains('live')) { A.unmount(); A.close(); }
+    repBody.classList.remove('live');
+    repEl.classList.remove('show');
+    repId = null;
+  }
+  function enterDb(id) {   // 進入資料庫，直接打開那一個病證的八綱辨證
+    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go: id || null, bz: !!id }, '*');
+    else location.href = '../' + (id ? '#' + encodeURIComponent(id) : '');
+  }
+  function openDisease(id) {
+    listEl.querySelectorAll('.zz-dz').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+    showReport(id);
+  }
   /* ---------- 選一系：鏡頭移過去，相關臟腑亮起 ---------- */
   // 鏡頭沿著球面繞過去（不會穿過身體），依時間平滑
   let zfly = null, lastT = 0;
-  const wide = () => stage.clientWidth > stage.clientHeight;   // 電腦 16:9：清單在右側，不用把人往上推
+  const wide = () => stage.clientWidth > stage.clientHeight;   // 電腦 16:9：兩側是清單與報告單，不用把人往上推
   const HOME_T = V3(0, -1.6, 0), HOME_P = V3(0, -0.9, 33), HOME_TW = V3(0, -0.3, 0), HOME_PW = V3(0, 0.4, 33);
   const _s0 = new THREE.Spherical(), _s1 = new THREE.Spherical(), _off = new THREE.Vector3();
   function flyTo(tgt, pos) {
@@ -179,7 +251,7 @@
     L.layers.skeleton.visible = !!(r && r.bones) || bonesBefore;
     if (r) {
       // 下方有清單，區域放在畫面上半部
-      const tgt = wide() ? V3(r.p.x * 0.6 + r.dist * 0.22, r.p.y, 0) : V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);
+      const tgt = wide() ? V3(r.p.x * 0.6, r.p.y, 0) : V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);   // 電腦：清單在左、報告單在右，人在中間
       const dir = r.side ? V3(0.9, 0.05, 0.75) : V3(r.p.x > 1.5 ? 0.45 : 0.15, 0.05, 1);
       flyTo(tgt, tgt.clone().addScaledVector(dir.normalize(), r.dist));
     } else {
@@ -210,6 +282,7 @@
       sysEl.querySelectorAll('.zz-chip.active').forEach(b => b.classList.remove('active'));
       Object.values(pinEls).forEach(b => b.classList.remove('active'));
       drawList();
+      showReport(null);
       controls.autoRotate = false;
       wide() ? flyTo(HOME_TW, HOME_PW) : flyTo(HOME_T, HOME_P);
     } else {
@@ -218,6 +291,7 @@
       L.layers.skeleton.visible = bonesBefore;
       L.layers.organs.visible = organsBefore;
       L.organLook.keep = null; L.organLook.glow = null; L.organLook.fade = 1;
+      hideReport();
       zfly = null;
       L.reset();
     }

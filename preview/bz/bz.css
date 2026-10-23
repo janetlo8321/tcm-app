@@ -235,3 +235,46 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
 }
 /* 第二欄的處方選單往左展開，免得超出畫面 */
 @media (min-width: 701px) { .bz-form > .bz-fld:nth-child(even) .bz-cas-pop { left: auto; right: 0; flex-direction: row-reverse; } .bz-form > .bz-fld:nth-child(even) .bz-l2 { margin: 0 6px 0 0; } }
+
+/* ---- 報告單抬頭：› ｜姓名｜日期，都在黑線上 ---- */
+.bz-rh { align-items: flex-end; gap: 12px; }
+.bz-rh .bz-name { flex: 1; max-width: 320px; margin: 0; }
+.bz-rh > span { flex: none; padding-bottom: 12px; }
+.bz-go { flex: none; align-self: center; width: 36px; height: 36px; display: grid; place-items: center; padding: 0 0 3px 2px; border-radius: 50%; border: 1.5px solid var(--bz-rep-ink); background: none; color: var(--bz-rep-ink); font-size: 24px; line-height: 1; cursor: pointer; }
+.bz-go:hover { background: var(--bz-rep-ink); color: var(--bz-card); }
+
+/* ---- 嵌在大廳病證區域的右側毛玻璃欄 ---- */
+#bz.bz-embed {
+  position: relative; inset: auto; z-index: auto; height: 100%;
+  background: transparent; color: #eef3f1; container-type: inline-size;
+  --bz-card: rgba(28, 30, 32, .96); --bz-ink: #eef3f1; --bz-muted: rgba(255, 255, 255, .58); --bz-line: rgba(255, 255, 255, .14);
+  --bz-acc: #8fd3c0; --bz-herb: #8fe0b0; --bz-herb-soft: rgba(143, 224, 176, .14);
+  --bz-s-soft: rgba(255, 255, 255, .08); --bz-s: #e7e5e4;
+  --bz-rep-ink: #eef3f1; --bz-rep-fill: rgba(255, 255, 255, .07); --bz-rep-mark: #3f8f74;
+  font-size: 15px;
+}
+#bz.bz-embed .bz-top { display: none; }
+#bz.bz-embed .bz-body { max-width: none; padding: 0; }
+#bz.bz-embed .bz-body > .bz-rep { margin: 0; }
+#bz.bz-embed .bz-rep { background: transparent; border: 0; border-radius: 0; padding: 16px 16px 18px; }
+#bz.bz-embed .bz-rh { border-bottom-color: rgba(255, 255, 255, .75); }
+#bz.bz-embed .bz-rep select, #bz.bz-embed .bz-rep input, #bz.bz-embed .bz-rep textarea, #bz.bz-embed .bz-cas-btn { font-size: 15px; min-height: 40px; padding-top: 7px; padding-bottom: 7px; }
+#bz.bz-embed .bz-rep select option { color: #111; }
+#bz.bz-embed .bz-acts button { background: rgba(255, 255, 255, .1); }
+#bz.bz-embed .bz-ref, #bz.bz-embed .bz-none { display: none; }
+@container (max-width: 400px) {
+  #bz.bz-embed .bz-form { gap: 12px 8px; }
+  #bz.bz-embed .bz-cas-pop { right: 0; }
+  #bz.bz-embed .bz-l1, #bz.bz-embed .bz-l2 { width: 100%; min-width: 0; }
+  #bz.bz-embed .bz-l2 { margin-left: 0; }
+  #bz.bz-embed .bz-cas.l2on .bz-l1 { display: none; }
+  #bz.bz-embed .bz-l2-back { display: flex !important; color: var(--bz-acc) !important; font-weight: 600; }
+  #bz.bz-embed .bz-form > .bz-fld:nth-child(even) .bz-cas-pop { left: auto; right: 0; flex-direction: column; }
+  #bz.bz-embed .bz-form > .bz-fld:nth-child(even) .bz-l2 { margin: 0; }
+  #bz.bz-embed .bz-cas-pop { width: max(100%, 200px); }
+  #bz.bz-embed .bz-bgs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #bz.bz-embed .bz-bg2 { display: flex; }
+  #bz.bz-embed .bz-bg2 button { flex: 1; min-width: 0; padding: 0 4px; }
+}
+.bz-rh { justify-content: flex-start; }
+.bz-rh > span { margin-left: auto; }

@@ -3,6 +3,7 @@
  *   主訴（病證）→ 八綱（陰陽、表裡、寒熱、虛實）→ 舌象 → 脈象 → 症狀
  *   → 依符合程度排出證型卡（舌、脈、症、病機、治法、方、組成）
  *   → 辨證結果報告單：欄位可用資料庫內容下拉選，處方可選「其他」自訂，並列出組成
+ *   也可以嵌進大廳病證區域右側的毛玻璃欄（TCMBZ.mount）
  * 資料全部取自解鎖後的資料庫（病證表、方劑、藥物），這支程式本身不含任何內容。
  * 由預覽版外殼在解鎖後載入；用到資料庫裡的 zzDiseases、nbGrid、nbRoles、nbScan、compOf、go 等。
  * ========================================================= */
@@ -131,7 +132,8 @@
 
   let cur = null, pats = [], report = null;
 
-  function open(id, keepFields) {
+  let host = null, onGo = null;   // 嵌在大廳右側的毛玻璃欄時：host = 大廳裡的容器
+  function show(id, keepFields) {
     const o = typeof by !== 'undefined' && by[id];
     if (!o || o.kind !== 'zd') return false;
     cur = o; pats = patterns(o);
@@ -139,10 +141,36 @@
     report = blankReport();
     if (keepFields && old) report.name = old.name;
     root.hidden = false;
-    document.documentElement.classList.add('bz-open');
+    if (!host) document.documentElement.classList.add('bz-open');
     draw();
     root.scrollTop = 0;
     return true;
+  }
+  function unmount() {
+    if (!host) return;
+    host = null; onGo = null;
+    root.classList.remove('bz-embed');
+    document.body.appendChild(root);
+  }
+  function open(id, keepFields) {   // 資料庫裡的全螢幕頁
+    const fromLobby = host && cur && cur.id === id;
+    unmount();
+    if (fromLobby) {   // 從大廳的報告單按「›」進來：已經填的內容接著用
+      root.hidden = false;
+      document.documentElement.classList.add('bz-open');
+      draw();
+      root.scrollTop = 0;
+      return true;
+    }
+    return show(id, keepFields);
+  }
+  // 大廳（同網域的 iframe）把報告單放進自己的欄位；go(id) = 按「›」時大廳要做的事
+  function mount(container, id, go) {
+    if (!by[id]) return false;
+    host = container; onGo = go || null;
+    root.classList.add('bz-embed');
+    container.appendChild(root);
+    return show(id, true);
   }
   function close() {
     root.hidden = true;
@@ -252,7 +280,7 @@
   }
   function pickCas(key, v) {
     const r = report;
-    if (key === 'cc') { open(v, true); return; }
+    if (key === 'cc') { show(v, true); return; }
     if (key === 'fx') {
       if (v === OTHER) { r.fx = OTHER; r.herbs = []; keep(draw); focusLater('[data-v="fxOther"]'); return; }
       r.fx = v; r.herbs = herbsOf(v);
@@ -282,8 +310,8 @@
       </div>
       <div class="bz-body">
       <div class="bz-rep" id="bzRep">
-        <div class="bz-rh"><b>辨證結果報告單</b><span>${today()}</span></div>
-        <label class="bz-name">姓名<input type="text" data-v="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label>
+        <div class="bz-rh"><button type="button" class="bz-go" data-bz="go" aria-label="${host ? '在資料庫裡打開' : '看原表格'}" title="${host ? '在資料庫裡打開' : '看原表格'}">›</button>
+          <label class="bz-name">姓名<input type="text" data-v="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label><span>${today()}</span></div>
         <div class="bz-form">
           <div class="bz-fld"><span class="bz-lb">主訴</span>${cascade('cc', o.name, Object.entries(sysGroups).map(([sy, ds]) => ({ name: sy, items: ds.map(d => ({ v: d.id, t: d.name })) })), o.sys, o.id)}</div>
           <div class="bz-fld"><span class="bz-lb">伴隨症狀</span>
@@ -294,8 +322,7 @@
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
           <div class="bz-fld"><span class="bz-lb">證型</span>
             <div class="bz-bgs">${AX.filter(a => a.k === 'yy' || a.k === 'xs').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
-            <select data-f="pat">${opt('', pats.length ? (anyCrit ? '請選擇（依符合程度排序）' : '請選擇') : '這個病沒有整理好的證型，可自訂', !r.pat)}${patNames.map(n => opt(n, patLabel(n), n === r.pat)).join('')}${opt(OTHER, '⊕ 其他（自訂）', typedPat || !!r._t_pat)}</select>
-            ${typedPat || r._t_pat ? `<input type="text" data-t="pat" value="${E(typedPat ? r.pat : '')}" placeholder="自己輸入證型">` : ''}</div>
+</div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
             ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxGroups(local, curPat), fxTyped ? '' : null, r.fx, [{ v: OTHER, t: '⊕ 自定義處方' }])}
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
@@ -338,7 +365,8 @@
       const gb = t.closest('[data-g]');
       if (gb) { showL2(cas, +gb.dataset.g); return; }
       if (t.closest('[data-l2back]')) { cas.classList.remove('l2on'); cas.querySelector('.bz-l2').hidden = true; return; }
-      if (t.closest('.bz-cas-btn')) { const on = !cas.classList.contains('open'); closeCas(cas); cas.classList.toggle('open', on); t.closest('.bz-cas-btn').setAttribute('aria-expanded', String(on)); return; }
+      if (t.closest('.bz-cas-btn')) { if (cas.classList.contains('open') && Date.now() - (+cas.dataset.hov || 0) < 800) return;   // 滑鼠碰到時已經展開：這一下不要又把它關掉
+        const on = !cas.classList.contains('open'); closeCas(cas); cas.classList.toggle('open', on); t.closest('.bz-cas-btn').setAttribute('aria-expanded', String(on)); return; }
       return;
     }
     closeCas();
@@ -347,8 +375,9 @@
     const b = t.closest('[data-bz]');
     if (b) {
       const k = b.dataset.bz;
-      if (k === 'close') close();
-      else if (k === 'print') window.print();
+      if (k === 'go') { if (host) { if (onGo) onGo(cur.id); } else { close(); go(cur.id); } }
+      else if (k === 'close') close();
+      else if (k === 'print') (root.ownerDocument.defaultView || window).print();
       else if (k === 'clear') { report = blankReport(); keep(draw); }
       else if (k === 'adj') { report.adj.push(''); keep(draw); focusLater(`[data-adj="${report.adj.length - 1}"]`); }
       return;
@@ -365,14 +394,15 @@
       keep(draw);
     }
   });
+  const narrow = () => host ? root.clientWidth <= 400 : window.innerWidth <= 700;
   // 滑鼠：碰到就展開，滑過第一層就出現第二層
   root.addEventListener('pointerover', e => {
     if (e.pointerType !== 'mouse') return;
     const cas = e.target.closest('.bz-cas');
     if (!cas) return;
-    if (!cas.classList.contains('open')) { closeCas(cas); cas.classList.add('open'); cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true'); }
+    if (!cas.classList.contains('open')) { closeCas(cas); cas.classList.add('open'); cas.dataset.hov = Date.now(); cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true'); }
     const gb = e.target.closest('[data-g]');
-    if (gb && !gb.classList.contains('on')) showL2(cas, +gb.dataset.g);
+    if (gb && !gb.classList.contains('on') && !narrow()) showL2(cas, +gb.dataset.g);   // 窄的時候第二層會蓋掉第一層，要點才換
   });
   root.addEventListener('pointerout', e => {
     if (e.pointerType !== 'mouse') return;
@@ -382,7 +412,7 @@
   root.addEventListener('change', e => {
     const t = e.target, k = t.dataset.f, r = report;
     if (!k) return;
-    if (k === 'cc') { open(t.value, true); return; }
+    if (k === 'cc') { show(t.value, true); return; }
     if (t.value === OTHER) {   // 其他（自訂）：出現輸入框
       r['_t_' + k] = true;
       if (k === 'fx') { r.fx = OTHER; r.herbs = []; }
@@ -449,7 +479,7 @@
     el.querySelector('i').style.left = (50 + report.ax[k] * 46).toFixed(1) + '%';
     e.preventDefault();
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !root.hidden) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !root.hidden && !host) close(); });
 
   /* ---------- 資料庫病證頁加入口 ---------- */
   function addEntry() {
@@ -469,5 +499,5 @@
   const entryEl = document.getElementById('entry');
   if (entryEl) { new MutationObserver(addEntry).observe(entryEl, { childList: true }); addEntry(); }
 
-  window.TCMBZ = { open, close, patterns: id => patterns(by[id]) };
+  window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();
