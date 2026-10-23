@@ -21,7 +21,13 @@
   const skeleton = new THREE.Group();
   skeleton.name = 'skeleton';
   const boneMat = c => new THREE.MeshPhongMaterial({ color: c, specular: 0x2a2620, shininess: 18 });
-  meshesOf(['bone', 'teeth', 'cart'], m => boneMat(m.color)).forEach(o => skeleton.add(o));
+  meshesOf(['bone', 'cart'], m => boneMat(m.color)).forEach(o => skeleton.add(o));
+
+  /* ---------- 顱面骨、咽喉（常駐顯示，不跟骨骼一起隱藏） ---------- */
+  const face = new THREE.Group();
+  face.name = 'face';
+  meshesOf(['skull', 'teeth'], m => boneMat(m.color)).forEach(o => face.add(o));
+  meshesOf(['gum', 'larynx', 'pharynx', 'tongue'], m => new THREE.MeshPhongMaterial({ color: m.color, specular: 0x3a2622, shininess: 30 })).forEach(o => face.add(o));
 
   /* ---------- 臟腑 ---------- */
   const organs = new THREE.Group();
@@ -76,16 +82,16 @@
       color: m.color, roughness: 0.55, metalness: 0, envMap, envMapIntensity: 0.32,
       clearcoat: 0.25, clearcoatRoughness: 0.45,
       emissive: new THREE.Color(m.color).multiplyScalar(0.06),
-      transparent: zh === '肺', opacity: zh === '肺' ? 0.86 : 1
+      transparent: zh === '肺', opacity: zh === '肺' ? 0.38 : 1, depthWrite: zh !== '肺'
     })));
     ORGAN[zh].forEach(o => { o.name = zh; organs.add(o); });
   });
   ORGAN.心包 = ORGAN.心;
 
   // 臟腑、骨骼都在皮膚深度遮擋之前畫（才不會被透明皮膚擋掉）
-  [skeleton, organs].forEach(g => g.traverse(o => { if (o.isMesh) o.renderOrder = o.material.transparent ? 0.5 : 0; }));
+  [skeleton, organs, face].forEach(g => g.traverse(o => { if (o.isMesh) o.renderOrder = o.material.transparent ? 0.5 : 0; }));
   skeleton.visible = false;   // 骨骼預設隱藏，圖層裡點選才出現
-  scene.add(skeleton, organs);
+  scene.add(skeleton, organs, face);
 
   /* ---------- 骨度分寸尺 ---------- */
   const rulers = new THREE.Group();
@@ -162,6 +168,6 @@
   RULERS.forEach(r => (r.both ? [1, -1] : [1]).forEach(s => buildRuler(r, s)));
   scene.add(rulers);
 
-  L.layers = { skeleton, organs, rulers };
+  L.layers = { skeleton, organs, face, rulers };
   L.organs = ORGAN;
 })();

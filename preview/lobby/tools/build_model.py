@@ -65,13 +65,20 @@ add('ear','耳','skin',0xd9a184, nm('External ear'), 0.7)
 add('eye','眼','skin',0xf2efe8, nm('Left sclera','Right sclera'), 0.2)
 add('iris','眼','skin',0x4a3426, nm('Left iris','Right iris'), 0.6)
 CART = r'cartilage|Gingiva|meniscus|dis[ck]'
-add('bone','骨骼','skeleton',0xe6dfcf, lambda p: p['system']=='skeletal' and not re.search(CART+r'|tooth|Tooth|fibularis|tibialis|iliotibial|levator|subscapularis', p['name'], re.I), 0.26)
-add('teeth','牙齒','skeleton',0xf3eee2, lambda p: p['system']=='skeletal' and re.search(r'tooth',p['name'],re.I), 0.3)
-add('cart','軟骨','skeleton',0xc9d0cf, lambda p: p['system']=='skeletal' and re.search(CART,p['name'],re.I) and 'Gingiva' not in p['name'], 0.4)
+SKULL = r'Frontal bone|Occipital bone|parietal bone|temporal bone|zygomatic bone|maxilla|nasal bone|palatine bone|lacrimal bone|Sphenoid|Ethmoid|Vomer|Mandible|nasal concha'
+add('skull','顱面骨','face',0xece5d6, lambda p: re.search(SKULL, p['name'], re.I) is not None and p['system'] in ('skeletal','respiratory','sensory'), 0.45)
+add('bone','骨骼','skeleton',0xe6dfcf, lambda p: p['system']=='skeletal' and not re.search(CART+r'|tooth|Tooth|fibularis|tibialis|iliotibial|levator|subscapularis|'+SKULL, p['name'], re.I), 0.26)
+add('teeth','牙齒','face',0xf3eee2, lambda p: p['system']=='skeletal' and re.search(r'tooth',p['name'],re.I), 0.3)
+THROAT_C = r'Thyroid cartilage|Cricoid|arytenoid cartilage|corniculate|cuneiform cartilage|Epiglottis|Hyoid'
+add('cart','軟骨','skeleton',0xc9d0cf, lambda p: p['system']=='skeletal' and re.search(CART,p['name'],re.I) and 'Gingiva' not in p['name'] and not re.search(THROAT_C,p['name']), 0.4)
+add('gum','牙齦','face',0xc9787a, rx(r'Gingiva'), 0.6)
+add('larynx','喉','face',0xe8d4c0, lambda p: re.search(THROAT_C, p['name']) is not None, 0.6)
+add('pharynx','咽','face',0xc9827a, lambda p: re.search(r'pharyngeal constrictor|palatopharyngeus|salpingopharyngeus|stylopharyngeus|Pharyngeal raphe', p['name']) is not None, 0.35)
+add('tongue','舌','face',0xc76f6e, nm('Tongue'), 1.0)
 
 # 臟腑（key 對應十二經的臟腑）
-add('lung','肺','organs',0xd29aa0, vf=hull_organ(['right lung'],0.10)) ; GROUPS[-1]=('lungR',)+GROUPS[-1][1:]
-add('lung','肺','organs',0xd29aa0, vf=hull_organ(['left lung'],0.10)) ; GROUPS[-1]=('lungL',)+GROUPS[-1][1:]
+add('lung','肺','organs',0xe8b4bc, vf=hull_organ(['right lung'],0.10)) ; GROUPS[-1]=('lungR',)+GROUPS[-1][1:]
+add('lung','肺','organs',0xe8b4bc, vf=hull_organ(['left lung'],0.10)) ; GROUPS[-1]=('lungL',)+GROUPS[-1][1:]
 add('trachea','氣管','organs',0xe2cbb6, nm('Trachea','Left main bronchus','Right main bronchus proper'), 0.6)
 add('heart','心','organs',0xa9483f, lambda p: p['system']=='cardiac' and re.search(r'^Wall of',p['name']), 0.6)
 add('liver','肝','organs',0x8a3f44, vf=hull_organ(['liver'],0.12))

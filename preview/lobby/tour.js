@@ -244,11 +244,11 @@
     uniform float uProg; uniform float uTotal; uniform float uTime; uniform float uOpaque;
     varying float vU; varying float vKind; varying float vEdge;
     void main() {
-      // 一條連續的橘線：體表較深，入臟腑的體內段稍淡
-      vec3 ext = vec3(0.95, 0.42, 0.16);
-      vec3 inn = vec3(1.0, 0.62, 0.3);
+      // 體表：橘色；進入深層（臟腑）：深橘色，方便區分
+      vec3 ext = vec3(0.98, 0.5, 0.2);
+      vec3 inn = vec3(0.72, 0.2, 0.04);
       vec3 col = mix(inn, ext, vKind);
-      float a = mix(0.8 * (1.0 - 0.5 * uOpaque), 0.92, vKind) * (0.55 + 0.45 * vEdge);
+      float a = mix(0.95 * (1.0 - 0.4 * uOpaque), 0.92, vKind) * (0.55 + 0.45 * vEdge);
       gl_FragColor = vec4(col, a);
     }`;
 
