@@ -87,7 +87,11 @@
     }));
     const seen = new Set();
     const uniqOut = out.filter(p => { const k = [p.name, p.src, p.fx.map(f => f.name).join('+'), p.tongue.join('/')].join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
-    uniqOut.forEach((p, i) => { p.i = i; p.ax = bagang(p); });
+    uniqOut.forEach((p, i) => {
+      p.i = i; p.ax = bagang(p);
+      p.tongue = [...new Set(p.tongue.map(v => v.replace(/^舌苔/, '苔')))];
+      p.pulse = [...new Set(p.pulse.map(v => v.replace(/脈象?/g, '').replace(/^[：:，,\s]+/, '')).filter(Boolean))];   // 下拉不要「脈」字
+    });
     return (cache[o.id] = uniqOut);
   }
 
@@ -183,7 +187,15 @@
   function blankReport() {
     return { name: '', sx: [], tongue: '', pulse: '', pat: '', bg: {}, fx: '', fxOther: '', herbs: [], adj: [], note: '', ax: { yy: 0, xs: 0, hr: 0, bl: 0 } };
   }
-  const uniq = k => { const m = new Map(); pats.forEach(p => p[k].forEach(v => m.set(v, (m.get(v) || 0) + 1))); return [...m.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]); };
+  const uniq = k => { const m = new Map(); pats.forEach(p => p[k].forEach(v => m.set(v, (m.get(v) || 0) + 1))); const list = [...m.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]); return k === 'tongue' ? list.map((v, i) => [tongueRank(v), i, v]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]) : list; };
+  // 舌象排序：先舌色（淡 → 紅 → 絳 → 瘀紫），再舌苔（薄白 → 白膩 → 黃 → 灰黑 → 少苔、剝苔）
+  const T_COLOR = [[/淡白/, 0], [/淡紅/, 2], [/淡/, 1], [/絳/, 5], [/紫|瘀|暗|青/, 6], [/紅/, 4]];
+  const T_COAT = [[/薄白/, 0], [/白.*(滑|膩|厚)|(滑|膩|厚).*白/, 2], [/白/, 1], [/薄黃/, 3], [/黃.*(膩|燥|厚)|(膩|燥|厚).*黃/, 5], [/黃/, 4], [/灰/, 6], [/黑|焦/, 7], [/少|無|剝|光|鏡/, 8], [/膩|滑|厚/, 2]];
+  function tongueRank(v) {
+    const coat = /^(舌)?苔/.test(v), t = coat ? v : v.split(/苔/)[0];
+    const hit = (coat ? T_COAT : T_COLOR).find(([re]) => re.test(t));
+    return (coat ? 100 : 0) + (hit ? hit[1] : coat ? 9 : 3) + (coat ? 0 : /苔/.test(v) ? 0.5 : 0);
+  }
   // 依已填的伴隨症狀、舌、脈、八綱，算每個證型符合幾項
   function score(p) {
     const r = report;
@@ -191,7 +203,7 @@
     if (!r.bgAuto) AX.forEach(a => { const want = r.bg[a.k]; if (!want) return; n++; const got = side(axVal(p.ax, a.k)); if (got === want) s++; else if (got === -want) s--; });
     r.sx.forEach(v => { n++; if (p.sx.includes(v)) s++; });
     if (r.tongue) { n++; if (p.tongue.includes(r.tongue)) s++; }
-    if (r.pulse) { n++; if (p.pulse.includes(r.pulse)) s++; }
+    if (r.pulse) { n++; if (p.pulse.includes(r.pulse.replace(/脈象?/g, ''))) s++; }
     return { s, n };
   }
   function ranked() {
@@ -225,13 +237,6 @@
     return (HGC = out);
   }
   function allHerbNames() { return (DB.herbs || []).map(h => h.name).sort((a, b) => a.localeCompare(b, 'zh-Hant')); }
-  function allFormulaNames(first) {
-    const set = new Set(first);
-    pats.forEach(p => p.fx.forEach(f => set.add(f.name)));
-    const local = [...set];
-    const all = (DB.formulas || []).map(f => f.name).filter(n => !set.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
-    return { local, all };
-  }
   function setPattern(p) {
     const r = report;
     r.pat = p.name;
@@ -253,51 +258,132 @@
   }
   const herbTag = (h, i, k) => `<span class="bz-tag">${h.id ? `<a href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : E(h.n)}<button type="button" data-del="${k}" data-i="${i}" aria-label="移除${E(h.n)}">×</button></span>`;
 
-  /* ---------- 兩層懸浮選單：第一層是「系」，滑過（或點）才出現第二層 ---------- */
+  /* ---------- 多層懸浮選單（主訴、處方、加一味藥） ----------
+   * tree：[{ t, v?（點了就選）, kids?（下一層）, n?, cls?, note? }]
+   * 選單掛在 body 上（position: fixed），可以超出報告單的框；滑鼠碰到就展開下一層，手指用點的 */
   const CAS = {};
-  function cascade(key, label, groups, openGroup, val, direct) {
-    CAS[key] = groups;
-    const gi = Math.max(0, groups.findIndex(g => g.items.some(x => x.v === val)));
-    return `<div class="bz-cas" data-cas="${key}">
-      <button type="button" class="bz-cas-btn" aria-haspopup="true" aria-expanded="false"><span>${E(label)}</span></button>
-      <div class="bz-cas-pop" role="menu">
-        <ul class="bz-l1">${groups.map((g, i) => `${g.sec && (!i || groups[i - 1].sec !== g.sec) ? `<li class="bz-sec ${g.cls}">${E(g.sec)}<small>${groups.filter(x => x.sec === g.sec).length} 類</small></li>` : ''}<li${g.cls ? ` class="${g.cls}"` : ''}><button type="button" data-g="${i}" class="${i === gi && val ? 'cur' : ''}">${E(g.name)}<small>${g.items.length}</small><i>›</i></button></li>`).join('')}
-          ${(direct || []).map(d => `<li><button type="button" class="bz-dir" data-pick="${E(d.v)}">${E(d.t)}</button></li>`).join('')}</ul>
-        <div class="bz-l2" hidden></div>
-      </div></div>`;
+  function cascade(key, label, tree, val) {
+    CAS[key] = { tree, val };
+    return `<div class="bz-cas" data-cas="${key}"><button type="button" class="bz-cas-btn" aria-haspopup="true" aria-expanded="false"><span>${E(label)}</span></button></div>`;
   }
-  function showL2(cas, gi) {
-    const key = cas.dataset.cas, g = CAS[key] && CAS[key][gi];
-    if (!g) return;
-    const l2 = cas.querySelector('.bz-l2');
-    cas.querySelectorAll('.bz-l1 [data-g]').forEach(b => b.classList.toggle('on', +b.dataset.g === gi));
-    l2.innerHTML = `<button type="button" class="bz-l2-back" data-l2back>‹ ${E(g.name)}</button>` +
-      g.items.map(x => `<button type="button" data-pick="${E(x.v)}" class="${x.v === (key === 'cc' ? cur.id : report.fx) ? 'cur' : ''}">${E(x.t)}</button>`).join('');
-    l2.hidden = false;
-    cas.classList.add('l2on');
+  let menu = null;
+  const docOf = () => root.ownerDocument, winOf = () => root.ownerDocument.defaultView || window;
+  const narrow = () => winOf().innerWidth <= 700;
+  function openMenu(cas, path) {
+    closeMenu();
+    const key = cas.dataset.cas, def = CAS[key];
+    if (!def) return;
+    const el = docOf().createElement('div');
+    el.className = 'bz-menu' + (host ? ' dark' : '');
+    el.setAttribute('role', 'menu');
+    docOf().body.appendChild(el);
+    menu = { key, cas, el, path: path || [], def, timer: 0 };
+    cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true');
+    cas.classList.add('open');
+    el.addEventListener('pointerover', e => {
+      clearTimeout(menu && menu.timer);
+      if (e.pointerType !== 'mouse' || narrow()) return;
+      const b = e.target.closest('[data-i]');
+      if (b && b.dataset.k === '1') setPath(+b.dataset.c, +b.dataset.i);
+    });
+    el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') leaveSoon(); });
+    el.addEventListener('click', e => {
+      const b = e.target.closest('[data-i]');
+      if (e.target.closest('[data-back]')) { menu.path.pop(); renderMenu(); return; }
+      if (!b) return;
+      const node = nodeAt(+b.dataset.c, +b.dataset.i);
+      if (node.kids) { setPath(+b.dataset.c, +b.dataset.i); return; }
+      const k = menu.key;
+      closeMenu();
+      pickCas(k, node.v);
+    });
+    renderMenu();
   }
-  function closeCas(except) {
-    root.querySelectorAll('.bz-cas.open').forEach(c => { if (c !== except) { c.classList.remove('open', 'l2on'); c.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'false'); c.querySelector('.bz-l2').hidden = true; } });
+  function leaveSoon() { if (!menu) return; clearTimeout(menu.timer); menu.timer = setTimeout(closeMenu, 350); }
+  function levelAt(c) { let lv = menu.def.tree; for (let k = 0; k < c; k++) lv = lv[menu.path[k]].kids; return lv; }
+  function nodeAt(c, i) { return levelAt(c)[i]; }
+  function setPath(c, i) { const np = menu.path.slice(0, c).concat(i); if (np.join() === menu.path.join()) return; menu.path = np; renderMenu(c + 1); }
+  function renderMenu(keep) {   // keep：前面幾欄內容沒變，保留捲動位置
+    if (!menu) return;
+    const { el, path, def } = menu, N = narrow();
+    const tops = [...el.children].map(x => x.scrollTop);
+    const cols = [];
+    for (let c = 0; c <= path.length; c++) cols.push(levelAt(c));
+    const col = (lv, c) => `<div class="bz-mcol">${N && c ? `<button type="button" class="bz-mback" data-back>‹ ${E(levelAt(c - 1)[path[c - 1]].t)}</button>` : ''}${lv.map((x, i) => x.sec != null
+      ? `<div class="bz-msec ${x.cls || ''}">${E(x.sec)}</div>`
+      : `<button type="button" data-c="${c}" data-i="${i}" data-k="${x.kids ? 1 : 0}" class="${[x.cls || '', path[c] === i ? 'on' : '', x.v != null && x.v === def.val ? 'cur' : ''].join(' ')}">${E(x.t)}${x.note ? `<em>${E(x.note)}</em>` : ''}${x.kids ? `<small>${x.n != null ? x.n : x.kids.length}</small><i>›</i>` : ''}</button>`).join('')}</div>`;
+    el.innerHTML = N ? col(cols[cols.length - 1], cols.length - 1) : cols.map(col).join('');
+    if (!N && keep) [...el.children].slice(0, keep).forEach((x, k) => { x.scrollTop = tops[k] || 0; });
+    placeMenu();
   }
-  let FX_BY_SYS = null;
-  function fxGroups(local, curPat) {   // 處方：先列這個證型／本病，再依各系病證裡用到的方分組
-    if (!FX_BY_SYS) {
-      FX_BY_SYS = {};
-      zzDiseases.filter(d => !d.dup && !/青光眼/.test(d.name)).forEach(d => {
-        const set = (FX_BY_SYS[d.sys] = FX_BY_SYS[d.sys] || new Set());
-        patterns(d).forEach(p => p.fx.forEach(f => set.add(f.name)));
+  function placeMenu() {
+    const { el, cas } = menu, W = winOf(), r = cas.getBoundingClientRect(), vw = W.innerWidth, vh = W.innerHeight;
+    el.style.cssText = '';
+    let top = r.bottom + 4, maxH = vh - top - 10;
+    if (maxH < 260 && r.top > vh - r.bottom) { maxH = r.top - 14; el.style.bottom = (vh - r.top + 4) + 'px'; } else el.style.top = top + 'px';
+    el.style.setProperty('--mh', Math.max(160, Math.min(maxH, 480)) + 'px');
+    if (narrow()) { const w = Math.min(vw - 16, Math.max(r.width, 260)); el.style.width = w + 'px'; el.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px'; return; }
+    // 方向在打開時就定好（按鈕在畫面右半邊就往左展開），之後展開下一層，第一欄都不會跟著跑
+    if (menu.rev == null) menu.rev = r.left + r.width / 2 > vw / 2;
+    if (menu.rev) { el.classList.add('rev'); el.style.right = Math.max(8, vw - r.right) + 'px'; }
+    else el.style.left = Math.max(8, r.left) + 'px';
+  }
+  function closeMenu() {
+    if (!menu) return;
+    clearTimeout(menu.timer);
+    menu.el.remove();
+    menu.cas.classList.remove('open');
+    const b = menu.cas.querySelector('.bz-cas-btn'); if (b) b.setAttribute('aria-expanded', 'false');
+    menu = null;
+  }
+  const closeCas = closeMenu;
+  // 處方的選單樹：［符合八綱］→ 本病常用（證型 → 方）→ 各系（病 → 方）→ 其他方劑
+  let FX_SYS = null;
+  const uniqBy = (arr, f) => { const seen = new Set(); return arr.filter(x => { const k = f(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
+  const fxLeaf = (name, note) => ({ t: name, v: name, note });
+  function fxTree() {
+    if (!FX_SYS) {
+      FX_SYS = [];
+      const bySys = {};
+      zzDiseases.filter(d => !d.dup && !/青光眼/.test(d.name)).forEach(d => (bySys[d.sys] = bySys[d.sys] || []).push(d));
+      const used = new Set();
+      Object.entries(bySys).forEach(([sy, ds]) => {
+        const kids = ds.map(d => { const fs = uniqBy(patterns(d).flatMap(p => p.fx.map(f => f.name)), x => x); fs.forEach(n => used.add(n)); return fs.length ? { t: d.name, kids: fs.map(n => fxLeaf(n)) } : null; }).filter(Boolean);
+        if (kids.length) FX_SYS.push({ t: sy, kids, n: kids.reduce((a, k) => a + k.kids.length, 0) });
       });
+      const rest = (DB.formulas || []).map(f => f.name).filter(n => !used.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+      if (rest.length) FX_SYS.push({ t: '其他方劑', kids: rest.map(n => fxLeaf(n)) });
     }
-    const groups = [];
-    if (local.length) groups.push({ name: curPat ? '這個證型・本病常用' : '本病常用', items: local.map(n => ({ v: n, t: n })) });
-    const used = new Set();
-    Object.entries(FX_BY_SYS).forEach(([sy, set]) => { if (!set.size) return; const ns = [...set].sort((a, b) => a.localeCompare(b, 'zh-Hant')); ns.forEach(n => used.add(n)); groups.push({ name: sy, items: ns.map(n => ({ v: n, t: n })) }); });
-    const rest = (DB.formulas || []).map(f => f.name).filter(n => !used.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
-    if (rest.length) groups.push({ name: '其他方劑', items: rest.map(n => ({ v: n, t: n })) });
-    return groups;
+    const out = [];
+    const hit = bgMatches();
+    if (hit) out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: hit.list.length ? hit.list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }] });
+    const local = uniqBy(pats, p => p.name).filter(p => p.fx.length);
+    if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: p.fx.map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => p.fx), f => f.name).length });
+    return out.concat(FX_SYS, [{ t: '⊕ 自定義處方', v: OTHER, cls: 'dir' }]);
+  }
+  // 虛實、陰陽、寒熱：選了之後，找本病裡八綱相符的證型，帶出它們的方
+  function bgMatches() {
+    const want = AX.filter(a => report.bg[a.k]);
+    if (!want.length || report.bgAuto) return null;
+    const tag = want.map(a => report.bg[a.k] < 0 ? a.a : a.b).join('・');
+    const sc = p => want.reduce((n, a) => n + (side(axVal(p.ax, a.k)) === report.bg[a.k] ? 1 : 0), 0);
+    let best = 0; pats.forEach(p => { best = Math.max(best, sc(p)); });
+    const ps = best ? pats.filter(p => sc(p) === best) : [];
+    const list = uniqBy(ps.flatMap(p => p.fx.map(f => fxLeaf(f.name, p.name))), x => x.v);
+    return { tag: best < want.length && best ? tag + '（部分）' : tag, list };
+  }
+  // 加一味藥：溫／寒涼／中性 → 分類 → 藥
+  function herbTree() {
+    const out = [];
+    ['溫', '寒涼', '中性'].forEach(k => {
+      const cats = herbGroups().filter(g => g.sec === k);
+      if (cats.length) out.push({ t: k, cls: cats[0].cls, n: cats.length, kids: cats.map(g => ({ t: g.name, cls: g.cls, kids: g.items.map(x => ({ t: x.t, v: x.v })) })) });
+    });
+    return out.length ? out.concat([{ t: '⊕ 其他（自訂）', v: OTHER, cls: 'dir' }]) : null;
   }
   function pickCas(key, v) {
     const r = report;
+    if (v == null || v === '') return;
     if (key === 'herb') {
       if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
       r._t_herb = false;
@@ -324,10 +410,9 @@
     const patLabel = n => { const x = R.find(y => y.p.name === n); return anyCrit && x && x.sc.n ? `${n}（符合 ${Math.max(0, x.sc.s)}/${x.sc.n}）` : n; };
     const typedPat = r.pat && !patNames.includes(r.pat);
     const curPat = pats.find(p => p.name === r.pat);
-    const { local } = allFormulaNames(curPat ? curPat.fx.map(f => f.name) : []);
     const fxTyped = r.fx === OTHER;
     const SX = uniq('sx').filter(v => !r.sx.includes(v));
-    const HG = herbGroups();
+    const HT = herbTree();
 
     root.innerHTML = `
       <div class="bz-top">
@@ -340,7 +425,7 @@
         <div class="bz-rh"><button type="button" class="bz-go" data-bz="go" aria-label="${host ? '在資料庫裡打開' : '看原表格'}" title="${host ? '在資料庫裡打開' : '看原表格'}">›</button>
           <label class="bz-name">姓名<input type="text" data-v="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label><span>${today()}</span></div>
         <div class="bz-form">
-          <div class="bz-fld"><span class="bz-lb">主訴</span>${cascade('cc', o.name, Object.entries(sysGroups).map(([sy, ds]) => ({ name: sy, items: ds.map(d => ({ v: d.id, t: d.name })) })), o.sys, o.id)}</div>
+          <div class="bz-fld"><span class="bz-lb">主訴</span>${cascade('cc', o.name, Object.entries(sysGroups).map(([sy, ds]) => ({ t: sy, kids: ds.map(d => ({ v: d.id, t: d.name })) })), o.id)}</div>
           <div class="bz-fld"><span class="bz-lb">伴隨症狀</span>
             <select data-f="sx">${opt('', r.sx.length ? '再加一項…' : '可選多項', true)}${SX.map(v => opt(v, v)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
             ${r._t_sx ? `<input type="text" data-add="sx" placeholder="輸入症狀後按 Enter">` : ''}
@@ -348,14 +433,14 @@
           <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
           <div class="bz-fld"><span class="bz-lb">證型</span>
-            <div class="bz-bgs">${AX.filter(a => a.k === 'yy' || a.k === 'xs').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
+            <div class="bz-bgs">${AX.filter(a => a.k !== 'bl').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
 </div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
-            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxGroups(local, curPat), fxTyped ? '' : null, r.fx, [{ v: OTHER, t: '⊕ 自定義處方' }])}
+            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxTree(), r.fx)}
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
-            <div class="bz-addrow">${HG.length ? cascade('herb', '加一味藥…', HG, null, null, [{ v: OTHER, t: '⊕ 其他（自訂）' }])
+            <div class="bz-addrow">${HT ? cascade('herb', '加一味藥…', HT, null)
               : `<select data-f="herb">${opt('', '加一味藥…', true)}${allHerbNames().map(n => opt(n, n)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>`}
               ${r._t_herb ? `<input type="text" data-add="herb" placeholder="輸入藥名後按 Enter">` : ''}</div></div>
           <div class="bz-fld wide"><span class="bz-lb">藥物加減</span>
@@ -388,13 +473,8 @@
     const t = e.target;
     const cas = t.closest('.bz-cas');
     if (cas) {
-      const pk = t.closest('[data-pick]');
-      if (pk) { const key = cas.dataset.cas; closeCas(); pickCas(key, pk.dataset.pick); return; }
-      const gb = t.closest('[data-g]');
-      if (gb) { showL2(cas, +gb.dataset.g); return; }
-      if (t.closest('[data-l2back]')) { cas.classList.remove('l2on'); cas.querySelector('.bz-l2').hidden = true; return; }
-      if (t.closest('.bz-cas-btn')) { if (cas.classList.contains('open') && Date.now() - (+cas.dataset.hov || 0) < 800) return;   // 滑鼠碰到時已經展開：這一下不要又把它關掉
-        const on = !cas.classList.contains('open'); closeCas(cas); cas.classList.toggle('open', on); t.closest('.bz-cas-btn').setAttribute('aria-expanded', String(on)); return; }
+      if (menu && menu.cas === cas) { if (Date.now() - (+cas.dataset.hov || 0) > 800) closeMenu(); }   // 滑鼠碰到時已經展開：這一下不要又把它關掉
+      else openMenu(cas);
       return;
     }
     closeCas();
@@ -420,23 +500,26 @@
       if (!report.bg[k]) delete report.bg[k];
       report.ax[k] = (report.bg[k] || 0) * 0.6;
       keep(draw);
+      const fc = root.querySelector('[data-cas="fx"]');   // 處方那格自動跳出相符的方
+      if (fc && Object.keys(report.bg).length) openMenu(fc, [0]);
     }
   });
-  const narrow = () => host ? root.clientWidth <= 400 : window.innerWidth <= 700;
-  // 滑鼠：碰到就展開，滑過第一層就出現第二層
+  // 滑鼠：碰到選單鈕就展開；離開選單鈕和選單一下子就收起
   root.addEventListener('pointerover', e => {
     if (e.pointerType !== 'mouse') return;
     const cas = e.target.closest('.bz-cas');
     if (!cas) return;
-    if (!cas.classList.contains('open')) { closeCas(cas); cas.classList.add('open'); cas.dataset.hov = Date.now(); cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true'); }
-    const gb = e.target.closest('[data-g]');
-    if (gb && !gb.classList.contains('on') && !narrow()) showL2(cas, +gb.dataset.g);   // 窄的時候第二層會蓋掉第一層，要點才換
+    if (menu && menu.cas === cas) { clearTimeout(menu.timer); return; }
+    cas.dataset.hov = Date.now();
+    openMenu(cas);
   });
   root.addEventListener('pointerout', e => {
-    if (e.pointerType !== 'mouse') return;
+    if (e.pointerType !== 'mouse' || !menu) return;
     const cas = e.target.closest('.bz-cas');
-    if (cas && !cas.contains(e.relatedTarget)) closeCas();
+    if (cas && cas === menu.cas && !cas.contains(e.relatedTarget) && !menu.el.contains(e.relatedTarget)) leaveSoon();
   });
+  root.addEventListener('scroll', () => closeMenu(), { passive: true });
+  docOf().addEventListener('pointerdown', e => { if (menu && !menu.el.contains(e.target) && !menu.cas.contains(e.target)) closeMenu(); }, true);
   root.addEventListener('change', e => {
     const t = e.target, k = t.dataset.f, r = report;
     if (!k) return;

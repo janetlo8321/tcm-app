@@ -110,11 +110,43 @@
   panel.innerHTML = '<div class="ip-glass"></div><button type="button" class="ip-x" aria-label="關閉">✕</button><div class="ip-body"></div>';
   stage.appendChild(panel);
   const body = panel.querySelector('.ip-body');
+  const tr = document.createElement('div');   // 手機右上：穴位下拉＋切換小點
+  tr.className = 'ip-tr';
+  stage.appendChild(tr);
+  function setPage(n) {
+    body.querySelectorAll('.ip-page').forEach(p => p.classList.toggle('on', +p.dataset.page === n));
+    tr.querySelectorAll('.ip-dot').forEach(d => { const on = +d.dataset.page === n; d.classList.toggle('on', on); d.setAttribute('aria-current', on ? 'true' : 'false'); });
+    body.scrollTop = 0;
+  }
+  tr.addEventListener('click', e => { const d = e.target.closest('.ip-dot'); if (d) setPage(+d.dataset.page); });
+  // 左右滑也能切換
+  let sw = null;
+  body.addEventListener('touchstart', e => { const t = e.touches[0]; sw = { x: t.clientX, y: t.clientY }; }, { passive: true });
+  body.addEventListener('touchend', e => {
+    if (!sw || WIDE.matches) return;
+    const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y; sw = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(dx < 0 ? 1 : 0);
+  });
 
   // 經文：● 開頭的另起一行；「是動則病」「是主…所生病者」「其病」加粗
   const para = t => E(t).split('●').map((x, i) => x ? `${i ? '<br>●' : ''}${x}` : '').join('')
     .replace(/(是動則病|是主[^，、者]{1,2}所生病者|其病：?|其實|其病實)/g, '<b>$1</b>');
+  const ptSelect = (m, pts) => `<select data-pt aria-label="${E(m.name)}的穴位"><option value="">${WIDE.matches ? `選一個穴位（共 ${pts.length} 穴）` : `${E(m.name)}・穴位（${pts.length}）`}</option>${pts.map((p, i) => `<option value="${i + 1}">${i + 1}．${E(p.name)}${p.major ? '　★常用' : ''}</option>`).join('')}</select>`;
+  const secs = (m, j, pts) => {
+    const out = [];
+    if (j) j.secs.forEach(x => out.push(`<section class="ip-sec${/歌/.test(x.h) ? ' song' : ''}"><h3>${E(x.h)}</h3>${/歌/.test(x.h) ? `<p class="ip-p ip-verse">${(x.p.join('').match(/.{1,7}/g) || []).map(l => `<span>${E(l)}</span>`).join('')}</p>` : x.p.map(t => `<p class="ip-p">${para(t)}</p>`).join('')}</section>`));
+    else out.push(`<section><h3>全部穴位</h3><p class="ip-p">${pts.map(p => E(p.name)).join('、')}</p></section>`);
+    (EXTRA[m.id] || []).forEach(x => out.push(`<section><h3>${E(x.h)}</h3>${x.list ? `<ul class="ip-ul">${x.list.map(v => `<li>${E(v)}</li>`).join('')}</ul>` : `<p class="ip-p">${E(x.p)}</p>`}</section>`));
+    return out;
+  };
+  const stagger = items => items.map((h, i) => `<div class="ip-it" style="animation-delay:${(0.15 + i * 0.3).toFixed(2)}s">${h}</div>`).join('');
+  // 手機：資訊欄只放經文（循行、病候…），和五輸天干表用右上的小點切換；穴位下拉也在右上
+  function phoneContent(m) {
+    const pts = m.ptNames || [];
+    return `<div class="ip-page on" data-page="0">${stagger(secs(m, JING[m.id], pts))}</div><div class="ip-page" data-page="1">${stagger([wuxing(m.id)])}</div>`;
+  }
   function content(m) {
+    if (!WIDE.matches) return phoneContent(m);
     const pts = m.ptNames || [];
     const j = JING[m.id];
     const items = [];
@@ -125,12 +157,8 @@
       items.push(`<table class="ip-tb"><tr>${kinds.map(k => `<th>${k}</th>`).join('')}${yang ? '<th></th>' : ''}</tr><tr>${j.shu.map(n => `<td>${E(n)}</td>`).join('')}${yang ? '<td></td>' : ''}</tr>` +
         `<tr>${te.map(k => `<th>${k}</th>`).join('')}</tr><tr>${j.te.map(n => `<td>${E(n)}</td>`).join('')}</tr></table>`);
     }
-    if (pts.length) items.push(`<section><h3>穴位</h3><label class="ip-pick"><select data-pt aria-label="${E(m.name)}的穴位"><option value="">選一個穴位（共 ${pts.length} 穴）</option>${pts.map((p, i) => `<option value="${i + 1}">${i + 1}．${E(p.name)}${p.major ? '　★常用' : ''}</option>`).join('')}</select></label></section>`);
-    if (!WIDE.matches) items.push(`<section class="wx-in"><h3>五輸穴・天干</h3>${wuxing(m.id)}</section>`);   // 手機：表放在同一欄裡
-    if (j) j.secs.forEach(x => items.push(`<section class="ip-sec${/歌/.test(x.h) ? ' song' : ''}"><h3>${E(x.h)}</h3>${/歌/.test(x.h) ? `<p class="ip-p ip-verse">${(x.p.join('').match(/.{1,7}/g) || []).map(l => `<span>${E(l)}</span>`).join('')}</p>` : x.p.map(t => `<p class="ip-p">${para(t)}</p>`).join('')}</section>`));
-    else items.push(`<section><h3>全部穴位</h3><p class="ip-p">${pts.map(p => E(p.name)).join('、')}</p></section>`);
-    (EXTRA[m.id] || []).forEach(x => items.push(`<section><h3>${E(x.h)}</h3>${x.list ? `<ul class="ip-ul">${x.list.map(v => `<li>${E(v)}</li>`).join('')}</ul>` : `<p class="ip-p">${E(x.p)}</p>`}</section>`));
-    return items.map((h, i) => `<div class="ip-it" style="animation-delay:${(0.15 + i * 0.3).toFixed(2)}s">${h}</div>`).join('');
+    if (pts.length) items.push(`<section><h3>穴位</h3><label class="ip-pick">${ptSelect(m, pts)}</label></section>`);
+    return stagger(items.concat(secs(m, j, pts)));
   }
 
   /* ---------- 鏡頭：0.5 秒阻尼拉近 ---------- */
@@ -176,11 +204,14 @@
     // 能用的畫面：電腦是左邊 56%，手機是上面 46%
     const useW = W ? 0.32 : 1, useH = W ? 1 : 0.46;   // 電腦：左邊五輸表、右邊資訊欄，人在中間
     const fitH = (size.y / 2 + 0.4) / Math.tan(fov / 2) / useH;
-    const fitW = (Math.max(size.x, size.z) / 2 + 0.4) / (Math.tan(fov / 2) * aspect * useW);
+    const right = V3(nrm.z, 0, -nrm.x);   // 從鏡頭看過去的右手方向
+    // 人放在畫面正中間：對準身體中軸（x = 0），寬度用兩側（左右對稱）離中軸最遠的點來算
+    let half = 0;
+    ps.forEach(o => { half = Math.max(half, Math.abs(o.p.x * right.x) + Math.abs(o.p.z * right.z)); });
+    const fitW = (half + 0.4) / (Math.tan(fov / 2) * aspect * useW);
     const dist = Math.max(5.5, Math.min(30, Math.max(fitH, fitW) * 1.05));
     const halfH = Math.tan(fov / 2) * dist, halfW = halfH * aspect;
-    const right = V3(nrm.z, 0, -nrm.x);   // 從鏡頭看過去的右手方向
-    const tgt = c.clone();
+    const tgt = V3(0, c.y, 0);
     if (!W) tgt.y -= halfH * 0.54;                        // 人往上移，讓出下方欄
     return { tgt, pos: tgt.clone().addScaledVector(nrm, dist).add(V3(0, dist * 0.04, 0)) };
   }
@@ -195,6 +226,8 @@
     if (cu) flyTo(cu.tgt, cu.pos, 500);
     body.innerHTML = content(m);
     body.scrollTop = 0;
+    const pts = m.ptNames || [];
+    tr.innerHTML = WIDE.matches ? '' : `${pts.length ? `<label class="ip-pick">${ptSelect(m, pts)}</label>` : ''}<div class="ip-dots" role="tablist" aria-label="切換內容"><button type="button" class="ip-dot on" data-page="0" aria-label="經文"></button><button type="button" class="ip-dot" data-page="1" aria-label="五輸穴天干表"></button></div>`;
     wxBody.innerHTML = wuxing(id);
     wxBody.scrollTop = 0;
     [panel, wxPanel].forEach(el => el.classList.remove('show'));
@@ -214,7 +247,7 @@
   }
   panel.querySelector('.ip-x').addEventListener('click', () => close());
   // 穴位下拉：鏡頭拉到那一穴（人的左側那一個），名字閃一下
-  body.addEventListener('change', e => {
+  const onPick = e => {
     const sel = e.target.closest('[data-pt]');
     if (!sel || !sel.value || !openId) return;
     const m = byId[openId], no = +sel.value;
@@ -224,7 +257,9 @@
     if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
     flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
     L.toast(`${m.name}・${o.name}`, 1600);
-  });
+  };
+  body.addEventListener('change', onPick);
+  tr.addEventListener('change', onPick);
   L.hooks.open.push(open);
   L.hooks.select.push(id => { if (openId && id !== openId) close(id ? false : true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });

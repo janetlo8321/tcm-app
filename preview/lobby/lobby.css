@@ -832,3 +832,23 @@ body { display: grid; place-items: center; }
 .ip-pick select option { color: #111; }
 .wx-tb.wx-hh td.l { white-space: normal; }
 .wx-hh col.l { width: 40%; }
+
+/* ===== 手機：經絡資訊欄（經文／五輸天干表 用右上小點切換，穴位下拉在右上） ===== */
+.ip-tr { display: none; }
+.ip-page { display: none; }
+.ip-page.on { display: block; }
+@media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .version { display: none; }
+  .ip-tr { position: absolute; z-index: 6; right: 16px; top: calc(66px + env(safe-area-inset-top, 0px)); width: min(210px, 56vw);
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1), visibility 0s .3s; }
+  .stage.ip-on .ip-tr { opacity: 1; visibility: visible; transform: none; transition: opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1); }
+  .ip-tr .ip-pick { width: 100%; }
+  .ip-tr .ip-pick select { min-height: 38px; font-size: 13.5px; background-color: rgba(20,18,16,.55); -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); }
+  .ip-dots { display: flex; gap: 2px; padding: 2px 4px; border-radius: 999px; background: rgba(20,18,16,.45); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .ip-dot { width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+  .ip-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.75); box-sizing: border-box; transition: background .2s, transform .2s; }
+  .ip-dot.on::before { background: #fff; transform: scale(1.15); }
+  .ip-page[data-page="1"] .wx-tb th, .ip-page[data-page="1"] .wx-tb td { font-size: 11.5px; padding: 3px 0; }
+}
+@media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) { .ip-page[data-page="1"] .wx-top:first-child { margin-right: 40px; } }

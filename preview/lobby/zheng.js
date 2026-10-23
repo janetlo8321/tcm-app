@@ -164,7 +164,21 @@
   }
   /* ---------- 右側報告單 ---------- */
   // 資料庫解鎖、進去過一次之後，外層就是資料庫本身（同網域），可以直接借它的八綱辨證
-  const app = () => { try { const P = window.parent; return P !== window && P.TCMBZ && P.TCMBZ.mount ? P.TCMBZ : null; } catch (e) { return null; } };
+  // 還沒進去過：外層在背景開了一個看不見的資料庫（#tcm-data），一樣借它的
+  const app = () => {
+    try {
+      const P = window.parent;
+      if (P === window) return null;
+      if (P.TCMBZ && P.TCMBZ.mount) return P.TCMBZ;
+      const f = P.document.getElementById('tcm-data'), W = f && f.contentWindow;
+      return W && W.TCMBZ && W.TCMBZ.mount ? W.TCMBZ : null;
+    } catch (e) { return null; }
+  };
+  // 背景的資料庫準備好了：正在看的空白報告單換成有下拉選單的
+  window.addEventListener('message', e => {
+    if (!e.data || e.data.type !== 'tcm-data-ready') return;
+    if (repId && !repBody.classList.contains('live')) showReport(repId);
+  });
   let repId = null;
   const today = () => { const d = new Date(); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
   const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -172,16 +186,15 @@
     for (const sy of (DATA ? DATA.systems : [])) { const d = sy.diseases.find(x => x.id === id); if (d) return d.name; }
     return '';
   }
-  function template(id) {   // 還沒解鎖：同樣的報告單，每一欄自己打字
+  function template(id) {   // 資料庫還沒好（這台裝置沒解鎖過）：同樣的報告單，每一欄自己打字
     const f = (lb, ph, v, cls) => `<label class="bz-fld${cls ? ' ' + cls : ''}"><span class="bz-lb">${lb}</span><input type="text" value="${esc(v)}" placeholder="${ph}"></label>`;
     return `<div id="bz" class="bz-embed"><div class="bz-body"><div class="bz-rep">
       <div class="bz-rh"><button type="button" class="bz-go" data-zgo aria-label="進入資料庫" title="進入資料庫">›</button>
         <label class="bz-name">姓名<input type="text" placeholder="輸入" autocomplete="off"></label><span>${today()}</span></div>
-      <p class="zz-lock">資料庫解鎖後，各欄會有資料庫的下拉選單；現在可以先自己輸入</p>
       <div class="bz-form">
         ${f('主訴', '輸入', id ? nameOf(id) : '')}${f('伴隨症狀', '輸入')}
         ${f('舌象', '輸入')}${f('脈象', '輸入')}
-        <div class="bz-fld"><span class="bz-lb">證型</span><div class="bz-bgs"><span class="bz-bg2"><button type="button">陰</button><button type="button">陽</button></span><span class="bz-bg2"><button type="button">虛</button><button type="button">實</button></span></div></div>
+        <div class="bz-fld"><span class="bz-lb">證型</span><div class="bz-bgs"><span class="bz-bg2"><button type="button">陰</button><button type="button">陽</button></span><span class="bz-bg2"><button type="button">虛</button><button type="button">實</button></span><span class="bz-bg2"><button type="button">寒</button><button type="button">熱</button></span></div></div>
         ${f('處方', '輸入')}
         ${f('藥物', '輸入', '', 'wide')}
         <div class="bz-fld wide"><span class="bz-lb">藥物加減</span><div class="zz-adj"></div><button type="button" class="bz-plus" data-zadj>⊕ 加一列</button></div>

@@ -61,7 +61,7 @@ async function unlock(keys, remember) {
   const ek = await crypto.subtle.importKey('raw', keys.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
   const html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: body.slice(20, 36) }, ek, body.slice(36)));
   if (remember) { try { localStorage.setItem(KEY, btoa(String.fromCharCode.apply(null, keys))); } catch (e) {} }
-  if (lobbyOpen) { pendingHtml = html; return true; }   // 還在大廳：按「進入資料庫」時再換上
+  if (lobbyOpen) { pendingHtml = html; dataFrame(html); return true; }   // 還在大廳：按「進入資料庫」時再換上；先在背景載好給病證報告單用
   showApp(html);
   return true;
 }
@@ -73,7 +73,7 @@ function openLobby() {
     lobbyEl = document.createElement('div');
     lobbyEl.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#050403';
     const f = document.createElement('iframe');
-    f.src = 'lobby/';
+    f.src = 'lobby/?t=' + Date.now();   // 每次都拿最新的大廳頁（有些 App 內建瀏覽器不走 service worker，會用 10 分鐘內的舊檔）
     f.title = '經絡銅人大廳';
     f.style.cssText = 'border:0;width:100%;height:100%;display:block';
     lobbyEl.appendChild(f);
@@ -108,10 +108,32 @@ function goApp() {
   a.href = '#' + id; a.dataset.go = id; a.hidden = true;
   document.body.appendChild(a); a.click(); a.remove();
 }
-function showApp(html) {
-  // 預覽：解鎖後加上八綱辨證（程式在 bz/，不含資料，資料取自解鎖後的資料庫）
+// 大廳裡的病證報告單要用資料庫的下拉選單：在看不見的 iframe 先把資料庫跑起來（同網域），大廳直接借它的八綱辨證
+function withBz(html, base) {
   const i = html.lastIndexOf('</body>');
   if (i > 0) html = html.slice(0, i) + '<link rel="stylesheet" href="bz/bz.css"><script src="bz/bz.js"><\/script>' + html.slice(i);
+  if (base) { const h = html.search(/<head[^>]*>/i); html = h >= 0 ? html.replace(/<head[^>]*>/i, m => m + '<base href="' + base + '">') : '<base href="' + base + '">' + html; }
+  return html;
+}
+function dataFrame(html) {
+  if (document.getElementById('tcm-data')) return;
+  const f = document.createElement('iframe');
+  f.id = 'tcm-data'; f.title = '資料庫（背景）'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+  f.style.cssText = 'position:fixed;left:-9999px;top:0;width:1024px;height:768px;border:0;visibility:hidden;pointer-events:none';
+  f.src = URL.createObjectURL(new Blob([withBz(html, location.href.replace(/[#?].*$/, ''))], { type: 'text/html' }));
+  f.addEventListener('load', () => {
+    const t0 = Date.now();
+    (function ready() {
+      let ok = false; try { ok = !!(f.contentWindow.TCMBZ && f.contentWindow.TCMBZ.mount); } catch (e) {}
+      if (ok) { const lf = lobbyEl && lobbyEl.querySelector('iframe'); if (lf && lf.contentWindow) lf.contentWindow.postMessage({ type: 'tcm-data-ready' }, '*'); return; }
+      if (Date.now() - t0 < 15000) setTimeout(ready, 200);
+    })();
+  });
+  document.body.appendChild(f);
+}
+function showApp(html) {
+  // 預覽：解鎖後加上八綱辨證（程式在 bz/，不含資料，資料取自解鎖後的資料庫）
+  html = withBz(html);
   document.open(); document.write(html); document.close();
   lobbyEl = null; appShown = true;
   if (pendingGo) { const t0 = Date.now(); (function wait() { if (document.readyState === 'complete' || Date.now() - t0 > 5000) setTimeout(goApp, 120); else setTimeout(wait, 50); })(); }

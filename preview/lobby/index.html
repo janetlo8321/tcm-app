@@ -9,8 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../bz/bz.css">
-  <link rel="stylesheet" href="lobby.css">
+  <script>
+    // 外層開大廳時帶 ?t=時間：樣式和程式也一起拿最新的
+    window.TCM_V = new URLSearchParams(location.search).get('t') || '';
+    document.write(['../bz/bz.css', 'lobby.css'].map(f => '<link rel="stylesheet" href="' + f + (window.TCM_V ? '?v=' + window.TCM_V : '') + '">').join(''));
+  </script>
 </head>
 <body>
 
@@ -45,7 +48,6 @@
 
   <script src="lib/three.min.js"></script>
   <script src="lib/OrbitControls.js"></script>
-  <script src="model.js"></script>
-  <script src="boot.js"></script>
+  <script>document.write(['model.js', 'boot.js'].map(f => '<script src="' + f + (window.TCM_V ? '?v=' + window.TCM_V : '') + '"><\/script>').join(''));</script>
 </body>
 </html>

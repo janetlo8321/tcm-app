@@ -10,7 +10,7 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(
     fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => {
-      if (r.ok && r.status === 200) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+      if (r.ok && r.status === 200) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(url.origin + url.pathname, copy));   // 不含 ?v=…，同一個檔只存一份 }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./')))
   );

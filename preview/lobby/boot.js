@@ -8,7 +8,7 @@
   function run(i) {
     if (i >= SCRIPTS.length) { if (el) el.classList.add('done'); return; }
     const s = document.createElement('script');
-    s.src = SCRIPTS[i];
+    s.src = SCRIPTS[i] + (window.TCM_V ? '?v=' + window.TCM_V : '');
     s.onload = () => run(i + 1);
     s.onerror = () => say('載入失敗：' + SCRIPTS[i]);
     document.body.appendChild(s);

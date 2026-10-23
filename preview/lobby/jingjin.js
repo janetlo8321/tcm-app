@@ -97,20 +97,21 @@
     g.setAttribute('normal', geo.attributes.normal);
     g.setAttribute('aW', new THREE.BufferAttribute(w, 1));
     g.setIndex(idx);
-    const mesh = new THREE.Mesh(g, mat(0.2));
+    const mesh = new THREE.Mesh(g, mat(0));
     mesh.renderOrder = 2;
     group.add(mesh);
     sheets[id] = mesh;
   });
 
-  // 選到經絡：那條的經筋亮、其他淡；不透明皮膚時看不到
+  // 選到經絡：只顯示那條的經筋；沒選時（首頁）都不顯示
   L.hooks.frame.push(() => {
     if (!group.visible) return;
     const sel = L.selected;
     Object.entries(sheets).forEach(([id, mesh]) => {
-      const target = (sel ? (id === sel ? 0.7 : 0.06) : 0.2) * (1 - view.opaque * 0.6);
+      const target = (sel && id === sel ? 0.7 : 0) * (1 - view.opaque * 0.6);   // 首頁不顯示；選到哪條經才出現那條的經筋
       const u = mesh.material.uniforms.uOpacity;
       u.value += (target - u.value) * 0.12;
+      mesh.visible = u.value > 0.004;
     });
   });
 
