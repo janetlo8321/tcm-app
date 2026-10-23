@@ -23,7 +23,12 @@
     const r = canvas.getBoundingClientRect();
     const x = cx - r.left, y = cy - r.top;
     let best = null, bd = tol;
+    // 只算畫面上看得到的穴點（和 lobby.js 穴點淡入的距離一樣）；全身遠景時點經絡就好，不跳穴位小卡
+    const dist = camera.position.distanceTo(L.controls.target), sel = L.selected;
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
     for (const o of PT) {
+      const vis = o.m.id === sel ? (o.major ? ss(42, 32, dist) : ss(26, 19, dist)) : (o.major ? ss(22, 16, dist) : ss(13, 9.5, dist));
+      if (vis < 0.5) continue;
       if (_w.subVectors(camera.position, o.p).normalize().dot(o.n) < (view.opaque > 0.5 ? 0.05 : -0.3)) continue;
       _v.copy(o.p).project(camera);
       if (_v.z > 1) continue;
