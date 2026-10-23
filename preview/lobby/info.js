@@ -35,6 +35,74 @@
   const EXTRA = {};   // 之後再匯入的內容：{ LU: [{ h: '主治', list: [...] } 或 { h, p: '段落' }] }
   const YIN = ['井木', '滎火', '輸土', '經金', '合水'], YANG = ['井金', '滎水', '輸木', '經火', '合土'];
 
+  /* ---------- 五輸穴・天干表（使用者的手稿表格；紅、藍、綠、灰字照原表） ----------
+   * 'r' 紅、'b' 藍、'g' 綠、'k' 灰；目前這條經的那一欄底部亮白 */
+  const WX = [
+    { h: '手', yin: { jing: ['太陰', '厥陰', '少陰'], org: ['肺', '心包', '心'], el: ['金', '火', '火'], ids: ['LU', 'PC', 'HT'], lab: '(陰井木)', strong: 2 },
+      yang: { jing: ['陽明', '少陽', '太陽'], org: ['大腸', '三焦', '小腸'], el: ['金', '火', '火'], ids: ['LI', 'SJ', 'SI'], lab: '陽井金' },
+      rows: [
+        ['乙木', '井', ['少商', '中衝', '少衝'], '庚金', ['商陽|r', '關衝', '少澤']],
+        ['丁火', '滎', ['魚際', '勞宮|r', '少府|r'], '壬水', ['二間', '液門', '前谷']],
+        ['己土', '輸', ['太淵', '大陵', '神門'], '甲木', ['三間', '中渚', '後溪']],
+        ['土', '原', ['', '', ''], '火', ['合谷', '陽池', '腕骨']],
+        ['辛金', '經', ['經渠|r', '間使', '靈道'], '丙火', ['陽溪', '支溝|r', '陽谷|r']],
+        ['癸水', '合', ['尺澤', '曲澤', '少海'], '戊土', ['曲池', '天井', '小海']],
+        ['', '絡', ['列缺|k', '', '通里|k'], '', ['偏歷|k', '', '支正|k']]
+      ] },
+    { h: '足', yin: { jing: ['太陰', '厥陰', '少陰'], org: ['脾', '肝|b', '腎'], el: ['土', '木', '水'], ids: ['SP', 'LR', 'KI'], lab: '', strong: 2 },
+      yang: { jing: ['陽明', '少陽', '太陽'], org: ['胃|g', '膽', '膀胱'], el: ['土', '木', '水'], ids: ['ST', 'GB', 'BL'], lab: '' },
+      rows: [
+        ['乙木', '井', ['隱白', '大敦|r', '湧泉'], '庚金', ['厲兌', '竅陰', '至陰']],
+        ['丁火', '滎', ['大都', '行間', '然谷'], '壬水', ['內庭', '俠溪', '通谷|r']],
+        ['己土', '輸', ['太白|r', '太衝|b', '太溪'], '甲木', ['陷谷', '臨泣|r', '束骨']],
+        ['土', '原', ['', '', ''], '火', ['衝陽|g', '丘墟', '京骨']],
+        ['辛金', '經', ['商丘', '中封', '復溜'], '丙火', ['解溪', '陽輔', '崑崙']],
+        ['癸水', '合', ['陰陵', '曲泉', '陰谷|r'], '戊土', ['三里|r', '陽陵', '委中']],
+        ['', '絡', ['公孫|g', '蠡溝|k', '大鐘|k'], '', ['豐隆|k', '光明*|b', '飛揚|k']]
+      ] }
+  ];
+  const HEHUA = [   // 五門十變合化（善治四肢病）
+    ['木', '甲', '膽', '乙', '肝', '膽脾合化土', '脾胃症狀'],
+    ['火', '丙', '小', '丁', '心', '肝大合化金', '肺大症狀'],
+    ['土|g', '戊', '胃', '己', '脾', '小肺合化水', '膀腎症狀'],
+    ['金|g', '庚', '大', '辛', '肺', '心膀合化木', '肝膽症狀'],
+    ['水|g', '壬', '膀', '癸', '腎', '胃腎合化火', '小心症狀']
+  ];
+  const tx = v => { const [t, c] = String(v).split('|'); return c ? `<span class="wx-${c}">${E(t)}</span>` : E(t); };
+  function wuxing(curId) {
+    const tbl = g => {
+      const ci = { yin: g.yin.ids.indexOf(curId), yang: g.yang.ids.indexOf(curId) };
+      const td = (side, i, v, cls) => `<td class="${[cls, ci[side] === i ? 'cur' : '', side === 'yin' && i === g.yin.strong ? 'st' : ''].filter(Boolean).join(' ')}">${tx(v)}</td>`;
+      const cols = (side, arr, cls) => arr.map((v, i) => td(side, i, v, cls)).join('');
+      return `<table class="wx-tb"><thead>
+        <tr><th colspan="11" class="wx-big">${g.h}</th></tr>
+        <tr><th colspan="2"></th><th colspan="3">陰</th><th></th><th colspan="3">陽</th><th colspan="2"></th></tr>
+        <tr><th colspan="2"></th>${cols('yin', g.yin.jing, 'h')}<th></th>${cols('yang', g.yang.jing, 'h')}<th colspan="2"></th></tr>
+        <tr class="wx-org"><th colspan="2"></th>${cols('yin', g.yin.org, 'h')}<th></th>${cols('yang', g.yang.org, 'h')}<th colspan="2"></th></tr>
+        <tr><th colspan="2">${g.yin.lab}</th>${cols('yin', g.yin.el, 'h')}<th></th>${cols('yang', g.yang.el, 'h')}<th colspan="2">${g.yang.lab}</th></tr></thead><tbody>
+        ${g.rows.map(r => `<tr><td class="k">${r[0]}</td><td class="k">${r[1]}</td>${cols('yin', r[2])}<td class="k">${r[3]}</td>${cols('yang', r[4])}<td class="k">${r[1]}</td><td class="k">${r[3]}</td></tr>`).join('')}
+        </tbody></table>`;
+    };
+    return `<p class="wx-top"><span class="wx-hl">先本經</span>(原穴→單一五行穴性)－遇瓶頸找<span class="wx-hl">同名經</span>－遇瓶頸再找<span class="wx-hl">上下接經＋合化</span><small>(x 表裡經會是相同狀況)</small></p>
+      <p class="wx-top">肝'肺大胃脾心小腸　膀腎心包三焦　膽肝　<span class="wx-r">膽證_肺</span></p>
+      ${tbl(WX[0])}
+      <table class="wx-tb wx-hh"><colgroup><col><col><col><col><col><col class="l"></colgroup><thead><tr><th colspan="6">五門十變合化（善治四肢病）</th></tr><tr><th></th><th>＋</th><th>－</th><th colspan="2"></th><th>辨證合化症狀</th></tr></thead><tbody>
+        ${HEHUA.map(r => `<tr><td>${tx(r[0])}</td><td>${r[1]}<small>${r[2]}</small></td><td>${r[3]}<small>${r[4]}</small></td><td>${r[2]}</td><td>${r[4]}</td><td class="l"><span class="wx-r">${r[5]}</span>(<span class="wx-r">${r[6]}</span>)</td></tr>`).join('')}</tbody></table>
+      ${tbl(WX[1])}
+      <table class="wx-tb wx-hh"><tbody>
+        <tr><td colspan="2">陽明厥陰為合</td><td></td></tr><tr><td colspan="2">太陰太陽為開</td><td>＝臟腑通治</td></tr>
+        <tr><td>井主心下滿</td><td>病在臟</td><td></td></tr><tr><td>滎主身熱</td><td>變於色</td><td>滎治外經</td></tr>
+        <tr><td>俞主體重節痛</td><td>時甚</td><td>輸治外經</td></tr><tr><td>經主喘咳寒熱</td><td>變於音</td><td></td></tr>
+        <tr><td>合主逆氣而泄</td><td>食不節</td><td>合治內腑</td></tr></tbody></table>`;
+  }
+  const WIDE = matchMedia('(min-aspect-ratio: 1/1) and (min-width: 900px)');   // 和 CSS 的電腦版版面同一個條件
+  const wxPanel = document.createElement('aside');
+  wxPanel.className = 'ip ip-left';
+  wxPanel.setAttribute('aria-label', '五輸穴天干表');
+  wxPanel.innerHTML = '<div class="ip-glass"></div><div class="ip-body wx-body"></div>';
+  stage.appendChild(wxPanel);
+  const wxBody = wxPanel.querySelector('.wx-body');
+
   /* ---------- 介面 ---------- */
   const panel = document.createElement('aside');
   panel.className = 'ip';
@@ -48,7 +116,6 @@
     .replace(/(是動則病|是主[^，、者]{1,2}所生病者|其病：?|其實|其病實)/g, '<b>$1</b>');
   function content(m) {
     const pts = m.ptNames || [];
-    const major = pts.filter(p => p.major).map(p => p.name);
     const j = JING[m.id];
     const items = [];
     items.push(`<header class="ip-h"><small>${m.bilateral ? '十二正經' : '奇經八脈'}</small><h2>${E(m.name)}<span class="ip-n">${pts.length}穴</span>${TIME[m.id] ? `<span class="ip-n">${TIME[m.id]}</span>` : ''}</h2>${ALIAS[m.id] ? `<p class="ip-alias">${ALIAS[m.id]}</p>` : ''}</header>`);
@@ -58,7 +125,8 @@
       items.push(`<table class="ip-tb"><tr>${kinds.map(k => `<th>${k}</th>`).join('')}${yang ? '<th></th>' : ''}</tr><tr>${j.shu.map(n => `<td>${E(n)}</td>`).join('')}${yang ? '<td></td>' : ''}</tr>` +
         `<tr>${te.map(k => `<th>${k}</th>`).join('')}</tr><tr>${j.te.map(n => `<td>${E(n)}</td>`).join('')}</tr></table>`);
     }
-    if (major.length) items.push(`<section><h3>常用穴</h3><div class="ip-chips">${major.map(n => `<span>${E(n)}</span>`).join('')}</div></section>`);
+    if (pts.length) items.push(`<section><h3>穴位</h3><label class="ip-pick"><select data-pt aria-label="${E(m.name)}的穴位"><option value="">選一個穴位（共 ${pts.length} 穴）</option>${pts.map((p, i) => `<option value="${i + 1}">${i + 1}．${E(p.name)}${p.major ? '　★常用' : ''}</option>`).join('')}</select></label></section>`);
+    if (!WIDE.matches) items.push(`<section class="wx-in"><h3>五輸穴・天干</h3>${wuxing(m.id)}</section>`);   // 手機：表放在同一欄裡
     if (j) j.secs.forEach(x => items.push(`<section class="ip-sec${/歌/.test(x.h) ? ' song' : ''}"><h3>${E(x.h)}</h3>${/歌/.test(x.h) ? `<p class="ip-p ip-verse">${(x.p.join('').match(/.{1,7}/g) || []).map(l => `<span>${E(l)}</span>`).join('')}</p>` : x.p.map(t => `<p class="ip-p">${para(t)}</p>`).join('')}</section>`));
     else items.push(`<section><h3>全部穴位</h3><p class="ip-p">${pts.map(p => E(p.name)).join('、')}</p></section>`);
     (EXTRA[m.id] || []).forEach(x => items.push(`<section><h3>${E(x.h)}</h3>${x.list ? `<ul class="ip-ul">${x.list.map(v => `<li>${E(v)}</li>`).join('')}</ul>` : `<p class="ip-p">${E(x.p)}</p>`}</section>`));
@@ -106,15 +174,14 @@
     const fov = THREE.MathUtils.degToRad(camera.fov), aspect = stage.clientWidth / stage.clientHeight;
     const W = wide();
     // 能用的畫面：電腦是左邊 56%，手機是上面 46%
-    const useW = W ? 0.56 : 1, useH = W ? 1 : 0.46;
+    const useW = W ? 0.32 : 1, useH = W ? 1 : 0.46;   // 電腦：左邊五輸表、右邊資訊欄，人在中間
     const fitH = (size.y / 2 + 0.4) / Math.tan(fov / 2) / useH;
     const fitW = (Math.max(size.x, size.z) / 2 + 0.4) / (Math.tan(fov / 2) * aspect * useW);
     const dist = Math.max(5.5, Math.min(30, Math.max(fitH, fitW) * 1.05));
     const halfH = Math.tan(fov / 2) * dist, halfW = halfH * aspect;
     const right = V3(nrm.z, 0, -nrm.x);   // 從鏡頭看過去的右手方向
     const tgt = c.clone();
-    if (W) tgt.addScaledVector(right, halfW * 0.36);   // 人往左移，讓出右側欄
-    else tgt.y -= halfH * 0.54;                        // 人往上移，讓出下方欄
+    if (!W) tgt.y -= halfH * 0.54;                        // 人往上移，讓出下方欄
     return { tgt, pos: tgt.clone().addScaledVector(nrm, dist).add(V3(0, dist * 0.04, 0)) };
   }
 
@@ -128,20 +195,36 @@
     if (cu) flyTo(cu.tgt, cu.pos, 500);
     body.innerHTML = content(m);
     body.scrollTop = 0;
-    panel.classList.remove('show');
+    wxBody.innerHTML = wuxing(id);
+    wxBody.scrollTop = 0;
+    [panel, wxPanel].forEach(el => el.classList.remove('show'));
     void panel.offsetWidth;   // 重新播放進場動畫
     panel.classList.add('show');
+    if (WIDE.matches) wxPanel.classList.add('show');
     stage.classList.add('ip-on');
   }
   function close(fly) {
     if (!openId) return;
     openId = null;
     panel.classList.remove('show');
+    wxPanel.classList.remove('show');
     stage.classList.remove('ip-on');
     if (fly !== false && back) flyTo(back.tgt, back.pos, 500);
     back = null;
   }
   panel.querySelector('.ip-x').addEventListener('click', () => close());
+  // 穴位下拉：鏡頭拉到那一穴（人的左側那一個），名字閃一下
+  body.addEventListener('change', e => {
+    const sel = e.target.closest('[data-pt]');
+    if (!sel || !sel.value || !openId) return;
+    const m = byId[openId], no = +sel.value;
+    const o = PT.find(q => q.m === m && q.no === no && q.side > 0) || PT.find(q => q.m === m && q.no === no);
+    if (!o) return;
+    const dist = 7, tgt = o.p.clone();
+    if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
+    flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
+    L.toast(`${m.name}・${o.name}`, 1600);
+  });
   L.hooks.open.push(open);
   L.hooks.select.push(id => { if (openId && id !== openId) close(id ? false : true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });

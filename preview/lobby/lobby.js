@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 01:33';
+  const UPDATED = '10/24 01:47';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -724,6 +724,7 @@
   }
 
   function zoomAt(cx, cy, k) {
+    if (view.lockOrbit) return;   // 病證區域：只能左右轉
     const d = camera.position.distanceTo(controls.target);
     const nd = Math.min(controls.maxDistance, Math.max(controls.minDistance, d * k));
     k = nd / d;
@@ -741,6 +742,7 @@
   }
 
   function panBy(dx, dy) {
+    if (view.lockOrbit) return;
     const d = camera.position.distanceTo(controls.target);
     const wpp = 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / canvas.clientHeight;
     _a.setFromMatrixColumn(camera.matrix, 0).multiplyScalar(-dx * wpp);

@@ -248,14 +248,7 @@
     L.organLook.keep = r ? new Set(r.organs) : null;
     L.organLook.glow = r ? new THREE.Color(COLOR[cur]) : null;
     L.organLook.fade = cur ? (r && r.organs.length ? 0.3 : 0.6) : 1;
-    if (r) {
-      // 下方有清單，區域放在畫面上半部
-      const tgt = wide() ? V3(r.p.x * 0.6, r.p.y, 0) : V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);   // 電腦：清單在左、報告單在右，人在中間
-      const dir = r.side ? V3(0.9, 0.05, 0.75) : V3(r.p.x > 1.5 ? 0.45 : 0.15, 0.05, 1);
-      flyTo(tgt, tgt.clone().addScaledVector(dir.normalize(), r.dist));
-    } else {
-      wide() ? flyTo(HOME_TW, HOME_PW) : flyTo(HOME_T, HOME_P);
-    }
+    // 鏡頭不跟著移：人一直在正中間、全身入鏡
     controls.autoRotate = false;
     drawList();
   }
@@ -287,7 +280,9 @@
       showReport(null);
       controls.autoRotate = false;
       wide() ? flyTo(HOME_TW, HOME_PW) : flyTo(HOME_T, HOME_P);
+      lockOrbit(true);
     } else {
+      lockOrbit(false);
       view.showMeridians = merBefore; L.meridianGroup.visible = merBefore;
       view.showPoints = ptBefore; L.pointsObj.visible = ptBefore;
       L.layers.skeleton.visible = bonesBefore;
@@ -297,6 +292,20 @@
       hideReport();
       zfly = null;
       L.reset();
+    }
+  }
+  // 病證區域：只能左右轉（不能上下翻、縮放、平移）
+  let polarBefore = null;
+  function lockOrbit(v) {
+    view.lockOrbit = v;
+    controls.enablePan = !v;
+    if (v) {
+      polarBefore = [controls.minPolarAngle, controls.maxPolarAngle];
+      const ph = Math.atan2(Math.hypot((wide() ? HOME_PW : HOME_P).x, (wide() ? HOME_PW : HOME_P).z), (wide() ? HOME_PW : HOME_P).y - (wide() ? HOME_TW : HOME_T).y);
+      controls.minPolarAngle = controls.maxPolarAngle = ph;
+    } else if (polarBefore) {
+      [controls.minPolarAngle, controls.maxPolarAngle] = polarBefore;
+      polarBefore = null;
     }
   }
   peg.addEventListener('click', () => setMode(!on));
