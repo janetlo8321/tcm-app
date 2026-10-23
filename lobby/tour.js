@@ -343,6 +343,80 @@
     </div>`;
   stage.appendChild(player);
   const $p = s => player.querySelector(s);
+
+  /* 播放循行時，左側毛玻璃方框顯示整段「循行」經文，正在走的那一句會亮起來 */
+  const trp = document.createElement('div');
+  trp.className = 'ip tr-ip';
+  trp.innerHTML = '<div class="ip-glass"></div><div class="ip-body"></div>';
+  stage.appendChild(trp);
+  const trBody = trp.querySelector('.ip-body');
+  let JING = null, trFor = null, trK = -1;
+  fetch('model/jing.json').then(r => r.json()).then(d => { JING = d; if (cur) trRender(); }).catch(() => {});
+  const PUNC = /[，。、；：！？●（）()\s「」]/;
+  const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  function trRender() {
+    trFor = cur && cur.m.id; trK = -1;
+    const html = cur && trHtml(cur.m);
+    trBody.innerHTML = html ? `<section><h3>循行<small>${esc(cur.m.name)}</small></h3><p class="ip-p">${html}</p></section>` : '';
+  }
+  function trHtml(m) {   // 循行經文，每一句字幕對到的範圍包成 .tr-s
+    const j = JING && JING[m.id];
+    const sec = j && (j.secs || []).find(x => x.h === '循行');
+    if (!sec || !TOURS[m.id]) return '';
+    const steps = buildTour(m).steps;
+    const text = sec.p.join('\n');
+    // 去掉標點後比對每一句字幕，找出它在經文裡的範圍
+    // 字幕和講義用字略有出入（裏／裡、別目銳眥／別銳眥…），所以用句首、句尾幾個字當錨點
+    const VAR = { '裏': '裡', '脇': '脅', '䪼': '頔', '顑': '頔', '于': '於' };
+    const nz = c => VAR[c] || c;
+    const pos = [], norm = [];
+    for (let i = 0; i < text.length; i++) if (!PUNC.test(text[i])) { pos.push(i); norm.push(nz(text[i])); }
+    const N = norm.join('');
+    const find = (q, from, head) => {
+      for (let n = Math.min(4, q.length); n >= 2; n--) {
+        const at = N.indexOf(head ? q.slice(0, n) : q.slice(-n), from);
+        if (at >= 0) return head ? at : at + n;
+      }
+      return -1;
+    };
+    const marks = [];
+    let from = 0;
+    steps.forEach((st, k) => {
+      const q = st.t.split('').filter(c => !PUNC.test(c)).map(nz).join('');
+      if (!q) return;
+      let a = find(q, from, true);
+      if (a < 0) a = find(q, Math.max(0, from - 12), true);
+      if (a < 0) return;
+      const e = find(q, a + 1, false);
+      if (e < 0 || e - a > q.length * 2 + 4) return;
+      marks.push({ k, a: pos[a], b: pos[e - 1] + 1 });
+      from = e;
+    });
+    marks.sort((x, y) => x.a - y.a);
+    let html = '', i = 0;
+    for (const mk of marks) {
+      if (mk.a < i) mk.a = i;
+      if (mk.b <= mk.a) continue;
+      html += esc(text.slice(i, mk.a)) + `<span class="tr-s" data-k="${mk.k}">${esc(text.slice(mk.a, mk.b))}</span>`;
+      i = mk.b;
+    }
+    html += esc(text.slice(i));
+    return html.replace(/●/g, '<br>●').replace(/\n/g, '<br>').replace(/^<br>/, '');
+  }
+  function trStep(st) {
+    if (!cur || !st) return;
+    if (trFor !== cur.m.id) trRender();
+    const k = cur.steps.indexOf(st);
+    if (k === trK) return;
+    trK = k;
+    document.querySelectorAll(`.tr-s[data-m="${cur.m.id}"], .tr-ip .tr-s`).forEach(el => {
+      const hit = +el.dataset.k === k; el.classList.toggle('on', hit);
+      if (!hit) return;
+      const box = el.closest('.ip-body'); if (!box || !box.offsetParent) return;
+      const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+      if (r.top < b.top + 40 || r.bottom > b.bottom - 40) box.scrollTo({ top: box.scrollTop + r.top - b.top - b.height / 3, behavior: 'smooth' });
+    });
+  }
   const nameEl = $p('.pl-name'), capEl = $p('.pl-cap'), playBtn = $p('.pl-play'), range = $p('.pl-range');
 
   let cur = null, playing = false, prog = 0, open = false;
@@ -353,10 +427,13 @@
     player.classList.toggle('show', on && !!cur);
     dot.classList.toggle('on', on);
     stage.classList.toggle('has-player', on && !!cur);
+    trp.classList.toggle('show', on && !!cur);
+    if (on && cur) trStep(stepAt(prog * cur.total) || cur.steps[0]);
   }
   function setPlaying(on) {
     playing = on;
     playBtn.textContent = on ? '❚❚' : '▶';
+    if (typeof syncBtn === 'function') syncBtn();
     if (!on && cur) cur.head.visible = false;
   }
   function stepAt(L0) {
@@ -390,7 +467,7 @@
   range.addEventListener('input', () => {
     prog = range.value / 1000;
     const st = stepAt(prog * (cur ? cur.total : 0));
-    if (st) capEl.textContent = st.t;
+    if (st) { capEl.textContent = st.t; trStep(st); }
   });
   $p('.pl-share').addEventListener('click', async () => {
     if (!cur) return;
@@ -420,12 +497,50 @@
     cur.head.scale.set(s, s, 1);
     cur.head.visible = true;
     const st = stepAt(prog * cur.total);
-    if (st && capEl.textContent !== st.t) capEl.textContent = st.t;
+    if (st && capEl.textContent !== st.t) { capEl.textContent = st.t; trStep(st); }
   });
 
   // 分享連結：#LU 之類，開啟時直接點亮該經
   const h = (location.hash || '').slice(1).toUpperCase();
   if (L.byId[h]) setTimeout(() => L.select(h), 300);
+
+  /* 經絡資訊面板（點兩下經絡）：「循行」標題旁一顆小亮點，按了光點沿經絡跑，面板裡的經文跟著一句句亮起來 */
+  function infoHook() {
+    const body = document.querySelector('.ip:not(.tr-ip):not(.ip-left) .ip-body');
+    if (!body) return false;
+    const deco = () => {
+      const id = L.info && L.info.openId, m = id && L.byId[id];
+      if (!m || !TOURS[m.id]) return;
+      const html = trHtml(m); if (!html) return;
+      body.querySelectorAll('.ip-sec').forEach(sec => {
+        const h = sec.querySelector('h3');
+        if (!h || h.textContent.trim().replace('●', '') !== '循行' || sec.dataset.tr) return;
+        sec.dataset.tr = 1;
+        sec.querySelectorAll('.ip-p').forEach((p, i) => { if (i) p.remove(); });
+        const p = sec.querySelector('.ip-p'); if (!p) return;
+        p.innerHTML = html.replace(/class="tr-s"/g, `class="tr-s" data-m="${m.id}"`);
+        if (L.xue && L.xue.linkify) L.xue.linkify(p);
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'ip-play'; b.dataset.m = m.id; b.setAttribute('aria-label', '播放循行'); b.innerHTML = '<i></i>';
+        h.appendChild(b);
+        syncBtn();
+      });
+      trK = -1;
+    };
+    new MutationObserver(deco).observe(body, { childList: true });
+    body.addEventListener('click', e => {
+      const b = e.target.closest('.ip-play'); if (!b) return;
+      e.stopPropagation();
+      if (!cur || cur.m.id !== b.dataset.m) L.select(b.dataset.m);
+      if (playing) { setPlaying(false); }
+      else { if (!open) setOpen(true); setPlaying(true); trK = -1; trStep(stepAt(prog * cur.total)); }
+      syncBtn();
+    });
+    deco();
+    return true;
+  }
+  function syncBtn() { document.querySelectorAll('.ip-play').forEach(b => b.classList.toggle('on', playing && cur && cur.m.id === b.dataset.m)); }
+  (function wait(n) { if (!infoHook() && n < 100) setTimeout(() => wait(n + 1), 200); })(0);
 
   L.tour = { TOURS, show };
 })();

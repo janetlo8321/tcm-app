@@ -510,7 +510,8 @@
           <div class="bz-fld"><span class="bz-lb">伴隨症狀</span>
             <select data-f="sx">${opt('', r.sx.length ? '再加一項…' : '可選多項', true)}${SX.map(v => opt(v, v)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
             ${r._t_sx ? `<input type="text" data-add="sx" placeholder="輸入症狀後按 Enter">` : ''}
-            ${r.sx.length ? `<div class="bz-tags">${r.sx.map((v, i) => `<span class="bz-tag s">${E(v)}<button type="button" data-del="sx" data-i="${i}" aria-label="移除">×</button></span>`).join('')}</div>` : ''}</div>
+</div>
+          ${r.sx.length ? `<div class="bz-tags wide">${r.sx.map((v, i) => `<span class="bz-tag s">${E(v)}<button type="button" data-del="sx" data-i="${i}" aria-label="移除">×</button></span>`).join('')}</div>` : ''}
           <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
           <div class="bz-fld"><span class="bz-lb">證型</span>
@@ -530,8 +531,10 @@
             <button type="button" class="bz-plus" data-bz="adj">⊕ 加一列</button>
             ${curPat && curPat.jj ? `<p class="bz-hint">書上的加減：${E(curPat.jj)}</p>` : ''}</div>
         </div>
-        <label class="bz-note">醫囑 / 備註<textarea data-v="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
-        <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空</button><button type="button" data-bz="sync" title="${E(syncMsg)}">${ghToken() ? '☁ 已同步' : '☁ 同步'}</button></div>
+        <div class="bz-note"><div class="bz-note-h"><label for="bzNote">醫囑 / 備註</label>
+          <span class="bz-clr"><label><input type="checkbox" data-clrchk> 清空</label><button type="button" data-bz="clear" disabled>確認</button></span></div>
+          <textarea id="bzNote" data-v="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></div>
+        <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="stat">統計</button><button type="button" data-bz="sync" title="${E(syncMsg)}">${ghToken() ? '☁ 已同步' : '☁ 同步'}</button></div>
       </div>
       ${curPat ? `<section class="bz-ref"><h2>參考：${E(curPat.name)}<small>${SRC[curPat.src] || ''}</small></h2>${refCard(curPat)}</section>`
         : !pats.length ? `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單每一欄都能自己輸入。</p>` : ''}
@@ -570,7 +573,8 @@
       else if (k === 'close') close();
       else if (k === 'sync') syncSetup();
       else if (k === 'print') (root.ownerDocument.defaultView || window).print();
-      else if (k === 'clear') { report = blankReport(); keep(draw); }
+      else if (k === 'clear') { if (!b.disabled) { report = blankReport(); keep(draw); } }
+      else if (k === 'stat') statOpen();
       else if (k === 'adj') { report.adj.push(''); keep(draw); focusLater(`[data-adj="${report.adj.length - 1}"]`); }
       return;
     }
@@ -685,6 +689,10 @@
     t.value = '';
     setTimeout(() => keep(draw), 0);
   });
+  root.addEventListener('change', e => {   // 「清空」要先打勾，確認鈕才能按
+    if (!e.target.matches('[data-clrchk]')) return;
+    const b = root.querySelector('.bz-clr [data-bz="clear"]'); if (b) b.disabled = !e.target.checked;
+  });
   root.addEventListener('change', e => {   // 自訂的舌、脈、證型打完後重算排序
     if (e.target.dataset && e.target.dataset.t) keep(draw);
   });
@@ -773,6 +781,290 @@
   const entObs = document.getElementById('entry');
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
   fxlRefresh();
+
+  /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
+   * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
+  const XHK = 'tcm-xh-v1', XH_URL = GH_URL.replace('myfx.json', 'xh.json');
+  const xhLoad = () => { try { const o = JSON.parse(localStorage.getItem(XHK) || '{}'); return { w: o.w || {}, e: o.e || {} }; } catch (e) { return { w: {}, e: {} }; } };
+  let XS = xhLoad();
+  const xhSave = () => { try { localStorage.setItem(XHK, JSON.stringify(XS)); } catch (e) {} clearTimeout(xhSave.t); xhSave.t = setTimeout(() => xhSync(true), 1500); };
+  function xhMerge(a, b) {   // 每一欄、每一格各取比較新的那一份
+    const out = { w: {}, e: {} };
+    [a, b].forEach(src => ['w', 'e'].forEach(k => Object.entries((src && src[k]) || {}).forEach(([id, v]) => { if (!out[k][id] || (v.t || 0) > (out[k][id].t || 0)) out[k][id] = v; })));
+    return out;
+  }
+  async function xhSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(XH_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = { w: {}, e: {} }, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
+      const merged = xhMerge(remote, xhLoad());
+      const changed = JSON.stringify(merged) !== JSON.stringify(XS);
+      XS = merged; try { localStorage.setItem(XHK, JSON.stringify(XS)); } catch (e) {}
+      if (changed) xhDecorate();
+      if (push && JSON.stringify(merged) !== JSON.stringify(remote))
+        await fetch(XH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步脈證處方表', content: b64e(JSON.stringify(merged, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  const xhOK = () => typeof XH !== 'undefined' && typeof xhOrder !== 'undefined';
+  if (typeof xhApply === 'function' && xhOK()) {
+    // 不再調換欄位：一律照原表順序
+    try { xhOrder = XH_DEF.slice(); localStorage.removeItem('xhOrder'); } catch (e) {}
+    window.xhMove = () => {};
+    window.xhApply = function () {
+      const st = document.getElementById('xhCss'), g = document.querySelector('.xh-g'); if (!st || !g) return;
+      xhOrder = XH_DEF.slice();
+      g.style.gridTemplateColumns = xhOrder.map(i => ((XS.w[i] && XS.w[i].v) || XH.cols[i].w) + 'em').join(' ');
+      st.textContent = xhOrder.map((c, p) => `.xh-g [data-c="${c}"]{grid-column:${p + 1}}`).join('');
+    };
+    const _init = window.xhInit;
+    window.xhInit = function () { const r = _init.apply(this, arguments); xhDecorate(); xhSync(false); return r; };
+  }
+  function xhDecorate() {
+    const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
+    const sec = g.closest('.xh-sec');
+    if (sec) {
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。紅字、藍字照原表。方名可以點。';
+      const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
+    }
+    g.querySelectorAll('.xh-h').forEach(h => {
+      h.removeAttribute('draggable'); h.removeAttribute('title');
+      if (!h.querySelector('.xh-rs')) { const i = document.createElement('i'); i.className = 'xh-rs'; i.setAttribute('aria-label', '拖曳調整欄寬'); h.appendChild(i); }
+    });
+    g.querySelectorAll('.xh-c').forEach((c, i) => {
+      c.dataset.xi = i;
+      const ed = XS.e[i]; if (!ed) return;
+      let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
+      if (d.innerHTML !== ed.h) d.innerHTML = ed.h;
+      c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
+    });
+    window.xhApply();
+  }
+  // 拉欄寬
+  let rsz = null;
+  document.addEventListener('pointerdown', e => {
+    const h = e.target.closest && e.target.closest('.xh-rs'); if (!h) return;
+    e.preventDefault(); e.stopPropagation();
+    const head = h.closest('.xh-h'), g = head.closest('.xh-g'), c = +head.dataset.xhc;
+    const fs = parseFloat(getComputedStyle(g).fontSize) || 13;
+    rsz = { c, x: e.clientX, w0: head.offsetWidth / fs, fs };
+    head.classList.add('rsz');
+    try { h.setPointerCapture(e.pointerId); } catch (er) {}
+  }, true);
+  document.addEventListener('pointermove', e => {
+    if (!rsz) return;
+    const v = Math.max(2, Math.round((rsz.w0 + (e.clientX - rsz.x) / rsz.fs) * 10) / 10);
+    XS.w[rsz.c] = { v, t: Date.now() }; window.xhApply();
+  });
+  const rszEnd = () => { if (!rsz) return; rsz = null; document.querySelectorAll('.xh-h.rsz').forEach(x => x.classList.remove('rsz')); xhSave(); };
+  document.addEventListener('pointerup', rszEnd); document.addEventListener('pointercancel', rszEnd);
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-xhwreset]'); if (!b) return;
+    e.stopPropagation();
+    const t = Date.now(); Object.keys(XS.w).forEach(k => { XS.w[k] = { v: XH.cols[k].w, t }; }); window.xhApply(); xhSave();
+  }, true);
+  // 長按格子 → 這一格變成可以編輯
+  let lp = null, lpFired = false;
+  document.addEventListener('pointerdown', e => {
+    const c = e.target.closest && e.target.closest('.xh-c'); if (!c || c.classList.contains('editing')) return;
+    lpFired = false; clearTimeout(lp && lp.t);
+    lp = { c, x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; xhEdit(c); }, 550) };
+  });
+  document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } });
+  ['pointerup', 'pointercancel', 'scroll'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
+  document.addEventListener('click', e => { if (lpFired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopPropagation(); lpFired = false; } }, true);
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xh-c.editing')) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c:not(.editing)')) e.preventDefault(); });
+  function xhEdit(c) {
+    let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
+    c.classList.add('editing'); c.classList.remove('e');
+    d.contentEditable = 'true'; d.focus();
+    try { const r = document.createRange(); r.selectNodeContents(d); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch (er) {}
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (er) {}
+    const done = () => {
+      d.removeEventListener('blur', done);
+      d.contentEditable = 'false'; c.classList.remove('editing');
+      const h = d.innerHTML.replace(/<br>$/, '').trim();
+      const i = +c.dataset.xi;
+      if (!(XS.e[i] && XS.e[i].h === h)) { XS.e[i] = { h, t: Date.now() }; c.classList.add('xh-ed'); xhSave(); }
+      c.classList.toggle('e', !h);
+    };
+    d.addEventListener('blur', done);
+    d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
+  }
+  xhDecorate();
+
+  /* ---------- 統計：報告單按「統計」→ 補幾個統計欄位（不含姓名）存成一筆；資料庫標題旁齒輪 → 總統計儀表板 ----------
+   * 紀錄存在這台裝置（tcm-stats-v1），有設定 GitHub 同步時合併到 tcm-notes sync/stats.json */
+  const STK = 'tcm-stats-v1', ST_URL = GH_URL.replace('myfx.json', 'stats.json');
+  const ST = {
+    region: ['台北', '新北', '桃竹苗', '中彰投', '雲嘉南', '高屏', '宜蘭', '花蓮', '台東', '離島'],
+    sex: ['女', '男'],
+    age: ['<18', '18–29', '30–44', '45–64', '65+'],
+    body: ['平和', '氣虛', '陽虛', '陰虛', '痰濕', '濕熱', '血瘀', '氣鬱', '特稟'],
+    concern: ['睡眠', '疼痛', '腸胃', '情緒壓力', '疲勞', '體重', '皮膚', '婦科', '慢性病控制'],
+    sport: ['規律運動', '偶爾運動', '很少運動'],
+    diet: ['外食為主', '偏油炸', '偏甜', '偏辣', '素食', '飲食清淡'],
+    habit: ['抽菸', '喝酒', '嚼檳榔'],
+    chronic: ['高血壓', '高血糖', '高血脂', '癌症'],
+  };
+  const stLoad = () => { try { const a = JSON.parse(localStorage.getItem(STK) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+  const stStore = a => { try { localStorage.setItem(STK, JSON.stringify(a)); } catch (e) {} };
+  let stLast = (() => { try { return JSON.parse(localStorage.getItem('tcm-stats-last') || '{}'); } catch (e) { return {}; } })();
+  async function stSync() {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(ST_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = [], sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
+      const m = new Map(); [...remote, ...stLoad()].forEach(x => x && x.id && m.set(x.id, x));
+      const all = [...m.values()].sort((a, b) => a.t - b.t);
+      stStore(all);
+      if (all.length !== remote.length)
+        await fetch(ST_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步統計紀錄', content: b64e(JSON.stringify(all)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  const chips = (k, multi, val) => `<div class="st-chips" data-k="${k}" data-multi="${multi ? 1 : ''}">${ST[k].map(v => `<button type="button" class="${(multi ? (val || []).includes(v) : val === v) ? 'on' : ''}" data-val="${E(v)}">${E(v)}</button>`).join('')}</div>`;
+  function statOpen() {
+    if (!cur) return;
+    const doc = docOf();
+    let m = root.querySelector('.st-modal');
+    if (m) m.remove();
+    m = doc.createElement('div'); m.className = 'st-modal';
+    const L = stLast, bgTxt = Object.entries(report.bg || {}).map(([k, v]) => ({ yy: ['陰', '陽'], xs: ['虛', '實'], hr: ['寒', '熱'], bl: ['表', '裡'] }[k] || ['', ''])[v < 0 ? 0 : 1]).join('');
+    m.innerHTML = `<div class="st-card" role="dialog" aria-label="加入統計">
+      <div class="st-hd"><b>加入統計</b><small>不含姓名・${E(cur.name)}${bgTxt ? '・' + E(bgTxt) : ''}</small><button type="button" data-st="x" aria-label="關閉">✕</button></div>
+      <div class="st-bd">
+        <section><h4>① 地區</h4>${chips('region', false, L.region || '')}</section>
+        <section><h4>② 性別・年齡</h4>${chips('sex', false, '')}${chips('age', false, '')}</section>
+        <section><h4>③ 體質<small>可複選</small></h4>${chips('body', true, [])}</section>
+        <section><h4>④ 病人關注議題<small>可複選</small></h4>${chips('concern', true, [])}</section>
+        <section><h4>⑤ 運動・飲食</h4>${chips('sport', false, '')}${chips('diet', true, [])}</section>
+        <section><h4>⑥ 菸酒檳榔・三高・癌症</h4>${chips('habit', true, [])}${chips('chronic', true, [])}</section>
+      </div>
+      <div class="st-ft"><button type="button" data-st="x">取消</button><button type="button" data-st="save" class="pri">存入統計</button></div></div>`;
+    root.appendChild(m);
+  }
+  root.addEventListener('click', e => {
+    const m = e.target.closest('.st-modal'); if (!m) return;
+    e.stopPropagation();
+    const c = e.target.closest('.st-chips button');
+    if (c) {
+      const box = c.parentNode;
+      if (box.dataset.multi) c.classList.toggle('on');
+      else { const was = c.classList.contains('on'); box.querySelectorAll('button').forEach(x => x.classList.remove('on')); if (!was) c.classList.add('on'); }
+      return;
+    }
+    const a = e.target.closest('[data-st]');
+    if (e.target === m || (a && a.dataset.st === 'x')) { m.remove(); return; }
+    if (a && a.dataset.st === 'save') {
+      const get = k => [...m.querySelectorAll(`.st-chips[data-k="${k}"] button.on`)].map(x => x.dataset.val);
+      const one = k => get(k)[0] || '';
+      if (!one('region')) { m.querySelector('.st-chips[data-k="region"]').classList.add('need'); return; }
+      const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: Date.now(), dz: cur.id, dzName: cur.name, sys: cur.sys || '',
+        bg: report.bg || {}, fx: report.fx || '', region: one('region'), sex: one('sex'), age: one('age'),
+        body: get('body'), concern: get('concern'), sport: one('sport'), diet: get('diet'), habit: get('habit'), chronic: get('chronic') };
+      const all = stLoad(); all.push(rec); stStore(all);
+      stLast = { region: rec.region }; try { localStorage.setItem('tcm-stats-last', JSON.stringify(stLast)); } catch (er) {}
+      m.remove();
+      const W = winOf(); (W.TCMLobby && W.TCMLobby.toast ? W.TCMLobby.toast : (t => { const b = root.querySelector('[data-bz="stat"]'); if (b) { b.textContent = '✓ 已加入'; setTimeout(() => { b.textContent = '統計'; }, 1600); } }))(`已加入統計（${rec.region}，共 ${all.length} 筆）`);
+      stSync();
+    }
+  }, true);
+
+  // 齒輪 → 第二層選單 → 總統計
+  function gearInit() {
+    const name = document.querySelector('.top .name');
+    if (!name || document.querySelector('.tcm-gear')) return;
+    const g = document.createElement('span'); g.className = 'tcm-gear-w';
+    g.innerHTML = `<button type="button" class="tcm-gear" aria-label="設定" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <div class="tcm-gear-m" hidden><button type="button" data-gear="stats">📊 總統計</button></div>`;
+    name.appendChild(g);
+    const btn = g.querySelector('.tcm-gear'), menu = g.querySelector('.tcm-gear-m');
+    btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+    document.addEventListener('click', e => { if (!g.contains(e.target)) menu.hidden = true; });
+    menu.addEventListener('click', e => { const b = e.target.closest('[data-gear]'); if (!b) return; menu.hidden = true; if (b.dataset.gear === 'stats') dashOpen(); });
+  }
+
+  /* ---------- 總統計儀表板（中間大環＝病例數，六個小環＝六大類，點小環看細項；可切台北、花蓮或兩地對照） ---------- */
+  const CATS = [
+    { k: 'body', t: '體質', ico: '☯' },
+    { k: 'dz', t: '常見疾病・年齡', ico: '⚕' },
+    { k: 'concern', t: '關注議題', ico: '◎' },
+    { k: 'life', t: '運動・飲食', ico: '♨' },
+    { k: 'habit', t: '菸酒檳榔', ico: '⊘' },
+    { k: 'chronic', t: '三高・癌症', ico: '♥' },
+  ];
+  const vals = (r, k) => k === 'dz' ? [r.dzName] : k === 'life' ? [r.sport, ...(r.diet || [])] : [].concat(r[k] || []);
+  function tally(recs, k) {
+    const m = new Map(); recs.forEach(r => vals(r, k).forEach(v => v && m.set(v, (m.get(v) || 0) + 1)));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  let dash = null, dashReg = '全部', dashCat = 'body';
+  function dashOpen() {
+    if (!dash) {
+      dash = document.createElement('div'); dash.className = 'tcm-dash';
+      document.body.appendChild(dash);
+      dash.addEventListener('click', e => {
+        const x = e.target.closest('[data-dash]');
+        if (x) { const k = x.dataset.dash; if (k === 'x') { dash.hidden = true; document.body.classList.remove('dash-on'); } else if (k.startsWith('r:')) { dashReg = k.slice(2); dashDraw(); } else if (k.startsWith('c:')) { dashCat = k.slice(2); dashDraw(); } }
+      });
+      dash.addEventListener('change', e => { if (e.target.matches('[data-dreg]')) { dashReg = e.target.value; dashDraw(); } });
+    }
+    dash.hidden = false; document.body.classList.add('dash-on');
+    dashDraw(); stSync().then(ok => { if (ok && !dash.hidden) dashDraw(); });
+  }
+  const ring = (pct, r, w, cls) => { const C = 2 * Math.PI * r; return `<circle r="${r}" cx="50" cy="50" class="trk" stroke-width="${w}"/><circle r="${r}" cx="50" cy="50" class="${cls || 'val'}" stroke-width="${w}" stroke-dasharray="${(C * Math.max(0, Math.min(1, pct))).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/>`; };
+  function dashDraw() {
+    const all = stLoad(), empty = !all.length;
+    const cmp = dashReg === '台北⇄花蓮';
+    const recs = cmp ? all.filter(r => r.region === '台北' || r.region === '花蓮') : dashReg === '全部' ? all : all.filter(r => r.region === dashReg);
+    const n = recs.length, cnt = reg => all.filter(r => r.region === reg).length;
+    const top = k => { const t = tally(recs, k)[0]; return t ? { v: t[0], p: t[1] / Math.max(1, n) } : { v: '—', p: 0 }; };
+    const others = ST.region.filter(r => r !== '台北' && r !== '花蓮');
+    const tabs = ['全部', '台北', '花蓮', '台北⇄花蓮'];
+    const sat = CATS.map((c, i) => { const t = top(c.k); return `<button type="button" class="sat s${i}${dashCat === c.k ? ' on' : ''}" data-dash="c:${c.k}">
+        <svg viewBox="0 0 100 100">${ring(t.p, 42, 5)}<circle r="34" cx="50" cy="50" class="in"/></svg>
+        <span class="ico">${c.ico}</span><b>${E(c.t)}</b><small>${E(t.v)}${t.p ? ` ${Math.round(t.p * 100)}%` : ''}</small></button>`; }).join('');
+    dash.innerHTML = `<div class="dh"><button type="button" class="dx" data-dash="x" aria-label="返回">‹ 返回</button><h2>總統計</h2>
+        <div class="dtabs">${tabs.map(t => `<button type="button" class="${dashReg === t ? 'on' : ''}" data-dash="r:${t}">${t}${t === '台北' || t === '花蓮' ? `<small>${cnt(t)}</small>` : ''}</button>`).join('')}
+        <select data-dreg aria-label="其他地區"><option value="">其他地區…</option>${others.map(r => `<option value="${r}"${dashReg === r ? ' selected' : ''}>${r}（${cnt(r)}）</option>`).join('')}</select></div></div>
+      ${empty ? '<p class="ddemo">目前 0 筆。在報告單按「統計」把確定要統計的病例存進來，這裡才會開始累計。</p>' : ''}
+      <div class="hub">
+        <svg class="wires" viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">${[[90, 70], [510, 70], [54, 210], [546, 210], [90, 350], [510, 350]].map(([x, y]) => `<path d="M300 210 L${x} ${y}"/>`).join('')}<circle cx="300" cy="210" r="150" class="dash"/></svg>
+        <div class="core"><svg viewBox="0 0 100 100">${ring(1, 46, 1.2, 'thin')}${ring(Math.min(1, n / 200), 40, 4)}<circle r="33" cx="50" cy="50" class="in"/></svg>
+          <div class="core-t"><small>${cmp ? '台北＋花蓮' : E(dashReg)}</small><b>${n}</b><span>筆病例</span></div></div>
+        ${sat}
+      </div>
+      <div class="detail">${dashDetail(recs, all, cmp)}</div>`;
+  }
+  function bars(list, n, cls) {
+    const max = Math.max(1, ...list.map(x => x[1]));
+    return list.slice(0, 8).map(([v, c]) => `<div class="dbar ${cls || ''}"><span class="bl">${E(v)}</span><span class="bt"><i style="width:${(c / max * 100).toFixed(1)}%"></i></span><span class="bn">${Math.round(c / Math.max(1, n) * 100)}%</span></div>`).join('') || '<p class="dnone">還沒有資料</p>';
+  }
+  function dashDetail(recs, all, cmp) {
+    const c = CATS.find(x => x.k === dashCat);
+    const head = `<h3>${c.ico} ${E(c.t)}</h3>`;
+    if (cmp) {
+      const A = recs.filter(r => r.region === '台北'), B = recs.filter(r => r.region === '花蓮');
+      return head + `<div class="cmp"><div><h4>台北<small>${A.length} 筆</small></h4>${bars(tally(A, dashCat), A.length, 'a')}</div><div><h4>花蓮<small>${B.length} 筆</small></h4>${bars(tally(B, dashCat), B.length, 'b')}</div></div>`;
+    }
+    if (dashCat === 'dz') {   // 疾病 × 年齡層：顏色越亮人數越多
+      const dz = tally(recs, 'dz').slice(0, 8).map(x => x[0]);
+      const grid = dz.map(d => ST.age.map(a => recs.filter(r => r.dzName === d && r.age === a).length));
+      const mx = Math.max(1, ...grid.flat());
+      return head + (dz.length ? `<div class="heat"><div class="hr hh"><span></span>${ST.age.map(a => `<span>${a}</span>`).join('')}</div>${dz.map((d, i) => `<div class="hr"><span class="hl">${E(d)}</span>${grid[i].map(v => `<span class="hc" style="--v:${(v / mx).toFixed(2)}">${v || ''}</span>`).join('')}</div>`).join('')}</div>` : '<p class="dnone">還沒有資料</p>');
+    }
+    return head + bars(tally(recs, dashCat), recs.length);
+  }
+  gearInit();
 
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();

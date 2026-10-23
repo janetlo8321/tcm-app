@@ -1,7 +1,7 @@
 /* 離線快取：每次都先問伺服器檔案有沒有變（no-cache）：沒變只回一個很小的 304，不會整個重抓，
  * 有變就立刻拿到新版（GitHub Pages 預設會讓舊檔在瀏覽器留 10 分鐘，所以不能用一般快取）；
  * 沒網路時用上次存下來的 */
-const CACHE = 'tcm-app-v3';
+const CACHE = 'tcm-app-v4';
 const FILES = ['./', 'data.enc', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).catch(() => {})); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('tcm-app-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
