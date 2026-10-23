@@ -202,3 +202,36 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
   .bz-bg2 { display: flex; }
   .bz-bg2 button { flex: 1; min-height: 32px; font-size: 15px; }
 }
+
+/* ---- 兩層懸浮選單（主訴、處方） ---- */
+.bz-cas { position: relative; }
+.bz-cas-btn { width: 100%; min-height: 46px; padding: 9px 34px 9px 12px; text-align: left; border-radius: 8px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 14%, transparent); background: var(--bz-rep-fill); color: var(--bz-rep-ink); font-size: 17px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+.bz-cas-btn span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bz-cas-pop { display: none; position: absolute; z-index: 20; left: 0; top: 100%; padding-top: 4px; min-width: 100%; }
+.bz-cas.open .bz-cas-pop { display: flex; align-items: flex-start; }
+.bz-l1, .bz-l2 { margin: 0; padding: 6px; list-style: none; background: var(--bz-card); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18), 0 0 0 .5px rgba(0, 0, 0, .12); max-height: min(60vh, 460px); overflow-y: auto; }
+.bz-l1 { min-width: 190px; }
+.bz-l2 { min-width: 220px; margin-left: 6px; display: flex; flex-direction: column; }
+.bz-l2[hidden] { display: none; }
+.bz-l1 button, .bz-l2 button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--bz-rep-ink); text-align: left; cursor: pointer; font-size: 16px; white-space: nowrap; }
+.bz-l1 button small { margin-left: auto; color: var(--bz-muted); font-size: 12px; }
+.bz-l1 button i { font-style: normal; color: var(--bz-muted); }
+.bz-l1 button:hover, .bz-l1 button.on, .bz-l2 button:hover { background: var(--bz-acc); color: #fff; }
+.bz-l1 button:hover small, .bz-l1 button.on small, .bz-l1 button:hover i, .bz-l1 button.on i { color: rgba(255, 255, 255, .8); }
+.bz-l1 button.cur:not(.on), .bz-l2 button.cur { font-weight: 700; }
+.bz-l2 button.cur::before { content: "✓"; }
+.bz-l1 .bz-dir { color: var(--bz-herb); border-top: .5px solid var(--bz-line); border-radius: 0 0 8px 8px; margin-top: 4px; }
+.bz-l2-back { display: none !important; }
+/* 窄螢幕：第二層蓋在第一層上，可以按「‹」回上一層 */
+@media (max-width: 700px) {
+  .bz-cas-pop { right: 0; }
+  .bz-l1, .bz-l2 { width: 100%; }
+  .bz-l2 { margin-left: 0; }
+  .bz-cas.l2on .bz-l1 { display: none; }
+  .bz-l2-back { display: flex !important; color: var(--bz-acc) !important; font-weight: 600; }
+}
+/* 第二欄的處方選單往左展開，免得超出畫面 */
+@media (min-width: 701px) { .bz-form > .bz-fld:nth-child(even) .bz-cas-pop { left: auto; right: 0; flex-direction: row-reverse; } .bz-form > .bz-fld:nth-child(even) .bz-l2 { margin: 0 6px 0 0; } }

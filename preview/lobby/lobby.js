@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 00:05';
+  const UPDATED = '10/24 00:23';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -946,11 +946,11 @@
       const target = (m.id === selectedId ? view.tourGlow : m.id === hoveredId ? 1 : 0);
       m.glow += (target - m.glow) * 0.12;
       const g = m.glow;
-      const dim = anySel && m.id !== selectedId ? 0.55 : 1;
+      const dim = anySel && m.id !== selectedId ? 0.5 : 1;   // 選了一條經絡：其他經絡透明 50%
       const cu = m.coreMat.uniforms, hu = m.haloMat.uniforms;
       cu.uColor.value.copy(COL_IDLE).lerp(COL_LIT, g);
-      cu.uOpacity.value = (0.3 + 0.25 * zoomIn) * dim * (1 - g) + 0.9 * g;
-      cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque);
+      cu.uOpacity.value = (anySel && m.id !== selectedId ? 0.5 * 0.3 : (0.3 + 0.25 * zoomIn) * dim) * (1 - g) + 0.9 * g;
+      cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque) * (anySel && m.id !== selectedId ? 0.5 : 1);
       cu.uTime.value = t;
       cu.uFlow.value = 0;
       cu.uRadius.value = 0.03 * (1 + 0.9 * g);

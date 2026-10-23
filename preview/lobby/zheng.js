@@ -189,7 +189,7 @@
     drawList();
   }
 
-  let bonesBefore = false, merBefore = true, ptBefore = true;
+  let bonesBefore = false, organsBefore = false, merBefore = true, ptBefore = true;
   function setMode(v) {
     if (on === v) return;
     on = v;
@@ -199,6 +199,8 @@
     if (on) {
       L.select(null);
       bonesBefore = L.layers.skeleton.visible;
+      organsBefore = L.layers.organs.visible;
+      L.layers.organs.visible = true;   // 病證區域要看到臟腑
       merBefore = view.showMeridians;
       ptBefore = view.showPoints;
       view.showMeridians = false; L.meridianGroup.visible = false;
@@ -214,6 +216,7 @@
       view.showMeridians = merBefore; L.meridianGroup.visible = merBefore;
       view.showPoints = ptBefore; L.pointsObj.visible = ptBefore;
       L.layers.skeleton.visible = bonesBefore;
+      L.layers.organs.visible = organsBefore;
       L.organLook.keep = null; L.organLook.glow = null; L.organLook.fade = 1;
       zfly = null;
       L.reset();

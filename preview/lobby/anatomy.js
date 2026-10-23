@@ -90,7 +90,9 @@
 
   // 臟腑、骨骼都在皮膚深度遮擋之前畫（才不會被透明皮膚擋掉）
   [skeleton, organs, face].forEach(g => g.traverse(o => { if (o.isMesh) o.renderOrder = o.material.transparent ? 0.5 : 0; }));
-  skeleton.visible = false;   // 骨骼預設隱藏，圖層裡點選才出現
+  skeleton.visible = false;   // 預設只有皮膚、經絡、穴點；骨骼、臟腑、顱面骨・咽喉都從圖層打開
+  organs.visible = false;
+  face.visible = false;
   scene.add(skeleton, organs, face);
 
   /* ---------- 骨度分寸尺 ---------- */

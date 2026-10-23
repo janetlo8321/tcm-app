@@ -207,6 +207,59 @@
   }
   const herbTag = (h, i, k) => `<span class="bz-tag">${h.id ? `<a href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : E(h.n)}<button type="button" data-del="${k}" data-i="${i}" aria-label="移除${E(h.n)}">×</button></span>`;
 
+  /* ---------- 兩層懸浮選單：第一層是「系」，滑過（或點）才出現第二層 ---------- */
+  const CAS = {};
+  function cascade(key, label, groups, openGroup, val, direct) {
+    CAS[key] = groups;
+    const gi = Math.max(0, groups.findIndex(g => g.items.some(x => x.v === val)));
+    return `<div class="bz-cas" data-cas="${key}">
+      <button type="button" class="bz-cas-btn" aria-haspopup="true" aria-expanded="false"><span>${E(label)}</span></button>
+      <div class="bz-cas-pop" role="menu">
+        <ul class="bz-l1">${groups.map((g, i) => `<li><button type="button" data-g="${i}" class="${i === gi && val ? 'cur' : ''}">${E(g.name)}<small>${g.items.length}</small><i>›</i></button></li>`).join('')}
+          ${(direct || []).map(d => `<li><button type="button" class="bz-dir" data-pick="${E(d.v)}">${E(d.t)}</button></li>`).join('')}</ul>
+        <div class="bz-l2" hidden></div>
+      </div></div>`;
+  }
+  function showL2(cas, gi) {
+    const key = cas.dataset.cas, g = CAS[key] && CAS[key][gi];
+    if (!g) return;
+    const l2 = cas.querySelector('.bz-l2');
+    cas.querySelectorAll('.bz-l1 [data-g]').forEach(b => b.classList.toggle('on', +b.dataset.g === gi));
+    l2.innerHTML = `<button type="button" class="bz-l2-back" data-l2back>‹ ${E(g.name)}</button>` +
+      g.items.map(x => `<button type="button" data-pick="${E(x.v)}" class="${x.v === (key === 'cc' ? cur.id : report.fx) ? 'cur' : ''}">${E(x.t)}</button>`).join('');
+    l2.hidden = false;
+    cas.classList.add('l2on');
+  }
+  function closeCas(except) {
+    root.querySelectorAll('.bz-cas.open').forEach(c => { if (c !== except) { c.classList.remove('open', 'l2on'); c.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'false'); c.querySelector('.bz-l2').hidden = true; } });
+  }
+  let FX_BY_SYS = null;
+  function fxGroups(local, curPat) {   // 處方：先列這個證型／本病，再依各系病證裡用到的方分組
+    if (!FX_BY_SYS) {
+      FX_BY_SYS = {};
+      zzDiseases.filter(d => !d.dup && !/青光眼/.test(d.name)).forEach(d => {
+        const set = (FX_BY_SYS[d.sys] = FX_BY_SYS[d.sys] || new Set());
+        patterns(d).forEach(p => p.fx.forEach(f => set.add(f.name)));
+      });
+    }
+    const groups = [];
+    if (local.length) groups.push({ name: curPat ? '這個證型・本病常用' : '本病常用', items: local.map(n => ({ v: n, t: n })) });
+    const used = new Set();
+    Object.entries(FX_BY_SYS).forEach(([sy, set]) => { if (!set.size) return; const ns = [...set].sort((a, b) => a.localeCompare(b, 'zh-Hant')); ns.forEach(n => used.add(n)); groups.push({ name: sy, items: ns.map(n => ({ v: n, t: n })) }); });
+    const rest = (DB.formulas || []).map(f => f.name).filter(n => !used.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+    if (rest.length) groups.push({ name: '其他方劑', items: rest.map(n => ({ v: n, t: n })) });
+    return groups;
+  }
+  function pickCas(key, v) {
+    const r = report;
+    if (key === 'cc') { open(v, true); return; }
+    if (key === 'fx') {
+      if (v === OTHER) { r.fx = OTHER; r.herbs = []; keep(draw); focusLater('[data-v="fxOther"]'); return; }
+      r.fx = v; r.herbs = herbsOf(v);
+      keep(draw);
+    }
+  }
+
   function draw() {
     const o = cur, r = report;
     const sysGroups = {};
@@ -217,7 +270,7 @@
     const patLabel = n => { const x = R.find(y => y.p.name === n); return anyCrit && x && x.sc.n ? `${n}（符合 ${Math.max(0, x.sc.s)}/${x.sc.n}）` : n; };
     const typedPat = r.pat && !patNames.includes(r.pat);
     const curPat = pats.find(p => p.name === r.pat);
-    const { local, all } = allFormulaNames(curPat ? curPat.fx.map(f => f.name) : []);
+    const { local } = allFormulaNames(curPat ? curPat.fx.map(f => f.name) : []);
     const fxTyped = r.fx === OTHER;
     const SX = uniq('sx').filter(v => !r.sx.includes(v));
 
@@ -232,7 +285,7 @@
         <div class="bz-rh"><b>辨證結果報告單</b><span>${today()}</span></div>
         <label class="bz-name">姓名<input type="text" data-v="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label>
         <div class="bz-form">
-          <label>主訴<select data-f="cc">${Object.entries(sysGroups).map(([sy, ds]) => `<optgroup label="${E(sy)}">${ds.map(d => opt(d.id, d.name, d.id === o.id)).join('')}</optgroup>`).join('')}</select></label>
+          <div class="bz-fld"><span class="bz-lb">主訴</span>${cascade('cc', o.name, Object.entries(sysGroups).map(([sy, ds]) => ({ name: sy, items: ds.map(d => ({ v: d.id, t: d.name })) })), o.sys, o.id)}</div>
           <div class="bz-fld"><span class="bz-lb">伴隨症狀</span>
             <select data-f="sx">${opt('', r.sx.length ? '再加一項…' : '可選多項', true)}${SX.map(v => opt(v, v)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
             ${r._t_sx ? `<input type="text" data-add="sx" placeholder="輸入症狀後按 Enter">` : ''}
@@ -240,14 +293,11 @@
           <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
           <div class="bz-fld"><span class="bz-lb">證型</span>
-            <div class="bz-bgs">${AX.map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
+            <div class="bz-bgs">${AX.filter(a => a.k === 'yy' || a.k === 'xs').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
             <select data-f="pat">${opt('', pats.length ? (anyCrit ? '請選擇（依符合程度排序）' : '請選擇') : '這個病沒有整理好的證型，可自訂', !r.pat)}${patNames.map(n => opt(n, patLabel(n), n === r.pat)).join('')}${opt(OTHER, '⊕ 其他（自訂）', typedPat || !!r._t_pat)}</select>
             ${typedPat || r._t_pat ? `<input type="text" data-t="pat" value="${E(typedPat ? r.pat : '')}" placeholder="自己輸入證型">` : ''}</div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
-            <select data-f="fx">${opt('', '請選擇', !r.fx)}
-              ${local.length ? `<optgroup label="${curPat ? '這個證型／本病常用' : '本病常用'}">${local.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
-              ${all.length ? `<optgroup label="其他方劑">${all.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
-              ${opt(OTHER, '⊕ 自定義處方', fxTyped)}</select>
+            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxGroups(local, curPat), fxTyped ? '' : null, r.fx, [{ v: OTHER, t: '⊕ 自定義處方' }])}
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
@@ -258,10 +308,6 @@
             <button type="button" class="bz-plus" data-bz="adj">⊕ 加一列</button>
             ${curPat && curPat.jj ? `<p class="bz-hint">書上的加減：${E(curPat.jj)}</p>` : ''}</div>
         </div>
-        <div class="bz-meter">${AX.map(a => { const v = r.ax[a.k];
-          return `<div class="bz-m" data-ax="${a.k}"><span class="bz-ml">${a.k === 'bl' ? '表 / 裡' : a.a + ' / ' + a.b}</span>
-            <div class="bz-mt" role="slider" tabindex="0" aria-label="${a.a}${a.b}" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="${Math.round(v * 100)}"><i style="left:${(50 + v * 46).toFixed(1)}%"></i></div>
-            <span class="bz-me l">${a.k === 'bl' ? '表' : a.a}</span><span class="bz-me r">${a.k === 'bl' ? '裡' : a.b}</span></div>`; }).join('')}</div>
         <label class="bz-note">醫囑 / 備註<textarea data-v="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
         <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空</button></div>
       </div>
@@ -285,6 +331,17 @@
   function focusLater(sel) { const el = root.querySelector(sel); if (el) el.focus(); }
   root.addEventListener('click', e => {
     const t = e.target;
+    const cas = t.closest('.bz-cas');
+    if (cas) {
+      const pk = t.closest('[data-pick]');
+      if (pk) { const key = cas.dataset.cas; closeCas(); pickCas(key, pk.dataset.pick); return; }
+      const gb = t.closest('[data-g]');
+      if (gb) { showL2(cas, +gb.dataset.g); return; }
+      if (t.closest('[data-l2back]')) { cas.classList.remove('l2on'); cas.querySelector('.bz-l2').hidden = true; return; }
+      if (t.closest('.bz-cas-btn')) { const on = !cas.classList.contains('open'); closeCas(cas); cas.classList.toggle('open', on); t.closest('.bz-cas-btn').setAttribute('aria-expanded', String(on)); return; }
+      return;
+    }
+    closeCas();
     const g = t.closest('[data-bzgo]');
     if (g) { e.preventDefault(); close(); go(g.dataset.bzgo); return; }
     const b = t.closest('[data-bz]');
@@ -307,6 +364,20 @@
       report.ax[k] = (report.bg[k] || 0) * 0.6;
       keep(draw);
     }
+  });
+  // 滑鼠：碰到就展開，滑過第一層就出現第二層
+  root.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const cas = e.target.closest('.bz-cas');
+    if (!cas) return;
+    if (!cas.classList.contains('open')) { closeCas(cas); cas.classList.add('open'); cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true'); }
+    const gb = e.target.closest('[data-g]');
+    if (gb && !gb.classList.contains('on')) showL2(cas, +gb.dataset.g);
+  });
+  root.addEventListener('pointerout', e => {
+    if (e.pointerType !== 'mouse') return;
+    const cas = e.target.closest('.bz-cas');
+    if (cas && !cas.contains(e.relatedTarget)) closeCas();
   });
   root.addEventListener('change', e => {
     const t = e.target, k = t.dataset.f, r = report;
