@@ -312,7 +312,7 @@
     for (let c = 0; c <= path.length; c++) cols.push(levelAt(c));
     const col = (lv, c) => `<div class="bz-mcol">${N && c ? `<button type="button" class="bz-mback" data-back>‹ ${E(levelAt(c - 1)[path[c - 1]].t)}</button>` : ''}${lv.map((x, i) => x.sec != null
       ? `<div class="bz-msec ${x.cls || ''}">${E(x.sec)}</div>`
-      : `<button type="button" data-c="${c}" data-i="${i}" data-k="${x.kids ? 1 : 0}" class="${[x.cls || '', path[c] === i ? 'on' : '', x.v != null && x.v === def.val ? 'cur' : ''].join(' ')}">${E(x.t)}${x.note ? `<em>${E(x.note)}</em>` : ''}${x.kids ? `<small>${x.n != null ? x.n : x.kids.length}</small><i>›</i>` : ''}</button>`).join('')}</div>`;
+      : `<button type="button" data-c="${c}" data-i="${i}" data-k="${x.kids ? 1 : 0}" class="${[x.cls || '', path[c] === i ? 'on' : '', x.v != null && x.v === def.val ? 'cur' : ''].join(' ')}"><span class="bz-mt">${E(x.t)}</span>${x.note ? `<em>${E(x.note)}</em>` : ''}${x.kids ? `<small>${x.n != null ? x.n : x.kids.length}</small><i>›</i>` : ''}</button>`).join('')}</div>`;
     el.innerHTML = N ? col(cols[cols.length - 1], cols.length - 1) : cols.map(col).join('');
     if (!N && keep) [...el.children].slice(0, keep).forEach((x, k) => { x.scrollTop = tops[k] || 0; });
     placeMenu();
@@ -361,7 +361,7 @@
       // 符合的方 + 自己輸入過的方（同一病、同樣的虛實陰陽寒熱），前面加序號；最後一列可以自訂
       const mine = myFx().filter(x => x.tag === hit.key && !hit.list.some(y => y.v === x.n)).map(x => fxLeaf(x.n, '自訂'));
       const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
-      out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: (list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]).concat([{ t: '⊕ 其他（自訂）', v: OTHER, cls: 'dir' }]) });
+      out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]) });
     }
     // 我輸入過的方：所有病證輸入過的都列出來，同名只留一個（本病的排前面）
     const allMine = uniqBy(myFx().concat(...Object.values(myFxAll())), x => x.n);
