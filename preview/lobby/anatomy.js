@@ -168,6 +168,33 @@
   RULERS.forEach(r => (r.both ? [1, -1] : [1]).forEach(s => buildRuler(r, s)));
   scene.add(rulers);
 
+  /* ---------- 點選經絡時，臟腑淡到 30%（看清楚經絡走進哪裡）；病證模式可讓某些臟腑保持原樣並發光 ---------- */
+  const organEntries = [];
+  organs.traverse(o => {
+    if (o.isMesh) organEntries.push({ o, m: o.material, base: o.material.opacity, emi: o.material.emissive.clone(), a: 1 });
+  });
+  const _c = new THREE.Color();
+  L.organLook = { fade: 1, keep: null, glow: null };   // keep：保持原樣的臟腑名；glow：發光顏色
+  L.hooks.select.push(id => { L.organLook.fade = id ? 0.3 : 1; });
+  let lastT = 0;
+  L.hooks.frame.push(t => {
+    const { fade, keep, glow } = L.organLook;
+    const k = 1 - Math.exp(-Math.min(0.1, Math.max(0, t - lastT)) * 8);   // 依時間平滑（慢的手機也一樣快）
+    lastT = t;
+    organEntries.forEach(e => {
+      const on = keep && keep.has(e.o.name);
+      const goal = on ? 1 : fade;
+      e.a += (goal - e.a) * k;
+      if (Math.abs(goal - e.a) < 0.002) e.a = goal;
+      e.m.opacity = e.base * e.a;
+      const tr = e.base < 1 || e.a < 1;
+      if (e.m.transparent !== tr) { e.m.transparent = tr; e.m.depthWrite = !tr; e.o.renderOrder = tr ? 0.5 : 0; e.m.needsUpdate = true; }
+      _c.copy(e.emi);
+      if (on && glow) _c.lerp(glow, 0.28 + 0.1 * Math.sin(t * 2.4));
+      e.m.emissive.lerp(_c, k);
+    });
+  });
+
   L.layers = { skeleton, organs, face, rulers };
   L.organs = ORGAN;
 })();

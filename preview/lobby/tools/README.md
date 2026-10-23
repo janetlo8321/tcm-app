@@ -8,3 +8,4 @@
 
 執行：`python3 build_model.py ../model && python3 acupoints.py ../model/points.json`
 （需要 numpy、scipy、trimesh、fast-simplification、embreex、rtree；模型路徑寫在 bp3d.py 的 ROOT）。
+- `zz.py`：從 tcm-notes 的 病證.json 產生 `model/zz.json`（病證區域用的系統與病名清單，只有名字和 id，不收青光眼）

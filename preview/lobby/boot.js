@@ -4,7 +4,7 @@
   const el = document.getElementById('loading');
   const bar = el && el.querySelector('i');
   const say = t => { if (el) el.querySelector('span').textContent = t; };
-  const SCRIPTS = ['lobby.js', 'anatomy.js', 'tour.js', 'tools.js'];
+  const SCRIPTS = ['lobby.js', 'anatomy.js', 'tour.js', 'tools.js', 'zheng.js'];
   function run(i) {
     if (i >= SCRIPTS.length) { if (el) el.classList.add('done'); return; }
     const s = document.createElement('script');

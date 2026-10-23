@@ -67,7 +67,7 @@ async function unlock(keys, remember) {
 }
 
 /* ---- 大廳（經絡銅人）：一開啟先進大廳，按「進入資料庫」才到資料庫 ---- */
-let lobbyOpen = false, pendingHtml = null, lobbyEl = null;
+let lobbyOpen = false, pendingHtml = null, lobbyEl = null, appShown = false, pendingGo = null;
 function openLobby() {
   if (!lobbyEl || !document.body.contains(lobbyEl)) {
     lobbyEl = document.createElement('div');
@@ -88,12 +88,26 @@ function closeLobby() {
   if (lobbyEl) lobbyEl.style.display = 'none';
   document.documentElement.style.overflow = '';
   if (pendingHtml) { const h = pendingHtml; pendingHtml = null; showApp(h); }
+  else if (appShown) goApp();
   else if (!blob || !document.getElementById('f') || document.getElementById('f').hidden === false) { const pw = document.getElementById('pw'); if (pw) pw.focus(); }
 }
-function onMsg(e) { if (e.data && e.data.type === 'tcm-enter') closeLobby(); }
+// 大廳傳來 go：進入資料庫後直接打開那一個條目（例如病證區域點的病名）
+function onMsg(e) {
+  if (!e.data || e.data.type !== 'tcm-enter') return;
+  pendingGo = typeof e.data.go === 'string' ? e.data.go : null;
+  closeLobby();
+}
+function goApp() {
+  const id = pendingGo; pendingGo = null;
+  if (!id || !document.body) return;
+  const a = document.createElement('a');   // 交給資料庫自己的 data-go 點擊處理
+  a.href = '#' + id; a.dataset.go = id; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function showApp(html) {
   document.open(); document.write(html); document.close();
-  lobbyEl = null;
+  lobbyEl = null; appShown = true;
+  if (pendingGo) { const t0 = Date.now(); (function wait() { if (document.readyState === 'complete' || Date.now() - t0 > 5000) setTimeout(goApp, 120); else setTimeout(wait, 50); })(); }
   window.addEventListener('message', onMsg);   // 換頁後重新掛上
   const b = document.createElement('button');
   b.type = 'button';
