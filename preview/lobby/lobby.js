@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/23 20:45';
+  const UPDATED = '10/23 21:13';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -833,6 +833,7 @@
   }
   const facing = (p, n) => _w.subVectors(camera.position, p).normalize().dot(n);
 
+  const SHOW_MER_NAMES = false;   // 經絡名（青色字）不顯示
   function updateLabels(lod) {
     frameNo++;
     const W = stage.clientWidth, H = stage.clientHeight;
@@ -849,7 +850,7 @@
 
     // 經絡名：在畫面中最靠中央的那一段
     const merList = [];
-    if (view.showMeridians) MERIDIANS.forEach(m => {
+    if (SHOW_MER_NAMES) MERIDIANS.forEach(m => {
       const a = m.id === selectedId ? Math.max(lod.mer, lod.hiMer) : lod.mer;
       if (a < 0.03) return;
       let best = null, bd = Infinity;
@@ -951,13 +952,13 @@
       cu.uOpacity.value = (0.3 + 0.25 * zoomIn) * dim * (1 - g) + 0.9 * g;
       cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque);
       cu.uTime.value = t;
-      cu.uFlow.value = g;
+      cu.uFlow.value = 0;
       cu.uRadius.value = 0.03 * (1 + 0.9 * g);
       hu.uColor.value.copy(COL_IDLE).lerp(COL_HALO, g);
       hu.uOpacity.value = 0.16 * g * (0.9 + 0.1 * Math.sin(t * 1.6));
       hu.uBack.value = 0.3 * (1 - view.opaque);
       hu.uTime.value = t;
-      hu.uFlow.value = g;
+      hu.uFlow.value = 0;
     });
 
     dust.rotation.y = t * 0.01;

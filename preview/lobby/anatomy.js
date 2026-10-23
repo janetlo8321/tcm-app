@@ -30,18 +30,61 @@
     肺: ['lungR', 'lungL', 'trachea'], 心: ['heart'], 肝: ['liver'], 膽: ['gall'], 胃: ['stomach', 'esoph'],
     脾: ['spleen', 'pancreas'], 腎: ['kidney', 'ureter'], 膀胱: ['bladder'], 小腸: ['sint'], 大腸: ['lint'], 腦: ['brain']
   };
+  // 臟腑質感：濕潤、柔軟（柔和反光＋邊緣透光的暖色＋細微的組織紋理）
+  const envMap = (() => {
+    const pm = new THREE.PMREMGenerator(L.renderer);
+    const room = new THREE.Scene();
+    room.background = new THREE.Color(0x1a1210);
+    const lamp = (c, x, y, z, w, h) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+      m.position.set(x, y, z); m.lookAt(0, 0, 0); room.add(m);
+    };
+    lamp(0xfff3e6, -3, 4, 4, 4, 2.5);
+    lamp(0xffd9c2, 4, 2, 2, 2, 3);
+    lamp(0x8a6a60, 0, -4, 0, 6, 6);
+    lamp(0xffffff, 0, 5, -3, 3, 1.5);
+    const rt = pm.fromScene(room, 0.04);
+    pm.dispose();
+    return rt.texture;
+  })();
+  const tissue = mat => {
+    mat.onBeforeCompile = sh => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          varying vec3 vObjPos;
+          float hsh(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+          float vnoise(vec3 p) {
+            vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(mix(hsh(i), hsh(i + vec3(1,0,0)), f.x), mix(hsh(i + vec3(0,1,0)), hsh(i + vec3(1,1,0)), f.x), f.y),
+                       mix(mix(hsh(i + vec3(0,0,1)), hsh(i + vec3(1,0,1)), f.x), mix(hsh(i + vec3(0,1,1)), hsh(i + vec3(1,1,1)), f.x), f.y), f.z);
+          }`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float tn = vnoise(vObjPos * 9.0) * 0.6 + vnoise(vObjPos * 23.0) * 0.4;
+          diffuseColor.rgb *= 0.88 + 0.22 * tn;`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 2.0);
+          totalEmissiveRadiance += diffuseColor.rgb * vec3(1.0, 0.55, 0.45) * fr * 0.45;`);
+    };
+    return mat;
+  };
   const ORGAN = {};
   Object.entries(ORGAN_KEYS).forEach(([zh, keys]) => {
-    ORGAN[zh] = meshesOf(keys, m => new THREE.MeshPhongMaterial({
-      color: m.color, specular: 0x3a2622, shininess: 34,
-      transparent: zh === '肺', opacity: zh === '肺' ? 0.82 : 1
-    }));
+    ORGAN[zh] = meshesOf(keys, m => tissue(new THREE.MeshPhysicalMaterial({
+      color: m.color, roughness: 0.55, metalness: 0, envMap, envMapIntensity: 0.32,
+      clearcoat: 0.25, clearcoatRoughness: 0.45,
+      emissive: new THREE.Color(m.color).multiplyScalar(0.06),
+      transparent: zh === '肺', opacity: zh === '肺' ? 0.86 : 1
+    })));
     ORGAN[zh].forEach(o => { o.name = zh; organs.add(o); });
   });
   ORGAN.心包 = ORGAN.心;
 
   // 臟腑、骨骼都在皮膚深度遮擋之前畫（才不會被透明皮膚擋掉）
   [skeleton, organs].forEach(g => g.traverse(o => { if (o.isMesh) o.renderOrder = o.material.transparent ? 0.5 : 0; }));
+  skeleton.visible = false;   // 骨骼預設隱藏，圖層裡點選才出現
   scene.add(skeleton, organs);
 
   /* ---------- 骨度分寸尺 ---------- */

@@ -244,14 +244,11 @@
     uniform float uProg; uniform float uTotal; uniform float uTime; uniform float uOpaque;
     varying float vU; varying float vKind; varying float vEdge;
     void main() {
-      if (vU > uProg) discard;
-      float stripe = smoothstep(0.35, 0.65, fract(vU * uTotal * 0.55 - uTime * 0.35));
-      vec3 ext = mix(vec3(0.86, 0.3, 0.14), vec3(1.0, 0.8, 0.3), stripe * 0.75);
-      vec3 inn = vec3(1.0, 0.9, 0.45);
+      // 一條連續的橘線：體表較深，入臟腑的體內段稍淡
+      vec3 ext = vec3(0.95, 0.42, 0.16);
+      vec3 inn = vec3(1.0, 0.62, 0.3);
       vec3 col = mix(inn, ext, vKind);
-      float head = exp(-max(0.0, uProg - vU) * uTotal / 0.7);
-      col = mix(col, vec3(1.0, 0.97, 0.85), head * 0.75);
-      float a = mix(0.75 * (1.0 - 0.55 * uOpaque), 0.95, vKind) * (0.55 + 0.45 * vEdge);
+      float a = mix(0.8 * (1.0 - 0.5 * uOpaque), 0.92, vKind) * (0.55 + 0.45 * vEdge);
       gl_FragColor = vec4(col, a);
     }`;
 
@@ -308,7 +305,7 @@
     geo.setAttribute('aU', new THREE.BufferAttribute(aU, 1));
     geo.setAttribute('aKind', new THREE.BufferAttribute(aKind, 1));
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uProg: { value: 0 }, uTotal: { value: total }, uTime: { value: 0 }, uRadius: { value: 0.055 }, uOpaque: { value: 0 } },
+      uniforms: { uProg: { value: 0 }, uTotal: { value: total }, uTime: { value: 0 }, uRadius: { value: 0.038 }, uOpaque: { value: 0 } },
       vertexShader: tourVS, fragmentShader: tourFS,
       transparent: true, depthWrite: false, depthTest: false
     });
@@ -324,30 +321,43 @@
     return (cache[m.id] = { m, mesh, mat, head, curve, total, steps: stepsL });
   }
 
-  /* ---------- 播放列 ---------- */
+  /* ---------- 循行面板 ----------
+   * 選到經絡時：體表＋入臟腑的整條橘線直接顯示
+   * 右下角一個小圓點：點開才出現面板（▶ 讓一點柔光沿經絡不斷循環、字幕、分享） */
+  const dot = document.createElement('button');
+  dot.type = 'button';
+  dot.className = 'pl-dot';
+  dot.setAttribute('aria-label', '循行');
+  dot.innerHTML = '<i></i>';
+  stage.appendChild(dot);
+
   const player = document.createElement('div');
   player.className = 'player';
   player.innerHTML = `
     <div class="pl-name"></div>
     <div class="pl-cap"></div>
     <div class="pl-bar">
-      <button type="button" class="pl-play" aria-label="播放">▶</button>
-      <button type="button" class="pl-reset">復位</button>
-      <input type="range" class="pl-range" min="0" max="1000" value="0" aria-label="循行進度">
+      <button type="button" class="pl-play" aria-label="循行">▶</button>
+      <input type="range" class="pl-range" min="0" max="1000" value="0" aria-label="光點位置">
       <button type="button" class="pl-share">分享</button>
     </div>`;
   stage.appendChild(player);
   const $p = s => player.querySelector(s);
   const nameEl = $p('.pl-name'), capEl = $p('.pl-cap'), playBtn = $p('.pl-play'), range = $p('.pl-range');
 
-  let cur = null, playing = false, prog = 0;
-  const SPEED = 1.5;   // 每秒前進的長度
+  let cur = null, playing = false, prog = 0, open = false;
+  const SPEED = 1.3;   // 光點每秒前進的長度
 
+  function setOpen(on) {
+    open = on;
+    player.classList.toggle('show', on && !!cur);
+    dot.classList.toggle('on', on);
+    stage.classList.toggle('has-player', on && !!cur);
+  }
   function setPlaying(on) {
     playing = on;
     playBtn.textContent = on ? '❚❚' : '▶';
-    playBtn.setAttribute('aria-label', on ? '暫停' : '播放');
-    if (on && cur && prog >= 0.999) prog = 0;
+    if (!on && cur) cur.head.visible = false;
   }
   function stepAt(L0) {
     if (!cur) return null;
@@ -357,27 +367,31 @@
   }
   function show(id) {
     if (cur) { cur.mesh.visible = false; cur.head.visible = false; }
-    setPlaying(false);
-    prog = 0;
     const m = id && L.byId[id];
-    if (!m || !TOURS[m.id]) { cur = null; player.classList.remove('show'); stage.classList.remove('has-player'); view.tourGlow = 1; return; }
+    if (!m || !TOURS[m.id]) { cur = null; setPlaying(false); setOpen(false); dot.classList.remove('show'); return; }
     cur = buildTour(m);
     cur.mesh.visible = true;
+    prog = 0; range.value = 0;
     nameEl.innerHTML = '';
     nameEl.append(m.name);
-    const sm = document.createElement('small');
-    sm.textContent = '點兩下進入';
-    nameEl.appendChild(sm);
-    capEl.textContent = '按 ▶ 看循行';
-    range.value = 0;
-    player.classList.add('show');
-    stage.classList.add('has-player');
+    capEl.textContent = cur.steps.length ? cur.steps[0].t : '';
+    dot.classList.add('show');
+    setOpen(open);
+    if (playing) setPlaying(true);
   }
   L.hooks.select.push(show);
 
+  dot.addEventListener('click', () => {
+    setOpen(!open);
+    if (open && !playing) setPlaying(true);   // 展開就開始循行
+    if (!open) setPlaying(false);
+  });
   playBtn.addEventListener('click', () => setPlaying(!playing));
-  $p('.pl-reset').addEventListener('click', () => { setPlaying(false); prog = 0; range.value = 0; capEl.textContent = '按 ▶ 看循行'; });
-  range.addEventListener('input', () => { setPlaying(false); prog = range.value / 1000; });
+  range.addEventListener('input', () => {
+    prog = range.value / 1000;
+    const st = stepAt(prog * (cur ? cur.total : 0));
+    if (st) capEl.textContent = st.t;
+  });
   $p('.pl-share').addEventListener('click', async () => {
     if (!cur) return;
     const url = location.href.split('#')[0] + '#' + cur.m.id;
@@ -395,26 +409,18 @@
     const dt = Math.min(0.1, t - lastT);
     lastT = t;
     if (!cur) return;
-    if (playing) {
-      prog = Math.min(1, prog + (SPEED / cur.total) * dt);
-      range.value = Math.round(prog * 1000);
-      if (prog >= 1) setPlaying(false);
-    }
-    cur.mat.uniforms.uProg.value = prog;
-    cur.mat.uniforms.uTime.value = t;
     cur.mat.uniforms.uOpaque.value = view.opaque;
-    view.tourGlow = prog > 0 ? 0.35 : 1;
-    cur.head.visible = prog > 0 && prog < 1;
-    if (cur.head.visible) {
-      cur.curve.getPointAt(prog, _hp);
-      cur.head.position.copy(_hp);
-      const s = Math.min(0.8, Math.max(0.12, dist * 0.022));
-      cur.head.scale.set(s, s, 1);
-    }
-    if (prog > 0) {
-      const st = stepAt(prog * cur.total);
-      if (st && capEl.textContent !== st.t) capEl.textContent = st.t;
-    }
+    if (!playing) return;
+    prog += (SPEED / cur.total) * dt;
+    if (prog >= 1) prog -= 1;                     // 走完一圈從頭再來
+    range.value = Math.round(prog * 1000);
+    cur.curve.getPointAt(prog, _hp);
+    cur.head.position.copy(_hp);
+    const s = Math.min(0.7, Math.max(0.1, dist * 0.018)) * (0.92 + 0.08 * Math.sin(t * 3));
+    cur.head.scale.set(s, s, 1);
+    cur.head.visible = true;
+    const st = stepAt(prog * cur.total);
+    if (st && capEl.textContent !== st.t) capEl.textContent = st.t;
   });
 
   // 分享連結：#LU 之類，開啟時直接點亮該經

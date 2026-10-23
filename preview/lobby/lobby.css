@@ -485,3 +485,25 @@ body { display: grid; place-items: center; }
   position: absolute; right: 10px; bottom: calc(1px + env(safe-area-inset-bottom)); z-index: 4;
   font-size: 9px; color: rgba(233, 214, 184, .38); pointer-events: none; letter-spacing: .02em;
 }
+
+/* ---------- 循行小圓點（點開才出現循行面板） ---------- */
+.pl-dot {
+  position: absolute; z-index: 6;
+  right: 14px; bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 14, 10, 0.55); border: 1px solid rgba(255, 170, 110, 0.35);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  cursor: pointer; opacity: 0; pointer-events: none; transform: scale(.8);
+  transition: opacity .3s, transform .3s, border-color .3s;
+}
+.pl-dot.show { opacity: 1; pointer-events: auto; transform: none; }
+.pl-dot i {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: radial-gradient(circle, #fff6e0 0%, #ffb067 55%, rgba(255, 140, 70, 0) 100%);
+  box-shadow: 0 0 10px 3px rgba(255, 150, 80, 0.55);
+  animation: dotGlow 2.4s ease-in-out infinite;
+}
+.pl-dot.on { border-color: rgba(255, 190, 130, 0.8); }
+@keyframes dotGlow { 0%, 100% { opacity: .65; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.1); } }
+.has-player .pl-dot { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }

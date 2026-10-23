@@ -70,21 +70,21 @@ add('teeth','牙齒','skeleton',0xf3eee2, lambda p: p['system']=='skeletal' and 
 add('cart','軟骨','skeleton',0xc9d0cf, lambda p: p['system']=='skeletal' and re.search(CART,p['name'],re.I) and 'Gingiva' not in p['name'], 0.4)
 
 # 臟腑（key 對應十二經的臟腑）
-add('lung','肺','organs',0xd98f8f, vf=hull_organ(['right lung'],0.10)) ; GROUPS[-1]=('lungR',)+GROUPS[-1][1:]
-add('lung','肺','organs',0xd98f8f, vf=hull_organ(['left lung'],0.10)) ; GROUPS[-1]=('lungL',)+GROUPS[-1][1:]
+add('lung','肺','organs',0xd29aa0, vf=hull_organ(['right lung'],0.10)) ; GROUPS[-1]=('lungR',)+GROUPS[-1][1:]
+add('lung','肺','organs',0xd29aa0, vf=hull_organ(['left lung'],0.10)) ; GROUPS[-1]=('lungL',)+GROUPS[-1][1:]
 add('trachea','氣管','organs',0xe2cbb6, nm('Trachea','Left main bronchus','Right main bronchus proper'), 0.6)
-add('heart','心','organs',0xb0413e, lambda p: p['system']=='cardiac' and re.search(r'^Wall of',p['name']), 0.6)
-add('liver','肝','organs',0x8c3b2e, vf=hull_organ(['liver'],0.12))
+add('heart','心','organs',0xa9483f, lambda p: p['system']=='cardiac' and re.search(r'^Wall of',p['name']), 0.6)
+add('liver','肝','organs',0x8a3f44, vf=hull_organ(['liver'],0.12))
 add('gall','膽','organs',0x5b7d3c, nm('Gallbladder'), 1.0)
-add('stomach','胃','organs',0xd98c7e, nm('Stomach'), 1.0)
+add('stomach','胃','organs',0xd99c94, nm('Stomach'), 1.0)
 add('esoph','食道','organs',0xcf8577, nm('Esophagus'), 1.0)
 add('spleen','脾','organs',0x7d2f3e, nm('Spleen'), 1.0)
 add('pancreas','胰','organs',0xe2b27e, nm('Pancreas'), 1.0)
 add('kidney','腎','organs',0x9a3a33, nm('Left kidney','Right kidney','Left adrenal gland','Right adrenal gland'), 1.0)
 add('ureter','輸尿管','organs',0xd8b39a, nm('Left ureter','Right ureter','Urethra'), 1.0)
 add('bladder','膀胱','organs',0xd9a08c, nm('Urinary bladder'), 1.0)
-add('sint','小腸','organs',0xe09c92, rx(r'jejunum|ileum|Duodenum|Ileocecal','digestive'), 0.8)
-add('lint','大腸','organs',0xc9786c, nm('Ascending colon','Transverse colon','Descending colon','Rectum','Appendix'), 0.8)
+add('sint','小腸','organs',0xe0a3a0, rx(r'jejunum|ileum|Duodenum|Ileocecal','digestive'), 0.8)
+add('lint','大腸','organs',0xc98482, nm('Ascending colon','Transverse colon','Descending colon','Rectum','Appendix'), 0.8)
 add('brain','腦','organs',0xe8c2b6, lambda p: p['system']=='nervous' and re.search(r'hemisphere|Cerebell|cerebrum|Pons|Medulla|Midbrain', p['name'], re.I) is not None, 0.25)
 
 # 打包
