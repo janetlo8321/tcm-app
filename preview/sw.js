@@ -1,14 +1,15 @@
 /* 預覽版離線快取（只管 /preview/ 底下）
- * 用瀏覽器一般的快取：檔案沒變時只問一下伺服器（很小），不會整個重抓；
+ * 每次都先問伺服器檔案有沒有變（no-cache）：沒變只回一個很小的 304，不會整個重抓，
+ * 有變就立刻拿到新版（GitHub Pages 預設會讓舊檔在瀏覽器留 10 分鐘，所以不能用一般快取）；
  * 沒網路時用上次存下來的 */
-const CACHE = 'tcm-preview-v1';
+const CACHE = 'tcm-preview-v2';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request).then(r => {
+    fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => {
       if (r.ok && r.status === 200) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./')))
