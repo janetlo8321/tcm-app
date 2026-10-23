@@ -274,7 +274,7 @@
   }
   const qBox = document.createElement('div');
   qBox.className = 'pt-q';
-  qBox.innerHTML = '<label><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" placeholder="查詢" autocomplete="off" enterkeyhint="search" aria-label="查詢穴位"></label><div class="pt-q-list" role="listbox" hidden></div>';
+  qBox.innerHTML = '<label><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" placeholder="" autocomplete="off" enterkeyhint="search" aria-label="查詢穴位"></label><div class="pt-q-list" role="listbox" hidden></div>';
   const hudBtns = document.querySelector('.hud-btns');
   if (hudBtns) hudBtns.prepend(qBox);
   const qIn = qBox.querySelector('input'), qList = qBox.querySelector('.pt-q-list');

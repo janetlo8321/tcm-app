@@ -343,6 +343,74 @@
     </div>`;
   stage.appendChild(player);
   const $p = s => player.querySelector(s);
+
+  /* 播放循行時，左側毛玻璃方框顯示整段「循行」經文，正在走的那一句會亮起來 */
+  const trp = document.createElement('div');
+  trp.className = 'ip tr-ip';
+  trp.innerHTML = '<div class="ip-glass"></div><div class="ip-body"></div>';
+  stage.appendChild(trp);
+  const trBody = trp.querySelector('.ip-body');
+  let JING = null, trFor = null, trK = -1;
+  fetch('model/jing.json').then(r => r.json()).then(d => { JING = d; if (cur) trRender(); }).catch(() => {});
+  const PUNC = /[，。、；：！？●（）()\s「」]/;
+  const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  function trRender() {
+    trFor = cur && cur.m.id; trK = -1;
+    const j = JING && cur && JING[cur.m.id];
+    const sec = j && (j.secs || []).find(x => x.h === '循行');
+    if (!sec) { trBody.innerHTML = ''; return; }
+    const text = sec.p.join('\n');
+    // 去掉標點後比對每一句字幕，找出它在經文裡的範圍
+    // 字幕和講義用字略有出入（裏／裡、別目銳眥／別銳眥…），所以用句首、句尾幾個字當錨點
+    const VAR = { '裏': '裡', '脇': '脅', '䪼': '頔', '顑': '頔', '于': '於' };
+    const nz = c => VAR[c] || c;
+    const pos = [], norm = [];
+    for (let i = 0; i < text.length; i++) if (!PUNC.test(text[i])) { pos.push(i); norm.push(nz(text[i])); }
+    const N = norm.join('');
+    const find = (q, from, head) => {
+      for (let n = Math.min(4, q.length); n >= 2; n--) {
+        const at = N.indexOf(head ? q.slice(0, n) : q.slice(-n), from);
+        if (at >= 0) return head ? at : at + n;
+      }
+      return -1;
+    };
+    const marks = [];
+    let from = 0;
+    cur.steps.forEach((st, k) => {
+      const q = st.t.split('').filter(c => !PUNC.test(c)).map(nz).join('');
+      if (!q) return;
+      let a = find(q, from, true);
+      if (a < 0) a = find(q, Math.max(0, from - 12), true);
+      if (a < 0) return;
+      const e = find(q, a + 1, false);
+      if (e < 0 || e - a > q.length * 2 + 4) return;
+      marks.push({ k, a: pos[a], b: pos[e - 1] + 1 });
+      from = e;
+    });
+    marks.sort((x, y) => x.a - y.a);
+    let html = '', i = 0;
+    for (const mk of marks) {
+      if (mk.a < i) mk.a = i;
+      if (mk.b <= mk.a) continue;
+      html += esc(text.slice(i, mk.a)) + `<span class="tr-s" data-k="${mk.k}">${esc(text.slice(mk.a, mk.b))}</span>`;
+      i = mk.b;
+    }
+    html += esc(text.slice(i));
+    trBody.innerHTML = `<section><h3>循行<small>${esc(cur.m.name)}</small></h3><p class="ip-p">${html.replace(/●/g, '<br>●').replace(/\n/g, '<br>').replace(/^<br>/, '')}</p></section>`;
+  }
+  function trStep(st) {
+    if (!cur || !st) return;
+    if (trFor !== cur.m.id) trRender();
+    const k = cur.steps.indexOf(st);
+    if (k === trK) return;
+    trK = k;
+    let on = null;
+    trBody.querySelectorAll('.tr-s').forEach(el => { const hit = +el.dataset.k === k; el.classList.toggle('on', hit); if (hit) on = el; });
+    if (on) {
+      const r = on.getBoundingClientRect(), b = trBody.getBoundingClientRect();
+      if (r.top < b.top + 40 || r.bottom > b.bottom - 40) trBody.scrollTo({ top: trBody.scrollTop + r.top - b.top - b.height / 3, behavior: 'smooth' });
+    }
+  }
   const nameEl = $p('.pl-name'), capEl = $p('.pl-cap'), playBtn = $p('.pl-play'), range = $p('.pl-range');
 
   let cur = null, playing = false, prog = 0, open = false;
@@ -353,6 +421,8 @@
     player.classList.toggle('show', on && !!cur);
     dot.classList.toggle('on', on);
     stage.classList.toggle('has-player', on && !!cur);
+    trp.classList.toggle('show', on && !!cur);
+    if (on && cur) trStep(stepAt(prog * cur.total) || cur.steps[0]);
   }
   function setPlaying(on) {
     playing = on;
@@ -390,7 +460,7 @@
   range.addEventListener('input', () => {
     prog = range.value / 1000;
     const st = stepAt(prog * (cur ? cur.total : 0));
-    if (st) capEl.textContent = st.t;
+    if (st) { capEl.textContent = st.t; trStep(st); }
   });
   $p('.pl-share').addEventListener('click', async () => {
     if (!cur) return;
@@ -420,7 +490,7 @@
     cur.head.scale.set(s, s, 1);
     cur.head.visible = true;
     const st = stepAt(prog * cur.total);
-    if (st && capEl.textContent !== st.t) capEl.textContent = st.t;
+    if (st && capEl.textContent !== st.t) { capEl.textContent = st.t; trStep(st); }
   });
 
   // 分享連結：#LU 之類，開啟時直接點亮該經

@@ -946,3 +946,14 @@ body { display: grid; place-items: center; }
 @media (min-aspect-ratio: 1/1) and (min-width: 900px) { .xue-back { left: 84px; top: 30px; } }
 .zz-on .xue-back { display: none; }
 .xue.show.away { opacity: 0; pointer-events: none; }
+
+/* 循行播放時左側的經文毛玻璃框 */
+.ip.tr-ip { left: 18px; right: auto; top: calc(132px + env(safe-area-inset-top, 0px)); bottom: auto; width: min(34%, 420px); height: auto;
+  transform: translateX(-24px) scale(.98); transform-origin: left center; z-index: 12; }
+.ip.tr-ip.show { transform: none; }
+.tr-ip .ip-body { height: auto; max-height: calc(100vh - 290px); font-size: 15px; line-height: 1.95; }
+.tr-ip .ip-p { color: rgba(255,255,255,.72); }
+.tr-s { border-radius: 4px; transition: color .4s, background .4s, box-shadow .4s; }
+.tr-s.on { color: #ffe2bf; background: rgba(255,170,90,.18); box-shadow: 0 0 0 2px rgba(255,170,90,.18); }
+.stage.ip-on .tr-ip, .zz-on .tr-ip { opacity: 0 !important; pointer-events: none !important; }
+@media (max-aspect-ratio: 3/4) { .ip.tr-ip { display: none; } }

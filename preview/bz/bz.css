@@ -305,3 +305,4 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
 .bz-fxl-add { grid-column: 1 / -1; }
 .bz-fxl-add button { padding: 4px 10px; border-radius: 8px; border: 1px dashed var(--line-soft, #c7c7cc); background: none; color: var(--accent, #007aff); font: inherit; font-size: 14px; cursor: pointer; }
 .bz-fxl-add input { width: min(320px, 100%); min-height: 34px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--accent, #007aff); font: inherit; font-size: 15px; background: var(--surface, #fff); color: var(--ink, #1c1c1e); }
+.bz-form .bz-tags.wide { margin: -4px 0 0; }
