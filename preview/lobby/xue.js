@@ -67,11 +67,20 @@
     const r = stage.getBoundingClientRect(), c = canvas.getBoundingClientRect();
     _v.copy(cur.p).project(camera);
     const x = c.left - r.left + (_v.x + 1) / 2 * c.width, y = c.top - r.top + (1 - _v.y) / 2 * c.height;
-    const w = card.offsetWidth, h = card.offsetHeight;
-    let left = x + 18;
-    if (left + w > r.width - 8) left = x - 18 - w;   // 右邊放不下：放左邊
-    left = Math.max(8, Math.min(left, r.width - w - 8));
-    const top = Math.max(60, Math.min(y - h / 2, r.height - h - 8));
+    // 小卡不能蓋住穴點亮光和右邊的穴名：先試左右兩側，放不下（手機）就放在穴點上方或下方
+    const PAD = 8, TOP = 60, lblW = 14 * (cur.name.length + 1) + 20, gap = 26;
+    card.style.maxHeight = '';
+    const w = card.offsetWidth;
+    let h = card.offsetHeight, left, top;
+    if (x + lblW + w <= r.width - PAD) { left = x + lblW; top = y - h / 2; }
+    else if (x - gap - w >= PAD) { left = x - gap - w; top = y - h / 2; }
+    else {
+      left = Math.max(PAD, Math.min(x - w / 2, r.width - w - PAD));
+      const below = r.height - PAD - (y + gap), above = y - gap - TOP;
+      if (h <= below || (h > above && below >= above)) { top = y + gap; if (h > below) { card.style.maxHeight = Math.max(120, below) + 'px'; h = Math.max(120, below); } }
+      else { if (h > above) { card.style.maxHeight = Math.max(120, above) + 'px'; h = Math.max(120, above); } top = y - gap - h; }
+    }
+    if (left !== undefined && (x + lblW + w <= r.width - PAD || x - gap - w >= PAD)) top = Math.max(TOP, Math.min(top, r.height - h - PAD));
     card.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
   }
   // 亮點：選到的穴像一盞小燈（加法混色的光暈，會微微呼吸）
