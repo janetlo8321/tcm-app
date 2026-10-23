@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 00:23';
+  const UPDATED = '10/24 00:43';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -579,7 +579,7 @@
   });
 
   /* ---------- 外掛模組（骨骼臟腑、循行、工具列）用的掛勾 ---------- */
-  const hooks = { frame: [], select: [], tap: [], hover: [] };
+  const hooks = { frame: [], select: [], tap: [], hover: [], open: [] };
   const view = { opaque: 0, opaqueTarget: 0, tourGlow: 1, showMeridians: true, showPoints: true, showPointNames: false };   // 預設：皮膚、經絡、穴點；穴道名從圖層打開
 
   /* ---------- 點亮 / 進入 ---------- */
@@ -618,6 +618,7 @@
     const m = byId[id];
     if (!m) return;
     window.dispatchEvent(new CustomEvent('tcm:open-meridian', { detail: { id, name: m.name } }));
+    if (hooks.open.length) { hooks.open.forEach(fn => fn(id)); return; }   // 資訊介面（info.js）
     toastEl.textContent = `${m.name}・資訊介面預留中`;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
