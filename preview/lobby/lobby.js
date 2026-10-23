@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '2026/10/23 18:46';
+  const UPDATED = '10/23 19:10';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -626,6 +626,12 @@
     fly.active = true;
   }
   $('btn-reset').addEventListener('click', resetView);
+
+  // 進入資料庫：在 App 裡（iframe）通知外層；單獨開啟時回到資料庫頁
+  $('btn-enter').addEventListener('click', () => {
+    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter' }, '*');
+    else location.href = '../';
+  });
 
   /* ---------- 螢幕座標挑選經絡 ---------- */
   const _v = new THREE.Vector3(), _w = new THREE.Vector3();

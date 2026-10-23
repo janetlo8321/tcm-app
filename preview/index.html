@@ -61,9 +61,52 @@ async function unlock(keys, remember) {
   const ek = await crypto.subtle.importKey('raw', keys.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
   const html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: body.slice(20, 36) }, ek, body.slice(36)));
   if (remember) { try { localStorage.setItem(KEY, btoa(String.fromCharCode.apply(null, keys))); } catch (e) {} }
-  document.open(); document.write(html); document.close();
+  if (lobbyOpen) { pendingHtml = html; return true; }   // 還在大廳：按「進入資料庫」時再換上
+  showApp(html);
   return true;
 }
+
+/* ---- 大廳（經絡銅人）：一開啟先進大廳，按「進入資料庫」才到資料庫 ---- */
+let lobbyOpen = false, pendingHtml = null, lobbyEl = null;
+function openLobby() {
+  if (!lobbyEl || !document.body.contains(lobbyEl)) {
+    lobbyEl = document.createElement('div');
+    lobbyEl.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#050403';
+    const f = document.createElement('iframe');
+    f.src = 'lobby/';
+    f.title = '經絡銅人大廳';
+    f.style.cssText = 'border:0;width:100%;height:100%;display:block';
+    lobbyEl.appendChild(f);
+    document.body.appendChild(lobbyEl);
+  }
+  lobbyEl.style.display = '';
+  document.documentElement.style.overflow = 'hidden';
+  lobbyOpen = true;
+}
+function closeLobby() {
+  lobbyOpen = false;
+  if (lobbyEl) lobbyEl.style.display = 'none';
+  document.documentElement.style.overflow = '';
+  if (pendingHtml) { const h = pendingHtml; pendingHtml = null; showApp(h); }
+  else if (!blob || !document.getElementById('f') || document.getElementById('f').hidden === false) { const pw = document.getElementById('pw'); if (pw) pw.focus(); }
+}
+function onMsg(e) { if (e.data && e.data.type === 'tcm-enter') closeLobby(); }
+function showApp(html) {
+  document.open(); document.write(html); document.close();
+  lobbyEl = null;
+  window.addEventListener('message', onMsg);   // 換頁後重新掛上
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = '銅人';
+  b.title = '回到大廳';
+  b.setAttribute('aria-label', '回到大廳（經絡銅人）');
+  b.style.cssText = 'position:fixed;right:12px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:2147483645;width:44px;height:44px;border-radius:50%;border:1px solid rgba(214,166,107,.55);background:rgba(28,20,12,.82);color:#ffe3b8;font:500 12px/1 "Noto Serif TC","Songti TC",serif;letter-spacing:.05em;box-shadow:0 2px 12px rgba(0,0,0,.3);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+  b.addEventListener('click', openLobby);
+  const add = () => document.body && document.body.appendChild(b);
+  if (document.body) add(); else document.addEventListener('DOMContentLoaded', add);
+}
+window.addEventListener('message', onMsg);
+openLobby();
 (async () => {
   try {
     const r = await fetch('data.enc', { cache: 'no-store' });
