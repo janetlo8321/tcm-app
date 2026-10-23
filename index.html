@@ -61,12 +61,103 @@ async function unlock(keys, remember) {
   const ek = await crypto.subtle.importKey('raw', keys.slice(0, 32), { name: 'AES-CBC' }, false, ['decrypt']);
   const html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: body.slice(20, 36) }, ek, body.slice(36)));
   if (remember) { try { localStorage.setItem(KEY, btoa(String.fromCharCode.apply(null, keys))); } catch (e) {} }
-  document.open(); document.write(html); document.close();
+  if (lobbyOpen) { pendingHtml = html; dataFrame(html); return true; }   // 還在大廳：按「進入資料庫」時再換上；先在背景載好給病證報告單用
+  showApp(html);
   return true;
 }
-(async () => {
+
+/* ---- 大廳（經絡銅人）：一開啟先進大廳，按「進入資料庫」才到資料庫 ---- */
+let lobbyOpen = false, pendingHtml = null, lobbyEl = null, appShown = false, pendingGo = null, pendingBz = false;
+function openLobby() {
+  if (!lobbyEl || !document.body.contains(lobbyEl)) {
+    lobbyEl = document.createElement('div');
+    lobbyEl.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#050403';
+    const f = document.createElement('iframe');
+    f.src = 'lobby/?t=' + Date.now();   // 每次都拿最新的大廳頁（有些 App 內建瀏覽器不走 service worker，會用 10 分鐘內的舊檔）
+    f.title = '經絡銅人大廳';
+    f.style.cssText = 'border:0;width:100%;height:100%;display:block';
+    lobbyEl.appendChild(f);
+    document.body.appendChild(lobbyEl);
+  }
+  lobbyEl.style.display = '';
+  document.documentElement.style.overflow = 'hidden';
+  lobbyOpen = true;
+}
+function closeLobby() {
+  lobbyOpen = false;
+  if (lobbyEl) lobbyEl.style.display = 'none';
+  document.documentElement.style.overflow = '';
+  if (pendingHtml) { const h = pendingHtml; pendingHtml = null; showApp(h); }
+  else if (appShown) goApp();
+  else if (!blob || !document.getElementById('f') || document.getElementById('f').hidden === false) { const pw = document.getElementById('pw'); if (pw) pw.focus(); }
+}
+// 大廳傳來 go：進入資料庫後直接打開那一個條目（例如病證區域點的病名）
+function onMsg(e) {
+  if (e.data && e.data.type === 'tcm-lobby-loaded') { loadData(); return; }
+  if (!e.data || e.data.type !== 'tcm-enter') return;
+  loadData();
+  pendingGo = typeof e.data.go === 'string' ? e.data.go : null;
+  pendingBz = !!e.data.bz;   // 大廳點病名：打開八綱辨證，而不是表格
+  closeLobby();
+}
+function goApp() {
+  const id = pendingGo, bz = pendingBz; pendingGo = null; pendingBz = false;
+  if (!id || !document.body) return;
+  if (bz && window.TCMBZ && window.TCMBZ.open(id)) return;
+  const a = document.createElement('a');   // 交給資料庫自己的 data-go 點擊處理
+  a.href = '#' + id; a.dataset.go = id; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+// 大廳裡的病證報告單要用資料庫的下拉選單：在看不見的 iframe 先把資料庫跑起來（同網域），大廳直接借它的八綱辨證
+function withBz(html, base) {
+  const i = html.lastIndexOf('</body>');
+  if (i > 0) html = html.slice(0, i) + '<link rel="stylesheet" href="bz/bz.css"><script src="bz/bz.js"><\/script>' + html.slice(i);
+  if (base) { const h = html.search(/<head[^>]*>/i); html = h >= 0 ? html.replace(/<head[^>]*>/i, m => m + '<base href="' + base + '">') : '<base href="' + base + '">' + html; }
+  return html;
+}
+function dataFrame(html) {
+  if (document.getElementById('tcm-data')) return;
+  const f = document.createElement('iframe');
+  f.id = 'tcm-data'; f.title = '資料庫（背景）'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+  f.style.cssText = 'position:fixed;left:-9999px;top:0;width:1024px;height:768px;border:0;visibility:hidden;pointer-events:none';
+  f.src = URL.createObjectURL(new Blob([withBz(html, location.href.replace(/[#?].*$/, ''))], { type: 'text/html' }));
+  f.addEventListener('load', () => {
+    const t0 = Date.now();
+    (function ready() {
+      let ok = false; try { ok = !!(f.contentWindow.TCMBZ && f.contentWindow.TCMBZ.mount); } catch (e) {}
+      if (ok) { const lf = lobbyEl && lobbyEl.querySelector('iframe'); if (lf && lf.contentWindow) lf.contentWindow.postMessage({ type: 'tcm-data-ready' }, '*'); return; }
+      if (Date.now() - t0 < 15000) setTimeout(ready, 200);
+    })();
+  });
+  document.body.appendChild(f);
+}
+function showApp(html) {
+  // 解鎖後加上八綱辨證（程式在 bz/，不含資料，資料取自解鎖後的資料庫）
+  html = withBz(html);
+  document.open(); document.write(html); document.close();
+  lobbyEl = null; appShown = true;
+  if (pendingGo) { const t0 = Date.now(); (function wait() { if (document.readyState === 'complete' || Date.now() - t0 > 5000) setTimeout(goApp, 120); else setTimeout(wait, 50); })(); }
+  window.addEventListener('message', onMsg);   // 換頁後重新掛上
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = '銅人';
+  b.title = '回到大廳';
+  b.setAttribute('aria-label', '回到大廳（經絡銅人）');
+  b.style.cssText = 'position:fixed;right:12px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:2147483645;width:44px;height:44px;border-radius:50%;border:1px solid rgba(214,166,107,.55);background:rgba(28,20,12,.82);color:#ffe3b8;font:500 12px/1 "Noto Serif TC","Songti TC",serif;letter-spacing:.05em;box-shadow:0 2px 12px rgba(0,0,0,.3);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+  b.addEventListener('click', openLobby);
+  const add = () => document.body && document.body.appendChild(b);
+  if (document.body) add(); else document.addEventListener('DOMContentLoaded', add);
+}
+window.addEventListener('message', onMsg);
+openLobby();
+// 先讓大廳的人體模型下載（不跟 13 MB 的資料庫搶網路）；模型載完、按進入資料庫、或 20 秒後才抓資料庫
+let dataStarted = false;
+setTimeout(loadData, 20000);
+async function loadData() {
+  if (dataStarted) return;
+  dataStarted = true;
   try {
-    const r = await fetch('data.enc', { cache: 'no-store' });
+    const r = await fetch('data.enc', { cache: 'no-cache' });   // 每次都問伺服器有沒有更新，沒變就不重抓
     if (!r.ok) throw new Error('HTTP ' + r.status);
     blob = new Uint8Array(await r.arrayBuffer());
     if (String.fromCharCode.apply(null, blob.slice(0, 4)) !== 'TCM1') throw new Error('檔案格式不對');
@@ -80,7 +171,7 @@ async function unlock(keys, remember) {
     try { localStorage.removeItem(KEY); } catch (e) {}
   }
   say('請輸入密碼。'); $('f').hidden = false; $('hint').hidden = false; $('pw').focus();
-})();
+}
 $('f').addEventListener('submit', async e => {
   e.preventDefault(); $('go').disabled = true; say('解鎖中…');
   try {

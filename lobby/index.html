@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#070605">
+  <title>經絡銅人</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    // 外層開大廳時帶 ?t=時間：樣式和程式也一起拿最新的
+    window.TCM_V = new URLSearchParams(location.search).get('t') || '';
+    document.write(['../bz/bz.css', 'lobby.css'].map(f => '<link rel="stylesheet" href="' + f + (window.TCM_V ? '?v=' + window.TCM_V : '') + '">').join(''));
+  </script>
+</head>
+<body>
+
+  <!-- 9:16 大廳舞台 -->
+  <main id="stage" class="stage">
+    <div id="canvas-wrap" class="canvas-wrap"></div>
+    <div class="fx-vignette"></div>
+
+    <!-- 縮放後才出現的經絡名、穴位名 -->
+    <div id="labels" class="labels"></div>
+
+    <header class="hud-top">
+      <div class="hud-right">
+        <span id="ver" class="version"></span>
+        <div class="hud-btns">
+          <button id="btn-reset" class="icon-btn" type="button" aria-label="回到全身" title="回到全身">⟲</button>
+          <button id="btn-enter" class="enter-btn" type="button" aria-label="進入資料庫" title="進入資料庫">›</button>
+        </div>
+        <!-- 經絡按鈕：收成右上一個 ›，點開才在上方展開 -->
+        <div class="chip-row">
+          <nav id="chips" class="chips" aria-label="經絡列表"></nav>
+          <button id="chip-tog" class="chip-tog" type="button" aria-expanded="false" aria-label="經絡列表" title="經絡列表">»</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="hint" class="hint"></div>
+    <div id="tip" class="tip"></div>
+    <div id="sel" class="sel"></div>
+    <div id="toast" class="toast"></div>
+
+    <div id="loading" class="loading"><span>載入人體模型…</span><b><i></i></b></div>
+    <div class="credit">人體模型：BodyParts3D © DBCLS（CC BY 4.0）</div>
+  </main>
+
+  <script src="lib/three.min.js"></script>
+  <script src="lib/OrbitControls.js"></script>
+  <script>document.write(['model.js', 'boot.js'].map(f => '<script src="' + f + (window.TCM_V ? '?v=' + window.TCM_V : '') + '"><\/script>').join(''));</script>
+</body>
+</html>
