@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 03:25';
+  const UPDATED = '10/24 03:28';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -573,6 +573,7 @@
       }
       lastChip = { id: m.id, t: now };
       select(selectedId === m.id ? null : m.id);
+      clearTimeout(chipT); chipT = setTimeout(collapseChips, 420);   // 選好就收合（留一點時間給點兩下）
     });
     chipsEl.appendChild(b);
     chipEls[m.id] = b;
@@ -580,6 +581,9 @@
 
   // 右上的 ›：展開／收起經絡按鈕
   const chipTog = $('chip-tog');
+  let chipT = 0;
+  function collapseChips() { stage.classList.remove('chips-open'); chipTog.setAttribute('aria-expanded', 'false'); }
+  canvas.addEventListener('pointerdown', collapseChips);   // 點畫面其他地方也收合
   chipTog.addEventListener('click', () => {
     chipTog.setAttribute('aria-expanded', String(chipTog.closest('.stage').classList.toggle('chips-open')));
   });

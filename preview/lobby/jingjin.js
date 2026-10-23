@@ -115,5 +115,6 @@
     });
   });
 
+  group.visible = false;   // 預設不顯示，從「圖層」打開
   L.layers.jingjin = group;
 })();
