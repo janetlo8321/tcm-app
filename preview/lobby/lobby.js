@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/23 19:10';
+  const UPDATED = '10/23 20:03';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -198,14 +198,16 @@
 
   // 先只寫深度：之後只畫最外層皮膚，內部重疊的接縫不會透出
   const bodyDepth = new THREE.Mesh(bodyGeo, new THREE.MeshBasicMaterial({
-    colorWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1
+    colorWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    side: THREE.DoubleSide
   }));
   bodyDepth.renderOrder = 1;
 
   const bodyMat = new THREE.ShaderMaterial({
     uniforms: {
       uBronze: { value: new THREE.Color(0xcf9455) },
-      uRim: { value: new THREE.Color(0xffdcaa) }
+      uRim: { value: new THREE.Color(0xffdcaa) },
+      uOpaque: { value: 0 }   // 0 = 透明，1 = 不透
     },
     vertexShader: `
       varying vec3 vN; varying vec3 vV;
@@ -216,7 +218,7 @@
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: `
-      uniform vec3 uBronze; uniform vec3 uRim;
+      uniform vec3 uBronze; uniform vec3 uRim; uniform float uOpaque;
       varying vec3 vN; varying vec3 vV;
       void main() {
         vec3 n = normalize(vN); vec3 v = normalize(vV);
@@ -225,15 +227,22 @@
         float lam = abs(dot(n, normalize(vec3(-0.45, 0.75, 0.6))));
         vec3 col = uBronze * (0.1 + 0.26 * lam) + uBronze * rim * 1.3 + uRim * pow(f, 7.0) * 0.6;
         float a = 0.13 + 0.1 * lam + 0.66 * rim;
-        gl_FragColor = vec4(col, a);
+        vec3 solid = uBronze * (0.32 + 0.62 * lam) + uRim * pow(f, 3.0) * 0.22;
+        gl_FragColor = vec4(mix(col, solid, uOpaque), mix(a, 1.0, uOpaque));
       }`,
     transparent: true,
     depthWrite: false,
-    depthFunc: THREE.LessEqualDepth
+    depthFunc: THREE.LessEqualDepth,
+    side: THREE.DoubleSide
   });
   const bodyShell = new THREE.Mesh(bodyGeo, bodyMat);
   bodyShell.renderOrder = 2;
   scene.add(bodyDepth, bodyShell);
+  // 骨骼、臟腑用的光
+  scene.add(new THREE.HemisphereLight(0xfff4e6, 0x3a2c22, 0.85));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 0.65);
+  keyLight.position.set(-4, 8, 10);
+  scene.add(keyLight);
 
   // 底座光環
   const ringGeo = new THREE.BufferGeometry().setFromPoints(
@@ -473,11 +482,14 @@
     m.haloMat.uniforms.uOpacity.value = 0;
     m.glow = 0;
     m.pick = [];
+    m.traces = [];   // 右側（x > 0）的體表走向，循行動畫用
+    m.ptL = {};      // 穴號 → { tr, L }：在哪一筆、離起點多長
     m.ptNames = m.points.split(/\s+/).map(s => ({ name: s.replace('*', ''), major: s.startsWith('*') }));
 
     const sides = m.bilateral ? [1, -1] : [1];
     m.strokes.forEach(stroke => {
       const tr = traceStroke(stroke);
+      m.traces.push(tr);
       // 這一筆裡的穴位
       const local = [];
       let prevNo = null, prevL = 0;
@@ -486,10 +498,13 @@
         const L = tr.cum[vi * SUB];
         if (prevNo != null) {
           for (let k = prevNo + 1; k < no; k++) {
-            local.push({ no: k, at: atLength(tr, prevL + ((k - prevNo) / (no - prevNo)) * (L - prevL)) });
+            const Lk = prevL + ((k - prevNo) / (no - prevNo)) * (L - prevL);
+            local.push({ no: k, at: atLength(tr, Lk) });
+            m.ptL[k] = { tr, L: Lk };
           }
         }
         local.push({ no, at: { p: tr.ps[vi * SUB].clone(), n: tr.ns[vi * SUB].clone() } });
+        m.ptL[no] = { tr, L };
         prevNo = no; prevL = L;
       });
 
@@ -502,7 +517,7 @@
           const info = m.ptNames[no - 1];
           if (!info) return;
           PT.push({
-            m, no, name: info.name, major: info.major,
+            m, no, name: info.name, major: info.major, side: s,
             p: s > 0 ? at.p : mirror(at.p), n: s > 0 ? at.n : mirror(at.n)
           });
         });
@@ -520,14 +535,14 @@
   const ptMat = new THREE.ShaderMaterial({
     uniforms: {
       uMajor: { value: 0 }, uAll: { value: 0 },
-      uHiMer: { value: -1 }, uHiMajor: { value: 0 }, uHiAll: { value: 0 },
+      uHiMer: { value: -1 }, uHiMajor: { value: 0 }, uHiAll: { value: 0 }, uBackPt: { value: 0.12 },
       uScale: { value: 1000 },
       uColor: { value: new THREE.Color(0xf3e3c6) },
       uHiColor: { value: new THREE.Color(0xffd79a) }
     },
     vertexShader: `
       attribute vec3 surfN; attribute float aMer; attribute float aMajor;
-      uniform float uMajor; uniform float uAll; uniform float uHiMer; uniform float uHiMajor; uniform float uHiAll; uniform float uScale;
+      uniform float uMajor; uniform float uAll; uniform float uHiMer; uniform float uHiMajor; uniform float uHiAll; uniform float uScale; uniform float uBackPt;
       varying float vA; varying float vHi;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -536,7 +551,7 @@
         float hi = 1.0 - step(0.5, abs(aMer - uHiMer));
         float vis = aMajor > 0.5 ? max(uMajor, uAll) : uAll;
         vis = max(vis, hi * (aMajor > 0.5 ? max(uHiMajor, uHiAll) : uHiAll));
-        vA = vis * mix(0.12, 1.0, face);
+        vA = vis * mix(uBackPt, 1.0, face);
         vHi = hi;
         float s = (aMajor > 0.5 ? 0.12 : 0.09) * uScale / -mv.z;
         gl_PointSize = vA < 0.01 ? 0.0 : clamp(s, 2.0, 16.0);
@@ -586,6 +601,10 @@
     chipEls[m.id] = b;
   });
 
+  /* ---------- 外掛模組（骨骼臟腑、循行、工具列）用的掛勾 ---------- */
+  const hooks = { frame: [], select: [], tap: [], hover: [] };
+  const view = { opaque: 0, opaqueTarget: 0, tourGlow: 1, showMeridians: true, showPoints: true };
+
   /* ---------- 點亮 / 進入 ---------- */
   let selectedId = null, hoveredId = null;
 
@@ -607,10 +626,17 @@
     } else {
       selEl.classList.remove('show');
     }
+    hooks.select.forEach(fn => fn(selectedId));
   }
 
   // 資訊介面：先預留，之後接上
   let toastTimer = null;
+  function showToast(text, ms) {
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms || 1600);
+  }
   function openMeridian(id) {
     const m = byId[id];
     if (!m) return;
@@ -639,6 +665,7 @@
     const r = canvas.getBoundingClientRect();
     const x = cx - r.left, y = cy - r.top;
     let best = null, bd = tol;
+    if (!view.showMeridians) return null;
     for (const m of MERIDIANS) {
       for (const s of m.pick) {
         _v.copy(s.p).project(camera);
@@ -686,11 +713,13 @@
   canvas.addEventListener('pointercancel', e => { downs.delete(e.pointerId); gesture = null; });
   canvas.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse' || e.buttons) { if (hoveredId) setHover(null); return; }
+    for (const fn of hooks.hover) if (fn(e)) { if (hoveredId) setHover(null); return; }
     setHover(pickMeridian(e.clientX, e.clientY, 14), e);
   });
   canvas.addEventListener('pointerleave', () => setHover(null));
 
   function onTap(x, y, type) {
+    for (const fn of hooks.tap) if (fn(x, y, type)) return;   // 工具模式（光標、標注）優先
     const id = pickMeridian(x, y, type === 'touch' ? 26 : 16);
     const now = performance.now();
     if (id && lastTap && lastTap.id === id && now - lastTap.t < 380 && Math.hypot(x - lastTap.x, y - lastTap.y) < 36) {
@@ -843,7 +872,7 @@
 
     // 經絡名：在畫面中最靠中央的那一段
     const merList = [];
-    MERIDIANS.forEach(m => {
+    if (view.showMeridians) MERIDIANS.forEach(m => {
       const a = m.id === selectedId ? Math.max(lod.mer, lod.hiMer) : lod.mer;
       if (a < 0.03) return;
       let best = null, bd = Infinity;
@@ -869,7 +898,7 @@
 
     // 穴名
     const cand = [];
-    PT.forEach((o, i) => {
+    if (view.showPoints) PT.forEach((o, i) => {
       const hi = o.m.id === selectedId;
       let a = o.major ? Math.max(lod.lblMajor, lod.lblAll) : lod.lblAll;
       if (hi) a = Math.max(a, o.major ? Math.max(lod.hiLblMajor, lod.hiLblAll) : lod.hiLblAll);
@@ -927,23 +956,28 @@
     ptMat.uniforms.uHiMajor.value = ss(42, 32, dist);
     ptMat.uniforms.uHiAll.value = ss(26, 19, dist);
 
+    // 透明 ↔ 不透（平滑切換）
+    view.opaque += (view.opaqueTarget - view.opaque) * 0.15;
+    bodyMat.uniforms.uOpaque.value = view.opaque;
+    ptMat.uniforms.uBackPt.value = 0.12 * (1 - view.opaque);
+
     // 經絡：平時暗；滑過／點一下 → 柔光亮起
     const zoomIn = ss(30, 12, dist);
     const anySel = !!selectedId;
     MERIDIANS.forEach(m => {
-      const target = (m.id === selectedId || m.id === hoveredId) ? 1 : 0;
+      const target = (m.id === selectedId ? view.tourGlow : m.id === hoveredId ? 1 : 0);
       m.glow += (target - m.glow) * 0.12;
       const g = m.glow;
       const dim = anySel && m.id !== selectedId ? 0.55 : 1;
       const cu = m.coreMat.uniforms, hu = m.haloMat.uniforms;
       cu.uColor.value.copy(COL_IDLE).lerp(COL_LIT, g);
       cu.uOpacity.value = (0.13 + 0.17 * zoomIn) * dim * (1 - g) + 0.6 * g;
-      cu.uBack.value = 0.35 + 0.2 * g;
+      cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque);
       cu.uTime.value = t;
       cu.uFlow.value = g;
       hu.uColor.value.copy(COL_IDLE).lerp(COL_HALO, g);
       hu.uOpacity.value = 0.22 * g * (0.9 + 0.1 * Math.sin(t * 1.6));
-      hu.uBack.value = 0.3;
+      hu.uBack.value = 0.3 * (1 - view.opaque);
       hu.uTime.value = t;
       hu.uFlow.value = g;
     });
@@ -959,11 +993,17 @@
     }
 
     if (controls.autoRotate && dist < 26) controls.autoRotate = false;
+    hooks.frame.forEach(fn => fn(t, dist));
     controls.update();
     renderer.render(scene, camera);
     updateLabels(lod);
   }
   animate();
 
-  window.TCMLobby = { select, open: openMeridian, reset: resetView, meridians: MERIDIANS, points: PT, version: VERSION };
+  window.TCMLobby = {
+    select, open: openMeridian, reset: resetView, meridians: MERIDIANS, byId, points: PT, version: VERSION,
+    get selected() { return selectedId; },
+    scene, camera, controls, renderer, canvas, stage, labelsEl, toast: showToast,
+    snapToSkin, atLength, mirror, SKIN_OFF, bodyDepth, bodyShell, meridianGroup, pointsObj: points, hooks, view, userActed
+  };
 })();
