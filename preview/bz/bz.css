@@ -141,7 +141,20 @@ a.bz-herb:hover { background: var(--bz-herb); color: #fff; }
 @media print {
   html.bz-open body > *:not(#bz) { display: none !important; }
   #bz { position: static; overflow: visible; background: #fff; }
-  #bz .bz-top, #bz .bz-step:not(:last-child), #bz .bz-step h2, #bz .bz-acts { display: none !important; }
+  #bz .bz-top, #bz .bz-main, #bz .bz-none, #bz .bz-step h2, #bz .bz-acts { display: none !important; }
   #bz .bz-rep { border-color: #000; }
 }
 html.bz-open button[title="回到大廳"] { display: none !important; }
+
+/* 電腦 16:9：左邊問診條件、右邊證型；報告單左右兩欄 */
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .bz-body { max-width: 1440px; padding: 8px 32px 48px; }
+  .bz-main { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 0 32px; align-items: start; }
+  .bz-ask { position: sticky; top: 64px; max-height: calc(100vh - 72px); max-height: calc(100dvh - 72px); overflow-y: auto; padding-bottom: 16px; scrollbar-width: thin; }
+  .bz-bg { grid-template-columns: 1fr 1fr; }
+  .bz-cards { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .bz-rep { padding: 24px 28px 20px; }
+  .bz-rcols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 0 32px; align-items: start; }
+  .bz-rr .bz-meter { margin-top: 4px; }
+  .bz-acts { max-width: 420px; margin-left: auto; }
+}

@@ -159,7 +159,8 @@
   /* ---------- 選一系：鏡頭移過去，相關臟腑亮起 ---------- */
   // 鏡頭沿著球面繞過去（不會穿過身體），依時間平滑
   let zfly = null, lastT = 0;
-  const HOME_T = V3(0, -1.6, 0), HOME_P = V3(0, -0.9, 33);
+  const wide = () => stage.clientWidth > stage.clientHeight;   // 電腦 16:9：清單在右側，不用把人往上推
+  const HOME_T = V3(0, -1.6, 0), HOME_P = V3(0, -0.9, 33), HOME_TW = V3(0, -0.3, 0), HOME_PW = V3(0, 0.4, 33);
   const _s0 = new THREE.Spherical(), _s1 = new THREE.Spherical(), _off = new THREE.Vector3();
   function flyTo(tgt, pos) {
     _s1.setFromVector3(_off.subVectors(pos, tgt));
@@ -178,11 +179,11 @@
     L.layers.skeleton.visible = !!(r && r.bones) || bonesBefore;
     if (r) {
       // 下方有清單，區域放在畫面上半部
-      const tgt = V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);
+      const tgt = wide() ? V3(r.p.x * 0.6 + r.dist * 0.22, r.p.y, 0) : V3(r.p.x * 0.6, r.p.y - r.dist * 0.2, 0);
       const dir = r.side ? V3(0.9, 0.05, 0.75) : V3(r.p.x > 1.5 ? 0.45 : 0.15, 0.05, 1);
       flyTo(tgt, tgt.clone().addScaledVector(dir.normalize(), r.dist));
     } else {
-      flyTo(HOME_T, HOME_P);
+      wide() ? flyTo(HOME_TW, HOME_PW) : flyTo(HOME_T, HOME_P);
     }
     controls.autoRotate = false;
     drawList();
@@ -208,7 +209,7 @@
       Object.values(pinEls).forEach(b => b.classList.remove('active'));
       drawList();
       controls.autoRotate = false;
-      flyTo(HOME_T, HOME_P);
+      wide() ? flyTo(HOME_TW, HOME_PW) : flyTo(HOME_T, HOME_P);
     } else {
       view.showMeridians = merBefore; L.meridianGroup.visible = merBefore;
       view.showPoints = ptBefore; L.pointsObj.visible = ptBefore;

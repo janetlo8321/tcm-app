@@ -676,3 +676,20 @@ body { display: grid; place-items: center; }
 }
 .zz-dz:hover, .zz-dz:focus-visible { border-color: var(--bronze-soft); background: rgba(214, 166, 107, 0.12); }
 .zz-empty { grid-column: 1 / -1; font-size: 12px; letter-spacing: 0.08em; color: var(--text-dim); padding: 10px 2px; }
+
+/* ---- 依螢幕自動切換：手機直立填滿螢幕（約 9:16）；電腦、橫向寬螢幕用 16:9 ---- */
+@media (max-aspect-ratio: 3/4) {
+  .stage { width: 100vw; height: 100vh; height: 100dvh; aspect-ratio: auto; }
+}
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .stage { aspect-ratio: 16 / 9; height: min(100vh, 56.25vw); height: min(100dvh, 56.25vw); }
+  .hud-top { padding: 22px 28px 0; }
+  .title-zh { font-size: 20px; }
+  .title-sub { font-size: 12px; }
+  .peg { left: 22px; top: 84px; }
+  .toolbar { left: 16px; top: 170px; }
+  .chips { justify-content: center; bottom: 18px; padding: 0 28px; }
+  /* 病證區域：清單改放右側 */
+  .zz-sheet { left: auto; right: 16px; top: 120px; bottom: 16px; width: min(380px, 30%); max-height: none; }
+  .zz-list { grid-template-columns: 1fr 1fr; }
+}

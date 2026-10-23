@@ -203,7 +203,7 @@
         <button type="button" class="bz-tbl" data-bzgo="${o.id}">原表格</button>
       </div>
       <div class="bz-body">
-      ${pats.length ? `
+      ${pats.length ? `<div class="bz-main"><div class="bz-ask">
         ${step(1, '八綱', '先分大方向，不確定就留空', `<div class="bz-bg">${AX.map(a => `<div class="bz-seg" data-ax="${a.k}">
             <button type="button" data-w="-1" class="${pick.bg[a.k] === -1 ? 'on' : ''}">${a.k === 'bl' ? '表' : a.a}</button>
             <button type="button" data-w="0" class="${!pick.bg[a.k] ? 'on' : ''}">？</button>
@@ -211,9 +211,10 @@
         ${T.length ? step(2, '舌象', '看到的舌、苔', `<div class="bz-chips">${chips('tongue', T, 't')}</div>`) : ''}
         ${P.length ? step(3, '脈象', '摸到的脈', `<div class="bz-chips">${chips('pulse', P, 'p')}</div>`) : ''}
         ${S.length ? step(4, '症狀', '問診所得', `<div class="bz-chips">${chips('sx', S, 's')}</div>`) : ''}
+        </div><div class="bz-res">
         ${step(5, '證型', any ? `依符合程度排序・共 ${pats.length} 個` : `共 ${pats.length} 個・點上面的條件來縮小範圍`,
           (any ? '<button type="button" class="bz-reset" data-bz="reset">清除條件</button>' : '') + `<div class="bz-cards">${scored.map((x, k) => card(x.p, x.sc, k)).join('')}</div>`)}
-      ` : `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以先看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單仍可手動填寫。</p>`}
+      </div></div>` : `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以先看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單仍可手動填寫。</p>`}
         ${step(pats.length ? 6 : 1, '辨證結果報告單', '每一欄都可以點選或輸入', reportHtml())}
       </div>`;
   }
@@ -251,6 +252,7 @@
     const comp = fxIsOther ? null : fxComp(r.fx);
     return `<div class="bz-rep" id="bzRep">
       <div class="bz-rh"><b>辨證結果報告單</b><span>${today()}</span></div>
+      <div class="bz-rcols"><div class="bz-rl">
       <div class="bz-grid">
         <label>姓名<input type="text" data-rp="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label>
         <label>主訴<select data-rp="cc">${Object.entries(sysGroups).map(([s, ds]) => `<optgroup label="${E(s)}">${ds.map(d => opt(d.id, d.name, d.id === o.id)).join('')}</optgroup>`).join('')}</select></label>
@@ -266,11 +268,13 @@
       ${r.fx ? `<div class="bz-comp"><b>${E(fxIsOther ? (r.fxOther || '自訂處方') : r.fx)}・組成</b>
         ${fxIsOther ? `<textarea data-rpx="fxOtherComp" rows="2" placeholder="輸入藥物，例如：黃耆 15g、桂枝 9g…">${E(r.fxOtherComp)}</textarea>`
           : comp ? `<div class="bz-herbs">${comp.hs.map(h => h.id ? `<a class="bz-herb" href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : `<span class="bz-herb">${E(h.n)}</span>`).join('')}${comp.etc ? '<span class="bz-herb more">…</span>' : ''}</div>` : '<i class="bz-tbd">組成待補</i>'}</div>` : ''}
+      </div><div class="bz-rr">
       <div class="bz-meter">${AX.map(a => { const v = r.ax[a.k];
         return `<div class="bz-m" data-ax="${a.k}"><span class="bz-ml">${a.k === 'bl' ? '表 / 裡' : a.a + ' / ' + a.b}</span>
           <div class="bz-mt" role="slider" tabindex="0" aria-label="${a.a}${a.b}" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="${Math.round(v * 100)}"><i style="left:${(50 + v * 46).toFixed(1)}%"></i></div>
           <span class="bz-me l">${a.k === 'bl' ? '表' : a.a}</span><span class="bz-me r">${a.k === 'bl' ? '裡' : a.b}</span></div>`; }).join('')}</div>
       <label class="bz-note">醫囑 / 備註<textarea data-rp="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
+      </div></div>
       <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空報告單</button></div>
     </div>`;
   }
