@@ -994,23 +994,6 @@
   }
 
   /* ---------- 總統計儀表板（中間大環＝病例數，六個小環＝六大類，點小環看細項；可切台北、花蓮或兩地對照） ---------- */
-  function demoData() {   // 還沒有紀錄時，用示意資料讓版面看得出樣子
-    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const pick = (arr, w) => { let x = rnd() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < arr.length; i++) { x -= w[i]; if (x < 0) return arr[i]; } return arr[0]; };
-    const some = (arr, p) => arr.filter(() => rnd() < p);
-    const dz = (typeof zzDiseases !== 'undefined' && zzDiseases.length ? zzDiseases : []).slice(0, 40).map(d => d.name);
-    const dzs = dz.length ? dz : ['感冒', '失眠', '胃痛', '腰痛', '頭痛', '月經不調', '濕疹', '咳嗽'];
-    const out = [];
-    for (let i = 0; i < 180; i++) {
-      const hua = rnd() < 0.4, region = hua ? '花蓮' : rnd() < 0.8 ? '台北' : pick(ST.region, ST.region.map(() => 1));
-      out.push({ id: 'd' + i, t: 0, region, dzName: pick(dzs.slice(0, 12), dzs.slice(0, 12).map((_, k) => 12 - k + (hua && k % 3 === 0 ? 4 : 0))),
-        sex: rnd() < 0.58 ? '女' : '男', age: pick(ST.age, hua ? [1, 2, 3, 5, 5] : [1, 4, 5, 4, 2]),
-        body: [pick(ST.body, hua ? [2, 3, 4, 2, 4, 3, 2, 1, 1] : [2, 4, 2, 4, 3, 3, 2, 4, 1])], concern: some(ST.concern, hua ? 0.22 : 0.28),
-        sport: pick(ST.sport, hua ? [2, 3, 3] : [3, 3, 4]), diet: some(ST.diet, 0.25),
-        habit: some(ST.habit, hua ? 0.3 : 0.12), chronic: some(ST.chronic, hua ? 0.3 : 0.18).filter(c => c !== '癌症' || rnd() < 0.3) });
-    }
-    return out;
-  }
   const CATS = [
     { k: 'body', t: '體質', ico: '☯' },
     { k: 'dz', t: '常見疾病・年齡', ico: '⚕' },
@@ -1040,7 +1023,7 @@
   }
   const ring = (pct, r, w, cls) => { const C = 2 * Math.PI * r; return `<circle r="${r}" cx="50" cy="50" class="trk" stroke-width="${w}"/><circle r="${r}" cx="50" cy="50" class="${cls || 'val'}" stroke-width="${w}" stroke-dasharray="${(C * Math.max(0, Math.min(1, pct))).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/>`; };
   function dashDraw() {
-    const real = stLoad(), demo = !real.length, all = demo ? demoData() : real;
+    const all = stLoad(), empty = !all.length;
     const cmp = dashReg === '台北⇄花蓮';
     const recs = cmp ? all.filter(r => r.region === '台北' || r.region === '花蓮') : dashReg === '全部' ? all : all.filter(r => r.region === dashReg);
     const n = recs.length, cnt = reg => all.filter(r => r.region === reg).length;
@@ -1053,7 +1036,7 @@
     dash.innerHTML = `<div class="dh"><button type="button" class="dx" data-dash="x" aria-label="返回">‹ 返回</button><h2>總統計</h2>
         <div class="dtabs">${tabs.map(t => `<button type="button" class="${dashReg === t ? 'on' : ''}" data-dash="r:${t}">${t}${t === '台北' || t === '花蓮' ? `<small>${cnt(t)}</small>` : ''}</button>`).join('')}
         <select data-dreg aria-label="其他地區"><option value="">其他地區…</option>${others.map(r => `<option value="${r}"${dashReg === r ? ' selected' : ''}>${r}（${cnt(r)}）</option>`).join('')}</select></div></div>
-      ${demo ? '<p class="ddemo">目前還沒有統計紀錄，下面是<b>示意資料</b>。在報告單按「統計」存入後，這裡就會換成你的真實資料。</p>' : ''}
+      ${empty ? '<p class="ddemo">目前 0 筆。在報告單按「統計」把確定要統計的病例存進來，這裡才會開始累計。</p>' : ''}
       <div class="hub">
         <svg class="wires" viewBox="0 0 600 420" preserveAspectRatio="none" aria-hidden="true">${[[90, 70], [510, 70], [54, 210], [546, 210], [90, 350], [510, 350]].map(([x, y]) => `<path d="M300 210 L${x} ${y}"/>`).join('')}<circle cx="300" cy="210" r="150" class="dash"/></svg>
         <div class="core"><svg viewBox="0 0 100 100">${ring(1, 46, 1.2, 'thin')}${ring(Math.min(1, n / 200), 40, 4)}<circle r="33" cx="50" cy="50" class="in"/></svg>
