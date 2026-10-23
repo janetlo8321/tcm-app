@@ -934,3 +934,15 @@ body { display: grid; place-items: center; }
 .xue-x { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18);
   background: rgba(255,255,255,.1); color: #fff; font-size: 12px; cursor: pointer; }
 .zz-on .xue { display: none; }
+.lbl[data-pt] { pointer-events: auto; cursor: pointer; }
+.pt-link { cursor: pointer; text-decoration: underline dotted rgba(255,255,255,.35); text-underline-offset: 3px; transition: color .15s; }
+.pt-link:hover, .pt-link:focus-visible { color: #ffe08a; text-decoration-color: #ffe08a; outline: none; }
+.xue-back { position: absolute; z-index: 8; left: 66px; top: calc(22px + env(safe-area-inset-top, 0px)); height: 34px; padding: 0 14px; border-radius: 17px;
+  font-family: var(--font); font-size: 14px; letter-spacing: .08em; color: #f4efe6; cursor: pointer;
+  background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 6px 20px rgba(0,0,0,.35); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); animation: xueIn .3s cubic-bezier(.2,.8,.2,1); }
+.xue-back[hidden] { display: none; }
+.xue-back:hover { border-color: rgba(214,166,107,.6); color: #ffe3b8; }
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) { .xue-back { left: 84px; top: 30px; } }
+.zz-on .xue-back { display: none; }
+.xue.show.away { opacity: 0; pointer-events: none; }

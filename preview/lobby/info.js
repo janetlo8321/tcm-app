@@ -296,7 +296,7 @@
     L.select(o.m.id);
     spin = false; controls.autoRotate = false;
     flyToPoint(o);
-    L.toast(`${o.m.name}・${o.name}`, 1800);
+    if (L.xue) L.xue.show(o); else L.toast(`${o.m.name}・${o.name}`, 1800);   // 穴位小卡＋亮點
   }
   qIn.addEventListener('input', qRun);
   qIn.addEventListener('focus', qRun);
@@ -308,5 +308,5 @@
   L.hooks.select.push(id => { if (openId && id !== openId) close(id ? false : true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
-  L.info = { open, close, EXTRA, get openId() { return openId; } };
+  L.info = { open, close, EXTRA, flyToPoint: o => { spin = false; controls.autoRotate = false; flyToPoint(o); }, get openId() { return openId; } };
 })();

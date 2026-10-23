@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 03:10';
+  const UPDATED = '10/24 03:19';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -904,6 +904,7 @@
       const x = c.sc[0] + 7, y = c.sc[1] - h / 2;
       if (!fits(x, y, w, h)) continue;
       const el = labelEl('p:' + c.i, c.o.name, (c.o.major ? 'major' : '') + (c.hi ? ' hi' : ''));
+      el.el.dataset.pt = c.i;   // 滑鼠移到穴名上：顯示穴位小卡（xue.js）
       el.el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
       el.el.style.opacity = c.a.toFixed(3);
       el.frame = frameNo;

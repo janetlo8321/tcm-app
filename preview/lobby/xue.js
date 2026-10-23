@@ -42,19 +42,23 @@
       ${d ? `<section><h4>部位</h4><div class="xue-pos">${ps(d.pos)}</div></section>${d.take && d.take.length ? `<section><h4>取穴法</h4>${ps(d.take)}</section>` : ''}`
         : `<p class="xue-none">${XUE ? '筆記裡沒有這個穴的部位資料' : '載入中…'}</p>`}`;
   }
+  let shownAt = 0;
   function show(o) {
-    cur = o;
+    cur = o; shownAt = performance.now();
     fill(o);
     card.classList.remove('show');
     void card.offsetWidth;
     card.classList.add('show');
     place();
   }
-  function hide() { cur = null; card.classList.remove('show'); }
+  function hide() { cur = null; hov = false; card.classList.remove('show'); }
+  let hov = false, hovT = 0;
   // 跟著穴點移動；穴點轉到背面就收起
   function place() {
     if (!cur) return;
-    if (_w.subVectors(camera.position, cur.p).normalize().dot(cur.n) < (view.opaque > 0.5 ? 0.05 : -0.3)) { hide(); return; }
+    const away = _w.subVectors(camera.position, cur.p).normalize().dot(cur.n) < (view.opaque > 0.5 ? 0.05 : -0.3);   // 轉到背面：先藏起來，轉回來再出現
+    card.classList.toggle('away', away); glow.material.opacity = away ? 0 : 1;
+    if (away) return;
     const r = stage.getBoundingClientRect(), c = canvas.getBoundingClientRect();
     _v.copy(cur.p).project(camera);
     const x = c.left - r.left + (_v.x + 1) / 2 * c.width, y = c.top - r.top + (1 - _v.y) / 2 * c.height;
@@ -65,11 +69,29 @@
     const top = Math.max(60, Math.min(y - h / 2, r.height - h - 8));
     card.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
   }
-  L.hooks.frame.push(place);
+  // 亮點：選到的穴像一盞小燈（加法混色的光暈，會微微呼吸）
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, 'rgba(255,255,240,1)'); r.addColorStop(0.18, 'rgba(255,236,170,.95)'); r.addColorStop(0.45, 'rgba(255,190,90,.35)'); r.addColorStop(1, 'rgba(255,160,60,0)');
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  })();
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true }));
+  glow.renderOrder = 20; glow.visible = false;
+  L.scene.add(glow);
+  L.hooks.frame.push(() => {
+    place();
+    glow.visible = !!cur;
+    if (!cur) return;
+    glow.position.copy(cur.p).addScaledVector(cur.n, 0.04);
+    const d = camera.position.distanceTo(cur.p), k = 1 + 0.18 * Math.sin(performance.now() / 260);
+    glow.scale.setScalar(Math.max(0.35, d * 0.045) * k);
+  });
 
   L.hooks.tap.push((x, y, type) => {
     const o = nearestPoint(x, y, type === 'touch' ? 22 : 12);
-    if (!o) { hide(); return false; }
+    if (!o) { if (performance.now() - shownAt > 600) hide(); return false; }   // 剛打開（例如查詢點兩下的第二下）不要馬上收起
     const now = performance.now();
     if (last && last.o === o && now - last.t < 380) {   // 點兩下：打開經絡資訊
       last = null; hide();
@@ -82,6 +104,63 @@
     return true;
   });
   card.addEventListener('click', e => { if (e.target.closest('.xue-x')) hide(); });
+  // 滑鼠移到穴名上：顯示小卡；移開（且不在小卡上）就收起
+  const labelsEl = L.labelsEl;
+  if (labelsEl) {
+    labelsEl.addEventListener('pointerover', e => {
+      const t = e.target.closest('[data-pt]');
+      if (!t || e.pointerType !== 'mouse') return;
+      clearTimeout(hovT);
+      const o = PT[+t.dataset.pt];
+      if (o && o !== cur) { show(o); hov = true; }
+    });
+    labelsEl.addEventListener('pointerout', e => { if (e.target.closest('[data-pt]') && hov) { clearTimeout(hovT); hovT = setTimeout(() => { if (hov && !card.matches(':hover')) hide(); }, 400); } });
+    labelsEl.addEventListener('click', e => { const t = e.target.closest('[data-pt]'); if (t) { const o = PT[+t.dataset.pt]; L.select(o.m.id); show(o); hov = false; } });
+    card.addEventListener('pointerleave', e => { if (hov && e.pointerType === 'mouse') hovT = setTimeout(hide, 300); });
+    card.addEventListener('pointerenter', () => clearTimeout(hovT));
+  }
+
+  /* ---------- 經絡資訊欄裡的穴名都可以點：點了收起資訊欄、飛到那一穴、顯示小卡；左上「« 返回」回到資訊欄 ---------- */
+  const NAMES = [...new Set(PT.map(o => o.name).filter(n => n && n.length >= 2))].sort((a, b) => b.length - a.length);
+  const NAME_RE = new RegExp(NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  function findPt(name) {
+    const mid = L.info && L.info.openId;
+    return PT.find(o => o.name === name && o.m.id === mid && o.side > 0) || PT.find(o => o.name === name && o.side > 0) || PT.find(o => o.name === name);
+  }
+  function linkify(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('select, option, button, .pt-link, h2, small') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(n => {
+      const t = n.nodeValue; NAME_RE.lastIndex = 0;
+      if (!NAME_RE.test(t)) return;
+      const span = document.createElement('span');
+      span.innerHTML = E(t).replace(NAME_RE, m => `<span class="pt-link" data-pn="${m}" role="button" tabindex="0">${m}</span>`);
+      n.replaceWith(...span.childNodes);
+    });
+  }
+  document.querySelectorAll('.ip .ip-body').forEach(el => new MutationObserver(() => linkify(el)).observe(el, { childList: true }));
+  const back = document.createElement('button');
+  back.type = 'button'; back.className = 'xue-back'; back.textContent = '« 返回'; back.hidden = true;
+  stage.appendChild(back);
+  let backId = null;
+  document.addEventListener('click', e => {
+    const a = e.target.closest('.pt-link');
+    if (!a) return;
+    const o = findPt(a.dataset.pn);
+    if (!o || !L.info) return;
+    backId = L.info.openId;
+    L.info.close(false);
+    L.select(o.m.id);
+    L.info.flyToPoint(o);
+    show(o);
+    back.hidden = !backId;
+  });
+  back.addEventListener('click', () => {
+    const id = backId; backId = null; back.hidden = true; hide();
+    if (id) { L.select(id); L.open(id); }
+  });
+  L.hooks.open.push(() => { back.hidden = true; backId = null; });
+  L.xue = { show: o => { show(o); hov = false; } };
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
   L.hooks.select.push(id => { if (cur && id !== cur.m.id) hide(); });
 })();
