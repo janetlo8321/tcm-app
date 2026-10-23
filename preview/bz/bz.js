@@ -270,9 +270,9 @@
   let menu = null;
   const docOf = () => root.ownerDocument, winOf = () => root.ownerDocument.defaultView || window;
   const narrow = () => winOf().innerWidth <= 700;
-  function openMenu(cas, path) {
+  function openMenu(cas, path, keyOver) {
     closeMenu();
-    const key = cas.dataset.cas, def = CAS[key];
+    const key = keyOver || cas.dataset.cas, def = CAS[key];
     if (!def) return;
     const el = docOf().createElement('div');
     el.className = 'bz-menu' + (host ? ' dark' : '');
@@ -464,7 +464,7 @@
   function pickCas(key, v) {
     const r = report;
     if (v == null || v === '') return;
-    if (key === 'fxq') key = 'fx';   // 查詢選到的方
+    if (key === 'fxq' || key === 'fxhit') key = 'fx';   // 查詢、符合的方選到的方
     if (key === 'herb') {
       if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
       r._t_herb = false;
@@ -555,7 +555,8 @@
     const t = e.target;
     const cas = t.closest('.bz-cas');
     if (cas) {
-      if (menu && menu.cas === cas) { if (Date.now() - (+cas.dataset.hov || 0) > 800) closeMenu(); }   // 滑鼠碰到時已經展開：這一下不要又把它關掉
+      if (menu && menu.cas === cas && menu.key === 'fxhit') openMenu(cas);   // 自動跳出的「符合的方」：按處方格改開完整選單
+      else if (menu && menu.cas === cas) { if (Date.now() - (+cas.dataset.hov || 0) > 800) closeMenu(); }   // 滑鼠碰到時已經展開：這一下不要又把它關掉
       else openMenu(cas);
       return;
     }
@@ -584,7 +585,9 @@
       report.ax[k] = (report.bg[k] || 0) * 0.6;
       keep(draw);
       const fc = root.querySelector('[data-cas="fx"]');   // 處方那格自動跳出相符的方
-      if (fc && Object.keys(report.bg).length) openMenu(fc, [0]);
+      // 只跳出「符合的方」那一欄，不帶出左邊整個分類選單
+      const hit = fc && Object.keys(report.bg).length && CAS.fx && CAS.fx.tree[0] && CAS.fx.tree[0].cls === 'hit' ? CAS.fx.tree[0] : null;
+      if (hit) { CAS.fxhit = { tree: hit.kids, val: report.fx }; openMenu(fc, [], 'fxhit'); }
     }
   });
   // 滑鼠：碰到選單鈕就展開；離開選單鈕和選單一下子就收起
