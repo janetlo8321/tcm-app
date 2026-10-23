@@ -293,3 +293,15 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
 #bz .bz-q input { width: 100%; min-height: 40px; padding: 7px 12px 7px 36px; border-radius: 8px; font-size: 15px;
   border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 14%, transparent); background: var(--bz-rep-fill); color: var(--bz-rep-ink); -webkit-appearance: none; appearance: none; }
 #bz .bz-q input:focus { outline: none; border-color: var(--bz-acc); }
+
+/* ---- 資料庫病證頁：本病的方（序號）＋自訂 ---- */
+.bz-fxl { margin: 18px 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--surface, #fff); border: 1px solid var(--line-soft, #e5e5ea); }
+.bz-fxl h3 { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--ink, #1c1c1e); }
+.bz-fxl h3 small { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--muted, #8a8a8e); }
+.bz-fxl ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; }
+.bz-fxl li { display: flex; align-items: baseline; gap: 6px; min-height: 30px; font-size: 15px; }
+.bz-fxl-no { min-width: 1.8em; text-align: right; color: var(--muted, #8a8a8e); font-variant-numeric: tabular-nums; }
+.bz-fxl li small { font-size: 11px; color: var(--herb, #248a3d); }
+.bz-fxl-add { grid-column: 1 / -1; }
+.bz-fxl-add button { padding: 4px 10px; border-radius: 8px; border: 1px dashed var(--line-soft, #c7c7cc); background: none; color: var(--accent, #007aff); font: inherit; font-size: 14px; cursor: pointer; }
+.bz-fxl-add input { width: min(320px, 100%); min-height: 34px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--accent, #007aff); font: inherit; font-size: 15px; background: var(--surface, #fff); color: var(--ink, #1c1c1e); }

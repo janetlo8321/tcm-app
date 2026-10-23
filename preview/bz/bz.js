@@ -386,16 +386,18 @@
   function myFxAll() { try { return JSON.parse(localStorage.getItem(MYFX) || '{}') || {}; } catch (e) { return {}; } }
   function myFx() { return (cur && myFxAll()[cur.id]) || []; }
   function bgTag() { const want = AX.filter(a => report.bg[a.k]); return report.bgAuto || !want.length ? '' : want.map(a => report.bg[a.k] < 0 ? a.a : a.b).join('・'); }
-  function saveMyFx(name) {
+  function saveMyFx(name) { if (cur) saveFxFor(cur.id, name, bgTag()); }
+  function saveFxFor(id, name, tag) {
     name = String(name || '').trim();
-    if (!name || !cur) return;
-    const all = myFxAll(), list = all[cur.id] || [], tag = bgTag();
+    if (!name || !id) return;
+    const all = myFxAll(), list = all[id] || [];
     if (list.some(x => x.n === name && x.tag === tag)) return;
     const i = list.findIndex(x => x.n === name);   // 同一病同名的方只留一筆（記最後一次的虛實陰陽寒熱）
     if (i >= 0) list.splice(i, 1);
     list.push({ n: name, tag });
-    all[cur.id] = list;
+    all[id] = list;
     try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
+    fxlRefresh();
     syncFx(true);
   }
   /* ---------- 自訂的方：用 GitHub 私人備份庫（tcm-notes）在電腦、手機之間同步 ----------
@@ -437,7 +439,7 @@
     finally { syncing = null; const el = root.querySelector('[data-bz="sync"]'); if (el) el.title = syncMsg; }
   }
   let pulled = false;
-  async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) keep(draw); }
+  async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
   async function syncSetup() {
     const W = winOf(), has = !!ghToken();
     const v = W.prompt(has ? `自訂處方已設定同步（${syncMsg || '尚未同步'}）。\n要換金鑰就貼上新的；輸入「關閉」停止這台裝置的同步；直接按確定立即同步。`
@@ -726,6 +728,48 @@
   }
   const entryEl = document.getElementById('entry');
   if (entryEl) { new MutationObserver(addEntry).observe(entryEl, { childList: true }); addEntry(); }
+
+  /* ---------- 資料庫的病證頁：放大縮小那一列上方，依序列出本病提到的方＋自己輸入過的方，最後一列可自訂 ---------- */
+  function fxlHtml(o) {
+    const own = new Set();
+    const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
+    names.forEach(n => own.add(n));
+    const mine = uniqBy(myFxAll()[o.id] || [], x => x.n).filter(x => !own.has(x.n));
+    const fid = n => { const f = (DB.formulas || []).find(x => x.name === n); return f ? f.id : null; };
+    const item = (n, i, tag) => { const id = fid(n); return `<li><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
+    return `<h3>本病的方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
+      <ol>${names.map((n, i) => item(n, i + 1)).join('')}${mine.map((x, i) => item(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
+      <li class="bz-fxl-add"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></li></ol>`;
+  }
+  function fxlRefresh() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur], bar = ent.querySelector('.nb-zbar');
+    if (!o || o.kind !== 'zd' || !bar) return;
+    let box = ent.querySelector('.bz-fxl');
+    if (!box) { box = document.createElement('div'); box.className = 'bz-fxl'; bar.parentNode.insertBefore(box, bar); }
+    box.dataset.id = o.id;
+    box.innerHTML = fxlHtml(o);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-fxl-add]');
+    if (!b) return;
+    const inp = b.parentNode.querySelector('[data-fxl-in]');
+    inp.hidden = false; b.hidden = true; inp.focus();
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target;
+    if (!t.matches || !t.matches('[data-fxl-in]') || e.isComposing) return;
+    if (e.key === 'Escape') { fxlRefresh(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const box = t.closest('.bz-fxl');
+    saveFxFor(box.dataset.id, t.value, '');
+    fxlRefresh();
+  });
+  const entObs = document.getElementById('entry');
+  if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
+  fxlRefresh();
 
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();
