@@ -2,17 +2,17 @@
  * 中醫方證資料庫・大廳（經絡銅人）
  * Three.js r128 · OrbitControls
  *
- * - 半透明銅色身體（只畫最外層表面，接縫不會透出來）
+ * - 半透明真人皮膚（只畫最外層表面），可切換不透明
  * - 經絡平時偏暗；滑鼠移上去或點一下：柔光亮起
  * - 點兩下：進入資訊介面（預留，尚未加入）→ window 事件 'tcm:open-meridian'
  * - 像地圖一樣分層顯示：全身只見經絡線 → 放大出現經絡名、主要穴位 → 再放大出現全部穴位與穴名
- * 穴位位置為示意：依經絡走向在骨度標記點之間平均分布
+ * 人體：BodyParts3D 真實解剖模型（CC BY 4.0）；穴位依骨度分寸與骨性標誌定位
  * ========================================================= */
 (() => {
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/23 20:03';
+  const UPDATED = '10/23 20:45';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -70,131 +70,35 @@
   controls.autoRotateSpeed = 0.45;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 
-  /* ---------- 銅人身體 ---------- */
-  // 以中軸路徑＋每段橢圓截面 [左右, 前後] 掃出身體各部位
-  function prof(list) {
-    return { path: list.map(r => [0, r[0], r[3]]), radii: list.map(r => [r[1], r[2]]) };
-  }
-  const BODY_PARTS = [
-    { name: 'torso', rings: 64, ...prof([
-      // [y, 左右半徑, 前後半徑, 中心 z]
-      [-1.52, 0.55, 0.45, -0.02], [-1.3, 1.15, 0.78, -0.05], [-0.8, 1.52, 0.95, -0.08],
-      [-0.1, 1.55, 0.92, -0.02], [0.7, 1.3, 0.82, 0.02], [1.7, 1.36, 0.86, 0.04],
-      [2.7, 1.52, 0.95, 0.04], [3.6, 1.62, 1.02, 0.02], [4.3, 1.72, 0.92, -0.02],
-      [4.75, 1.55, 0.72, -0.06], [5.05, 1.0, 0.58, -0.08], [5.35, 0.52, 0.48, -0.08]
-    ]) },
-    { name: 'neck', rings: 12,
-      path: [[0, 5.2, -0.1], [0, 5.8, -0.06], [0, 6.4, -0.02]],
-      radii: [[0.5, 0.5], [0.45, 0.46], [0.44, 0.44]] },
-    { name: 'head', rings: 30, ...prof([
-      [6.0, 0.12, 0.1, 0.5], [6.15, 0.42, 0.42, 0.42], [6.45, 0.62, 0.68, 0.26],
-      [6.8, 0.72, 0.86, 0.1], [7.15, 0.8, 0.94, 0.03], [7.55, 0.82, 0.95, -0.02],
-      [7.9, 0.7, 0.82, -0.05], [8.12, 0.42, 0.52, -0.05], [8.22, 0.06, 0.08, -0.05]
-    ]) },
-    { name: 'nose', rings: 8,
-      path: [[0, 7.1, 0.9], [0, 6.88, 1.08], [0, 6.74, 1.1]],
-      radii: [[0.07, 0.06], [0.12, 0.1], [0.07, 0.05]] },
-    { name: 'ear', rings: 8, mirror: true, noSnap: true,
-      path: [[0.8, 7.32, -0.06], [0.84, 7.08, -0.08], [0.82, 6.82, -0.04]],
-      radii: [[0.05, 0.12], [0.09, 0.2], [0.06, 0.12]] },
-    { name: 'shoulder', rings: 12, mirror: true,
-      path: [[1.1, 4.9, -0.06], [1.72, 4.6, -0.02], [1.95, 4.1, 0]],
-      radii: [[0.42, 0.42], [0.56, 0.56], [0.5, 0.5]] },
-    { name: 'arm', rings: 52, mirror: true,
-      path: [[1.88, 4.45, 0], [2.05, 3.0, 0], [2.28, 1.65, 0.02], [2.5, 0.4, 0.08], [2.68, -0.8, 0.12]],
-      radii: [[0.5, 0.5], [0.47, 0.46], [0.38, 0.36], [0.36, 0.32], [0.25, 0.18]] },
-    { name: 'hand', rings: 16, mirror: true,
-      path: [[2.69, -0.78, 0.12], [2.79, -1.3, 0.14], [2.86, -1.85, 0.14], [2.9, -2.22, 0.12]],
-      radii: [[0.24, 0.13], [0.33, 0.14], [0.3, 0.11], [0.1, 0.05]] },
-    { name: 'thumb', rings: 8, mirror: true,
-      path: [[2.92, -0.95, 0.2], [3.05, -1.25, 0.26], [3.12, -1.55, 0.3]],
-      radii: [[0.1, 0.09], [0.08, 0.07], [0.04, 0.04]] },
-    { name: 'leg', rings: 70, mirror: true,
-      path: [[0.8, -1.0, 0], [0.84, -2.8, 0.02], [0.8, -4.6, 0.08], [0.79, -5.5, -0.06], [0.77, -6.8, -0.04], [0.74, -8.5, 0]],
-      radii: [[0.82, 0.84], [0.68, 0.7], [0.45, 0.5], [0.52, 0.6], [0.38, 0.42], [0.25, 0.27]] },
-    { name: 'foot', rings: 14, mirror: true,
-      path: [[0.74, -8.55, -0.32], [0.76, -8.62, 0.2], [0.8, -8.68, 0.8], [0.82, -8.7, 1.08]],
-      radii: [[0.24, 0.22], [0.3, 0.2], [0.3, 0.12], [0.1, 0.06]] }
-  ];
-
-  function interpRadii(radii, u) {
-    const f = u * (radii.length - 1);
-    const i = Math.min(Math.floor(f), radii.length - 2);
-    const k = f - i;
-    return [
-      radii[i][0] + (radii[i + 1][0] - radii[i][0]) * k,
-      radii[i][1] + (radii[i + 1][1] - radii[i][1]) * k
-    ];
-  }
-
-  const AX_Z = V3(0, 0, 1), AX_Y = V3(0, 1, 0);
-  const SNAP_RINGS = [];   // 給經絡貼皮膚用
-  const bodyPos = [], bodyNor = [], bodyIdx = [];
-
-  function addPart(part, side) {
-    const pts = part.path.map(p => V3(p[0] * side, p[1], p[2]));
-    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
-    const N = part.rings, S = 40;
-    const pos = [], idx = [];
-    const frames = [];
-    for (let i = 0; i <= N; i++) {
-      const u = i / N;
-      const c = curve.getPoint(u);
-      const t = curve.getTangent(u).normalize();
-      const n1 = new THREE.Vector3().crossVectors(t, AX_Z);
-      if (n1.lengthSq() < 0.05) n1.crossVectors(t, AX_Y);
-      n1.normalize();
-      const n2 = new THREE.Vector3().crossVectors(n1, t).normalize();
-      const [rx, rz] = interpRadii(part.radii, u);
-      frames.push({ c, t, n1, n2, rx, rz });
-      for (let k = 0; k < S; k++) {
-        const a = (k / S) * Math.PI * 2;
-        const v = c.clone().addScaledVector(n1, Math.cos(a) * rx).addScaledVector(n2, Math.sin(a) * rz);
-        pos.push(v.x, v.y, v.z);
-      }
-    }
-    for (let i = 0; i < N; i++) {
-      for (let k = 0; k < S; k++) {
-        const a = i * S + k, b = i * S + (k + 1) % S, c = (i + 1) * S + k, d = (i + 1) * S + (k + 1) % S;
-        idx.push(a, c, b, b, c, d);
-      }
-    }
-    // 兩端封口（獨立頂點，法線不會和側面互相抵消）
-    [[0, -1], [N, 1]].forEach(([ri, dir]) => {
-      const base = pos.length / 3;
-      const f = frames[ri];
-      pos.push(f.c.x, f.c.y, f.c.z);
-      for (let k = 0; k < S; k++) {
-        const j = (ri * S + k) * 3;
-        pos.push(pos[j], pos[j + 1], pos[j + 2]);
-      }
-      for (let k = 0; k < S; k++) {
-        const a = base + 1 + k, b = base + 1 + (k + 1) % S;
-        if (dir > 0) idx.push(base, a, b); else idx.push(base, b, a);
-      }
+  /* ---------- 真人身體（BodyParts3D）---------- */
+  // 皮膚、耳、唇、眼合成一個外殼；骨骼與臟腑交給 anatomy.js
+  const MODEL = window.TCM_MODEL;
+  const SHELL_KEYS = ['skin', 'ear', 'lip', 'eye', 'iris'];
+  const shellParts = SHELL_KEYS.flatMap(k => MODEL.meshes[k] || []);
+  const bodyGeo = (() => {
+    let nv = 0, ni = 0;
+    shellParts.forEach(m => { nv += m.vn; ni += m.i_n; });
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3);
+    const idx = new Uint32Array(ni);
+    let vo = 0, io = 0;
+    const c = new THREE.Color();
+    shellParts.forEach(m => {
+      pos.set(m.geo.attributes.position.array, vo * 3);
+      nor.set(m.geo.attributes.normal.array, vo * 3);
+      c.setHex(m.color);
+      for (let i = 0; i < m.vn; i++) col.set([c.r, c.g, c.b], (vo + i) * 3);
+      const src = m.geo.index.array;
+      for (let i = 0; i < src.length; i++) idx[io + i] = src[i] + vo;
+      vo += m.vn; io += src.length;
     });
-
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    g.computeVertexNormals();
-    const off = bodyPos.length / 3;
-    const nor = g.getAttribute('normal').array;
-    for (let i = 0; i < pos.length; i++) { bodyPos.push(pos[i]); bodyNor.push(nor[i]); }
-    idx.forEach(i => bodyIdx.push(i + off));
-    g.dispose();
-
-    if (!part.noSnap) frames.forEach(f => SNAP_RINGS.push(f));
-  }
-  BODY_PARTS.forEach(p => {
-    addPart(p, 1);
-    if (p.mirror) addPart(p, -1);
-  });
-
-  const bodyGeo = new THREE.BufferGeometry();
-  bodyGeo.setAttribute('position', new THREE.Float32BufferAttribute(bodyPos, 3));
-  bodyGeo.setAttribute('normal', new THREE.Float32BufferAttribute(bodyNor, 3));
-  bodyGeo.setIndex(bodyIdx);
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
+    g.computeBoundingSphere();
+    return g;
+  })();
 
   // 先只寫深度：之後只畫最外層皮膚，內部重疊的接縫不會透出
   const bodyDepth = new THREE.Mesh(bodyGeo, new THREE.MeshBasicMaterial({
@@ -203,32 +107,42 @@
   }));
   bodyDepth.renderOrder = 1;
 
+  // 皮膚：透明時像一層薄膜（邊緣較亮），不透時是有光影的真人膚色
   const bodyMat = new THREE.ShaderMaterial({
     uniforms: {
-      uBronze: { value: new THREE.Color(0xcf9455) },
-      uRim: { value: new THREE.Color(0xffdcaa) },
+      uRim: { value: new THREE.Color(0xffe2cc) },
       uOpaque: { value: 0 }   // 0 = 透明，1 = 不透
     },
     vertexShader: `
-      varying vec3 vN; varying vec3 vV;
+      attribute vec3 color;
+      varying vec3 vN; varying vec3 vV; varying vec3 vC;
       void main() {
         vec4 wp = modelMatrix * vec4(position, 1.0);
         vN = normalize(mat3(modelMatrix) * normal);
         vV = cameraPosition - wp.xyz;
+        vC = color;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: `
-      uniform vec3 uBronze; uniform vec3 uRim; uniform float uOpaque;
-      varying vec3 vN; varying vec3 vV;
+      uniform vec3 uRim; uniform float uOpaque;
+      varying vec3 vN; varying vec3 vV; varying vec3 vC;
       void main() {
         vec3 n = normalize(vN); vec3 v = normalize(vV);
+        if (!gl_FrontFacing) n = -n;
         float f = 1.0 - abs(dot(n, v));
-        float rim = pow(f, 2.4);
-        float lam = abs(dot(n, normalize(vec3(-0.45, 0.75, 0.6))));
-        vec3 col = uBronze * (0.1 + 0.26 * lam) + uBronze * rim * 1.3 + uRim * pow(f, 7.0) * 0.6;
-        float a = 0.13 + 0.1 * lam + 0.66 * rim;
-        vec3 solid = uBronze * (0.32 + 0.62 * lam) + uRim * pow(f, 3.0) * 0.22;
-        gl_FragColor = vec4(mix(col, solid, uOpaque), mix(a, 1.0, uOpaque));
+        float rim = pow(f, 2.2);
+        vec3 L1 = normalize(vec3(-0.45, 0.75, 0.6)), L2 = normalize(vec3(0.6, 0.2, -0.5));
+        float d1 = max(dot(n, L1), 0.0), d2 = max(dot(n, L2), 0.0);
+        // 透明：淡淡膚色薄膜
+        vec3 glass = vC * (0.12 + 0.22 * d1) + vC * rim * 0.9 + uRim * pow(f, 6.0) * 0.35;
+        float a = 0.07 + 0.06 * d1 + 0.55 * rim;
+        // 不透：半蘭伯特＋次表面的暖色＋高光
+        float wrap = d1 * 0.5 + 0.5;
+        vec3 sss = vec3(0.9, 0.35, 0.25) * pow(1.0 - wrap, 2.0) * 0.18;
+        vec3 h = normalize(L1 + v);
+        float spec = pow(max(dot(n, h), 0.0), 24.0) * 0.08;
+        vec3 solid = vC * (0.22 + 0.78 * wrap * wrap) + vC * d2 * 0.18 + sss + spec + uRim * pow(f, 3.0) * 0.12;
+        gl_FragColor = vec4(mix(glass, solid, uOpaque), mix(a, 1.0, uOpaque));
       }`,
     transparent: true,
     depthWrite: false,
@@ -260,7 +174,7 @@
     l.scale.set(r, 1, r);
     pedestal.add(l);
   });
-  pedestal.position.y = -8.95;
+  pedestal.position.y = -8.75;
   scene.add(pedestal);
 
   // 浮塵
@@ -281,25 +195,96 @@
   })();
   scene.add(dust);
 
-  /* ---------- 貼皮膚：把任一點投到最近的身體表面 ---------- */
-  const _d = new THREE.Vector3();
-  function snapToSkin(p, off) {
-    let best = null, bs = Infinity, ba = 0, bb = 0, bh = 0, bq = 1;
-    for (const r of SNAP_RINGS) {
-      _d.subVectors(p, r.c);
-      const h = _d.dot(r.t), a = _d.dot(r.n1), b = _d.dot(r.n2);
-      const q = Math.sqrt((a / r.rx) ** 2 + (b / r.rz) ** 2);
-      const reff = (r.rx + r.rz) / 2;
-      const s = h * h + ((q - 1) * reff) ** 2;
-      if (s < bs) { bs = s; best = r; ba = a; bb = b; bh = h; bq = q; }
+  /* ---------- 貼皮膚：把任一點投到最近的皮膚表面 ----------
+   * 皮膚三角形放進 0.3 單位的格子，查詢時由近到遠找格子 */
+  const skinIndex = (() => {
+    const m = MODEL.meshes.skin[0];
+    const P = m.geo.attributes.position.array, N = m.geo.attributes.normal.array, I = m.geo.index.array;
+    const CS = 0.3;
+    const box = new THREE.Box3().setFromBufferAttribute(m.geo.attributes.position);
+    const o = box.min, nx = Math.ceil((box.max.x - o.x) / CS) + 1, ny = Math.ceil((box.max.y - o.y) / CS) + 1, nz = Math.ceil((box.max.z - o.z) / CS) + 1;
+    const cells = new Map();
+    for (let t = 0; t < I.length; t += 3) {
+      let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+      for (let k = 0; k < 3; k++) {
+        const j = I[t + k] * 3;
+        x0 = Math.min(x0, P[j]); x1 = Math.max(x1, P[j]);
+        y0 = Math.min(y0, P[j + 1]); y1 = Math.max(y1, P[j + 1]);
+        z0 = Math.min(z0, P[j + 2]); z1 = Math.max(z1, P[j + 2]);
+      }
+      for (let a = Math.floor((x0 - o.x) / CS); a <= Math.floor((x1 - o.x) / CS); a++)
+        for (let b = Math.floor((y0 - o.y) / CS); b <= Math.floor((y1 - o.y) / CS); b++)
+          for (let c = Math.floor((z0 - o.z) / CS); c <= Math.floor((z1 - o.z) / CS); c++) {
+            const key = (a * ny + b) * nz + c;
+            let arr = cells.get(key);
+            if (!arr) cells.set(key, arr = []);
+            arr.push(t);
+          }
     }
-    const r = best;
-    if (bq < 1e-4) return { p: p.clone(), n: r.t.clone() };
-    const out = r.c.clone().addScaledVector(r.t, bh)
-      .addScaledVector(r.n1, ba / bq).addScaledVector(r.n2, bb / bq);
-    const n = new THREE.Vector3()
-      .addScaledVector(r.n1, (ba / bq) / (r.rx * r.rx))
-      .addScaledVector(r.n2, (bb / bq) / (r.rz * r.rz)).normalize();
+    return { P, N, I, CS, o, nx, ny, nz, cells };
+  })();
+
+  // 三角形上離 p 最近的點（Ericson《Real-Time Collision Detection》5.1.5），回傳重心座標
+  const _ab = new THREE.Vector3(), _ac = new THREE.Vector3(), _ap = new THREE.Vector3(), _bp = new THREE.Vector3(), _cp = new THREE.Vector3();
+  const _A = new THREE.Vector3(), _B = new THREE.Vector3(), _C = new THREE.Vector3();
+  function closestBary(p, a, b, c, out) {
+    _ab.subVectors(b, a); _ac.subVectors(c, a); _ap.subVectors(p, a);
+    const d1 = _ab.dot(_ap), d2 = _ac.dot(_ap);
+    if (d1 <= 0 && d2 <= 0) return out.set(1, 0, 0);
+    _bp.subVectors(p, b);
+    const d3 = _ab.dot(_bp), d4 = _ac.dot(_bp);
+    if (d3 >= 0 && d4 <= d3) return out.set(0, 1, 0);
+    const vc = d1 * d4 - d3 * d2;
+    if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return out.set(1 - v, v, 0); }
+    _cp.subVectors(p, c);
+    const d5 = _ab.dot(_cp), d6 = _ac.dot(_cp);
+    if (d6 >= 0 && d5 <= d6) return out.set(0, 0, 1);
+    const vb = d5 * d2 - d1 * d6;
+    if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return out.set(1 - w, 0, w); }
+    const va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return out.set(0, 1 - w, w); }
+    const den = 1 / (va + vb + vc), v = vb * den, w = vc * den;
+    return out.set(1 - v - w, v, w);
+  }
+
+  const _bary = new THREE.Vector3(), _q = new THREE.Vector3();
+  function snapToSkin(p, off) {
+    const S = skinIndex, P = S.P, I = S.I;
+    const ca = Math.floor((p.x - S.o.x) / S.CS), cb = Math.floor((p.y - S.o.y) / S.CS), cc = Math.floor((p.z - S.o.z) / S.CS);
+    let best = Infinity, bt = -1, bu = 0, bv = 0, bw = 0;
+    const seen = new Set();
+    for (let r = 0; r < 12; r++) {
+      for (let a = ca - r; a <= ca + r; a++)
+        for (let b = cb - r; b <= cb + r; b++)
+          for (let c = cc - r; c <= cc + r; c++) {
+            if (Math.max(Math.abs(a - ca), Math.abs(b - cb), Math.abs(c - cc)) !== r) continue;
+            if (a < 0 || b < 0 || c < 0 || a >= S.nx || b >= S.ny || c >= S.nz) continue;
+            const arr = S.cells.get((a * S.ny + b) * S.nz + c);
+            if (!arr) continue;
+            for (const t of arr) {
+              if (seen.has(t)) continue;
+              seen.add(t);
+              const i0 = I[t] * 3, i1 = I[t + 1] * 3, i2 = I[t + 2] * 3;
+              _A.set(P[i0], P[i0 + 1], P[i0 + 2]); _B.set(P[i1], P[i1 + 1], P[i1 + 2]); _C.set(P[i2], P[i2 + 1], P[i2 + 2]);
+              closestBary(p, _A, _B, _C, _bary);
+              _q.set(0, 0, 0).addScaledVector(_A, _bary.x).addScaledVector(_B, _bary.y).addScaledVector(_C, _bary.z);
+              const d = _q.distanceToSquared(p);
+              if (d < best) { best = d; bt = t; bu = _bary.x; bv = _bary.y; bw = _bary.z; }
+            }
+          }
+      // 已找到，且沒有更近的格子可能藏著更近的點
+      if (bt >= 0 && Math.sqrt(best) <= r * S.CS) break;
+    }
+    const N = S.N;
+    const i0 = I[bt] * 3, i1 = I[bt + 1] * 3, i2 = I[bt + 2] * 3;
+    const out = new THREE.Vector3(
+      P[i0] * bu + P[i1] * bv + P[i2] * bw,
+      P[i0 + 1] * bu + P[i1 + 1] * bv + P[i2 + 1] * bw,
+      P[i0 + 2] * bu + P[i1 + 2] * bv + P[i2 + 2] * bw);
+    const n = new THREE.Vector3(
+      N[i0] * bu + N[i1] * bv + N[i2] * bw,
+      N[i0 + 1] * bu + N[i1 + 1] * bv + N[i2 + 1] * bw,
+      N[i0 + 2] * bu + N[i1 + 2] * bv + N[i2 + 2] * bw).normalize();
     out.addScaledVector(n, off);
     return { p: out, n };
   }
@@ -311,78 +296,69 @@
    */
   const MERIDIANS = [
     { id: 'LU', short: '肺', name: '手太陰肺經', bilateral: true,
-      points: '*中府 雲門 天府 俠白 *尺澤 孔最 *列缺 經渠 *太淵 魚際 *少商',
-      strokes: [[[1.4, 4.35, 0.72, 1], [1.55, 4.7, 0.55, 2], [2.15, 3.6, 0.38, 3], [2.45, 1.65, 0.3, 5], [2.62, 0.5, 0.25], [2.8, -0.65, 0.2, 8], [2.82, -0.8, 0.18, 9], [2.95, -1.15, 0.2, 10], [3.12, -1.55, 0.28, 11]]] },
+      points: '*中府 雲門 天府 俠白 *尺澤 孔最 *列缺 經渠 *太淵 魚際 *少商' },
     { id: 'LI', short: '大腸', name: '手陽明大腸經', bilateral: true,
-      points: '商陽 二間 三間 *合谷 陽谿 偏歷 溫溜 下廉 上廉 手三里 *曲池 肘髎 手五里 臂臑 *肩髃 巨骨 天鼎 扶突 口禾髎 *迎香',
-      strokes: [[[2.98, -2.15, 0.0, 1], [2.95, -1.2, 0.02, 4], [2.86, -0.82, -0.02, 5], [2.5, 1.65, -0.12, 11], [2.4, 2.0, -0.2, 12], [2.15, 3.4, -0.15, 14], [1.98, 4.55, 0.1, 15], [1.15, 5.0, -0.2, 16], [0.45, 5.6, 0.25, 17], [0.42, 5.95, 0.32, 18], [0.14, 6.65, 0.95, 19], [0.17, 6.82, 0.95, 20]]] },
+      points: '商陽 二間 三間 *合谷 陽谿 偏歷 溫溜 下廉 上廉 手三里 *曲池 肘髎 手五里 臂臑 *肩髃 巨骨 天鼎 扶突 口禾髎 *迎香' },
     { id: 'ST', short: '胃', name: '足陽明胃經', bilateral: true,
-      points: '承泣 四白 巨髎 *地倉 大迎 *頰車 下關 頭維 人迎 水突 氣舍 缺盆 氣戶 庫房 屋翳 膺窗 乳中 乳根 不容 承滿 梁門 關門 太乙 滑肉門 *天樞 外陵 大巨 水道 歸來 氣衝 髀關 伏兔 陰市 梁丘 犢鼻 *足三里 上巨虛 條口 下巨虛 *豐隆 解谿 衝陽 陷谷 *內庭 厲兌',
-      strokes: [
-        [[0.32, 7.05, 0.92, 1], [0.32, 6.92, 0.95, 2], [0.3, 6.75, 0.95, 3], [0.25, 6.5, 0.92, 4], [0.45, 6.2, 0.6, 5], [0.62, 6.45, 0.35, 6], [0.72, 6.95, 0.4, 7], [0.55, 7.8, 0.62, 8]],
-        [[0.4, 5.9, 0.38, 9], [0.42, 5.4, 0.42], [0.55, 5.05, 0.55, 11], [0.75, 5.0, 0.62, 12], [0.85, 4.7, 0.72, 13], [0.85, 3.6, 1.0, 17], [0.85, 3.2, 1.0, 18], [0.65, 2.6, 0.98, 19], [0.45, 0.75, 0.86, 25], [0.48, -0.95, 0.88, 30], [0.95, -1.6, 0.75, 31], [0.92, -2.9, 0.72, 32], [0.95, -4.15, 0.48, 34], [0.9, -4.65, 0.5, 35], [0.95, -5.3, 0.5, 36], [0.76, -8.3, 0.3, 41], [0.8, -8.55, 0.6, 42], [0.72, -8.64, 0.95, 44], [0.74, -8.68, 1.08, 45]]
-      ] },
+      points: '承泣 四白 巨髎 *地倉 大迎 *頰車 下關 頭維 人迎 水突 氣舍 缺盆 氣戶 庫房 屋翳 膺窗 乳中 乳根 不容 承滿 梁門 關門 太乙 滑肉門 *天樞 外陵 大巨 水道 歸來 氣衝 髀關 伏兔 陰市 梁丘 犢鼻 *足三里 上巨虛 條口 下巨虛 *豐隆 解谿 衝陽 陷谷 *內庭 厲兌' },
     { id: 'SP', short: '脾', name: '足太陰脾經', bilateral: true,
-      points: '*隱白 大都 太白 *公孫 商丘 *三陰交 漏谷 地機 *陰陵泉 *血海 箕門 衝門 府舍 腹結 大橫 腹哀 食竇 天谿 胸鄉 周榮 大包',
-      strokes: [[[0.6, -8.68, 1.0, 1], [0.55, -8.62, 0.45, 4], [0.5, -8.3, 0.12, 5], [0.47, -7.25, 0.05, 6], [0.38, -5.0, 0.12, 9], [0.42, -4.0, 0.32, 10], [0.38, -2.8, 0.38, 11], [0.72, -1.05, 0.82, 12], [1.0, 0.75, 0.78, 15], [1.1, 1.9, 0.82, 16], [1.35, 3.0, 0.7, 17], [1.42, 4.15, 0.68, 20], [1.55, 2.6, 0.1, 21]]] },
+      points: '*隱白 大都 太白 *公孫 商丘 *三陰交 漏谷 地機 *陰陵泉 *血海 箕門 衝門 府舍 腹結 大橫 腹哀 食竇 天谿 胸鄉 周榮 大包' },
     { id: 'HT', short: '心', name: '手少陰心經', bilateral: true,
-      points: '*極泉 青靈 *少海 靈道 通里 陰郄 *神門 少府 少衝',
-      strokes: [[[1.72, 4.0, 0.12, 1], [1.85, 2.8, 0.2, 2], [1.98, 1.65, 0.18, 3], [2.42, -0.45, 0.12, 4], [2.5, -0.8, 0.1, 7], [2.6, -1.4, 0.12, 8], [2.6, -2.0, 0.06, 9]]] },
+      points: '*極泉 青靈 *少海 靈道 通里 陰郄 *神門 少府 少衝' },
     { id: 'SI', short: '小腸', name: '手太陽小腸經', bilateral: true,
-      points: '少澤 前谷 *後谿 腕骨 陽谷 養老 支正 *小海 肩貞 臑俞 *天宗 秉風 曲垣 肩外俞 肩中俞 天窗 天容 顴髎 *聽宮',
-      strokes: [[[2.6, -2.0, -0.04, 1], [2.58, -1.2, -0.06, 3], [2.5, -0.85, -0.1, 5], [2.45, -0.6, -0.14, 6], [1.98, 1.65, -0.22, 8], [1.65, 3.9, -0.55, 9], [1.3, 4.4, -0.75, 10], [0.95, 3.8, -0.95, 11], [1.05, 4.7, -0.6, 12], [0.75, 4.8, -0.65, 13], [0.55, 5.05, -0.6, 14], [0.45, 5.25, -0.45, 15], [0.45, 6.0, -0.12, 16], [0.55, 6.3, 0.2, 17], [0.55, 6.85, 0.75, 18], [0.75, 7.0, 0.22, 19]]] },
+      points: '少澤 前谷 *後谿 腕骨 陽谷 養老 支正 *小海 肩貞 臑俞 *天宗 秉風 曲垣 肩外俞 肩中俞 天窗 天容 顴髎 *聽宮' },
     { id: 'BL', short: '膀胱', name: '足太陽膀胱經', bilateral: true,
-      points: '*睛明 攢竹 眉衝 曲差 五處 承光 通天 絡卻 玉枕 *天柱 大杼 風門 *肺俞 厥陰俞 *心俞 督俞 膈俞 *肝俞 膽俞 *脾俞 胃俞 三焦俞 *腎俞 氣海俞 大腸俞 關元俞 小腸俞 膀胱俞 中膂俞 白環俞 上髎 次髎 中髎 下髎 會陽 承扶 殷門 浮郄 委陽 *委中 附分 魄戶 膏肓 神堂 譩譆 膈關 魂門 陽綱 意舍 胃倉 肓門 志室 胞肓 秩邊 合陽 承筋 *承山 飛揚 跗陽 *崑崙 僕參 申脈 金門 京骨 束骨 足通谷 *至陰',
-      strokes: [
-        [[0.13, 7.2, 0.92, 1], [0.2, 7.42, 0.92, 2], [0.22, 7.9, 0.68, 4], [0.25, 8.15, 0.2, 7], [0.24, 7.85, -0.55, 8], [0.22, 7.45, -0.85, 9], [0.22, 6.6, -0.55, 10], [0.42, 5.2, -0.55, 11], [0.42, 4.6, -0.85, 13], [0.42, 3.2, -1.0, 17], [0.42, 0.75, -0.82, 23], [0.42, -0.65, -0.95, 30], [0.3, -0.85, -0.95, 31], [0.18, -1.2, -0.8, 34], [0.12, -1.35, -0.65, 35], [0.8, -1.5, -0.72, 36], [0.82, -2.8, -0.72, 37], [0.95, -4.4, -0.4, 39], [0.8, -4.6, -0.45, 40]],
-        [[0.85, 5.1, -0.6, 41], [0.85, 4.55, -0.85, 42], [0.85, 3.1, -1.0, 46], [0.85, 0.75, -0.82, 52], [0.85, -0.6, -0.95, 54], [0.85, -2.8, -0.75], [0.8, -5.0, -0.55, 55], [0.8, -6.05, -0.6, 57], [0.9, -6.8, -0.45, 58], [0.95, -8.3, -0.2, 60], [0.97, -8.55, 0.0, 62], [0.98, -8.65, 0.5, 64], [0.98, -8.68, 0.95, 67]]
-      ] },
+      points: '*睛明 攢竹 眉衝 曲差 五處 承光 通天 絡卻 玉枕 *天柱 大杼 風門 *肺俞 厥陰俞 *心俞 督俞 膈俞 *肝俞 膽俞 *脾俞 胃俞 三焦俞 *腎俞 氣海俞 大腸俞 關元俞 小腸俞 膀胱俞 中膂俞 白環俞 上髎 次髎 中髎 下髎 會陽 承扶 殷門 浮郄 委陽 *委中 附分 魄戶 膏肓 神堂 譩譆 膈關 魂門 陽綱 意舍 胃倉 肓門 志室 胞肓 秩邊 合陽 承筋 *承山 飛揚 跗陽 *崑崙 僕參 申脈 金門 京骨 束骨 足通谷 *至陰' },
     { id: 'KI', short: '腎', name: '足少陰腎經', bilateral: true,
-      points: '*湧泉 然谷 *太谿 大鐘 水泉 照海 *復溜 交信 築賓 陰谷 橫骨 大赫 氣穴 四滿 中注 肓俞 商曲 石關 陰都 腹通谷 幽門 步廊 神封 靈墟 神藏 彧中 俞府',
-      strokes: [[[0.72, -8.87, 0.45, 1], [0.52, -8.6, 0.3, 2], [0.5, -8.3, -0.12, 3], [0.5, -7.4, -0.15, 7], [0.45, -6.5, -0.05, 9], [0.4, -4.6, -0.25, 10], [0.3, -2.8, -0.05], [0.18, -0.85, 0.88, 11], [0.16, 0.75, 0.86, 16], [0.16, 2.45, 0.95, 21], [0.62, 3.0, 1.0, 22], [0.58, 4.8, 0.75, 27]]] },
+      points: '*湧泉 然谷 *太谿 大鐘 水泉 照海 *復溜 交信 築賓 陰谷 橫骨 大赫 氣穴 四滿 中注 肓俞 商曲 石關 陰都 腹通谷 幽門 步廊 神封 靈墟 神藏 彧中 俞府' },
     { id: 'PC', short: '心包', name: '手厥陰心包經', bilateral: true,
-      points: '天池 天泉 *曲澤 郄門 間使 *內關 *大陵 *勞宮 中衝',
-      strokes: [[[1.05, 3.6, 0.98, 1], [1.7, 4.0, 0.4, 2], [2.28, 1.65, 0.38, 3], [2.5, 0.0, 0.27, 5], [2.62, -0.55, 0.22, 6], [2.68, -0.8, 0.18, 7], [2.82, -1.4, 0.16, 8], [2.88, -2.2, 0.08, 9]]] },
+      points: '天池 天泉 *曲澤 郄門 間使 *內關 *大陵 *勞宮 中衝' },
     { id: 'SJ', short: '三焦', name: '手少陽三焦經', bilateral: true,
-      points: '關衝 液門 中渚 陽池 *外關 *支溝 會宗 三陽絡 四瀆 天井 清冷淵 消濼 臑會 肩髎 天髎 天牖 *翳風 瘈脈 顱息 角孫 耳門 耳和髎 *絲竹空',
-      strokes: [[[2.78, -2.1, -0.05, 1], [2.75, -1.3, -0.1, 3], [2.68, -0.82, -0.17, 4], [2.6, -0.5, -0.22, 5], [2.32, 1.7, -0.38, 10], [2.05, 3.6, -0.42, 13], [1.95, 4.4, -0.4, 14], [0.95, 4.9, -0.4, 15], [0.55, 6.1, -0.3, 16], [0.7, 6.65, -0.15, 17], [0.82, 7.2, -0.35, 19], [0.8, 7.55, -0.05, 20], [0.75, 7.1, 0.2, 21], [0.65, 7.15, 0.5, 22], [0.55, 7.35, 0.8, 23]]] },
+      points: '關衝 液門 中渚 陽池 *外關 *支溝 會宗 三陽絡 四瀆 天井 清冷淵 消濼 臑會 肩髎 天髎 天牖 *翳風 瘈脈 顱息 角孫 耳門 耳和髎 *絲竹空' },
     { id: 'GB', short: '膽', name: '足少陽膽經', bilateral: true,
-      points: '瞳子髎 聽會 上關 頷厭 懸顱 懸釐 曲鬢 率谷 天衝 浮白 頭竅陰 完骨 本神 陽白 頭臨泣 目窗 正營 承靈 腦空 *風池 *肩井 淵腋 輒筋 日月 京門 帶脈 五樞 維道 居髎 *環跳 *風市 中瀆 膝陽關 *陽陵泉 陽交 外丘 光明 陽輔 *懸鐘 丘墟 *足臨泣 地五會 俠谿 足竅陰',
-      strokes: [[[0.55, 7.18, 0.75, 1], [0.75, 6.9, 0.25, 2], [0.75, 7.1, 0.45, 3], [0.72, 7.65, 0.38, 4], [0.78, 7.35, 0.25, 7], [0.75, 7.75, -0.1, 8], [0.7, 7.5, -0.4, 10], [0.65, 6.75, -0.4, 12], [0.5, 7.85, 0.6, 13], [0.35, 7.45, 0.88, 14], [0.35, 7.95, 0.6, 15], [0.42, 8.05, -0.2, 18], [0.4, 7.0, -0.75, 19], [0.4, 6.7, -0.62, 20], [0.95, 5.0, -0.25, 21], [1.55, 3.8, 0.0, 22], [1.4, 3.4, 0.35, 23], [0.95, 2.6, 0.92, 24], [1.4, 1.6, -0.3, 25], [1.35, 0.9, 0.15, 26], [1.4, -0.5, 0.25, 29], [1.3, -0.95, -0.5, 30], [1.45, -2.8, 0.0, 31], [1.25, -4.4, 0.0, 33], [1.2, -5.0, 0.0, 34], [1.05, -7.6, 0.0, 39], [0.95, -8.35, 0.15, 40], [0.95, -8.6, 0.6, 41], [0.9, -8.68, 0.98, 44]]] },
+      points: '瞳子髎 聽會 上關 頷厭 懸顱 懸釐 曲鬢 率谷 天衝 浮白 頭竅陰 完骨 本神 陽白 頭臨泣 目窗 正營 承靈 腦空 *風池 *肩井 淵腋 輒筋 日月 京門 帶脈 五樞 維道 居髎 *環跳 *風市 中瀆 膝陽關 *陽陵泉 陽交 外丘 光明 陽輔 *懸鐘 丘墟 *足臨泣 地五會 俠谿 足竅陰' },
     { id: 'LR', short: '肝', name: '足厥陰肝經', bilateral: true,
-      points: '大敦 行間 *太衝 中封 蠡溝 中都 膝關 *曲泉 陰包 足五里 陰廉 急脈 *章門 *期門',
-      strokes: [[[0.66, -8.66, 1.02, 1], [0.66, -8.64, 0.85, 2], [0.66, -8.55, 0.55, 3], [0.55, -8.3, 0.25, 4], [0.48, -7.0, 0.2, 5], [0.38, -4.6, 0.0, 8], [0.36, -1.6, 0.5, 11], [0.4, -1.1, 0.8, 12], [1.4, 2.2, 0.4, 13], [0.85, 2.85, 0.95, 14]]] },
+      points: '大敦 行間 *太衝 中封 蠡溝 中都 膝關 *曲泉 陰包 足五里 陰廉 急脈 *章門 *期門' },
     { id: 'REN', short: '任脈', name: '任脈', bilateral: false,
-      points: '會陰 曲骨 中極 *關元 石門 *氣海 陰交 *神闕 水分 下脘 建里 *中脘 上脘 巨闕 鳩尾 中庭 *膻中 玉堂 紫宮 華蓋 璇璣 天突 廉泉 *承漿',
-      strokes: [[[0, -1.48, 0.1, 1], [0, -0.88, 0.88, 2], [0, -0.25, 0.9, 4], [0, 0.75, 0.85, 8], [0, 1.75, 0.9, 12], [0, 2.9, 0.98, 15], [0, 3.6, 1.04, 17], [0, 5.15, 0.5, 22], [0, 5.8, 0.4, 23], [0, 6.3, 0.85, 24]]] },
+      points: '會陰 曲骨 中極 *關元 石門 *氣海 陰交 *神闕 水分 下脘 建里 *中脘 上脘 巨闕 鳩尾 中庭 *膻中 玉堂 紫宮 華蓋 璇璣 天突 廉泉 *承漿' },
     { id: 'DU', short: '督脈', name: '督脈', bilateral: false,
-      points: '*長強 腰俞 腰陽關 *命門 懸樞 脊中 中樞 筋縮 至陽 靈台 神道 身柱 陶道 *大椎 啞門 *風府 腦戶 強間 後頂 *百會 前頂 囟會 上星 神庭 素髎 *水溝 兌端 齦交',
-      strokes: [[[0, -1.38, -0.6, 1], [0, -0.5, -0.95, 2], [0, 0.7, -0.82, 4], [0, 2.6, -0.95, 9], [0, 5.3, -0.55, 14], [0, 6.45, -0.45, 15], [0, 6.6, -0.6, 16], [0, 7.6, -0.82, 18], [0, 8.21, 0, 20], [0, 7.95, 0.6, 22], [0, 7.55, 0.9, 24], [0, 6.88, 1.2, 25], [0, 6.62, 0.98, 26], [0, 6.52, 0.96, 27], [0, 6.45, 0.94, 28]]] }
+      points: '*長強 腰俞 腰陽關 *命門 懸樞 脊中 中樞 筋縮 至陽 靈台 神道 身柱 陶道 *大椎 啞門 *風府 腦戶 強間 後頂 *百會 前頂 囟會 上星 神庭 素髎 *水溝 兌端 齦交' }
   ];
+  // 穴位座標：model/points.json（由骨度分寸＋骨性標誌算出，見 tools/acupoints.py）
+  MERIDIANS.forEach(m => { m.strokes = window.TCM_POINTS.strokes[m.id]; });
   const byId = Object.fromEntries(MERIDIANS.map(m => [m.id, m]));
 
-  const SUB = 14;          // 每段定位點之間的取樣數
+  const STEP = 0.06;        // 經絡取樣間距
   const SKIN_OFF = 0.045;  // 經絡浮在皮膚上的距離
 
-  // 一筆經絡：定位點貼皮 → 曲線取樣 → 每個取樣再貼皮 → 平滑
+  // 一筆經絡：定位點貼皮 → 曲線取樣（依距離決定取樣數）→ 每個取樣再貼皮 → 平滑（穴位本身不動）
   function traceStroke(stroke) {
     const anchors = stroke.map(v => snapToSkin(V3(v[0], v[1], v[2]), SKIN_OFF).p);
     const curve = new THREE.CatmullRomCurve3(anchors, false, 'centripetal');
-    const M = (anchors.length - 1) * SUB;
-    const ps = [], ns = [];
-    for (let i = 0; i <= M; i++) {
-      const s = snapToSkin(curve.getPoint(i / M), SKIN_OFF);
-      ps.push(s.p); ns.push(s.n);
+    const segs = anchors.length - 1;
+    const ps = [], ns = [], anchorIdx = [], fixed = new Set();
+    for (let k = 0; k < segs; k++) {
+      const n = Math.max(2, Math.min(20, Math.ceil(anchors[k].distanceTo(anchors[k + 1]) / STEP)));
+      anchorIdx.push(ps.length); fixed.add(ps.length);
+      ps.push(anchors[k].clone()); ns.push(snapToSkin(anchors[k], 0).n);
+      for (let j = 1; j < n; j++) {
+        const s = snapToSkin(curve.getPoint((k + j / n) / segs), SKIN_OFF);
+        ps.push(s.p); ns.push(s.n);
+      }
     }
+    anchorIdx.push(ps.length); fixed.add(ps.length);
+    ps.push(anchors[segs].clone()); ns.push(snapToSkin(anchors[segs], 0).n);
+    const M = ps.length - 1;
     for (let pass = 0; pass < 3; pass++) {
       const prev = ps.map(p => p.clone());
       for (let i = 1; i < M; i++) {
+        if (fixed.has(i)) continue;
         ps[i].copy(prev[i]).multiplyScalar(0.5).addScaledVector(prev[i - 1], 0.25).addScaledVector(prev[i + 1], 0.25);
       }
     }
     const cum = [0];
     for (let i = 1; i <= M; i++) cum.push(cum[i - 1] + ps[i].distanceTo(ps[i - 1]));
-    return { ps, ns, cum, anchorNos: stroke.map(v => v[3]) };
+    return { ps, ns, cum, anchorIdx, anchorNos: stroke.map(v => v[3]) };
   }
 
   function atLength(tr, L) {
@@ -427,7 +403,8 @@
       a *= 1.0 + uFlow * 0.6 * wave;
       gl_FragColor = vec4(uColor, a);
     }`;
-  function merMat(radius, soft) {
+  // 主線用一般混色（疊在白色骨骼上也看得到），外圍柔光用加亮混色
+  function merMat(radius, soft, additive) {
     return new THREE.ShaderMaterial({
       uniforms: {
         uColor: { value: new THREE.Color(0x7fd6c4) },
@@ -443,7 +420,7 @@
       transparent: true,
       depthWrite: false,
       depthTest: false,
-      blending: THREE.AdditiveBlending
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending
     });
   }
 
@@ -477,8 +454,8 @@
   const PT = [];  // { m, no, name, major, p, n }
   MERIDIANS.forEach((m, mi) => {
     m.index = mi;
-    m.coreMat = merMat(0.03, 0.5);
-    m.haloMat = merMat(0.17, 1.0);
+    m.coreMat = merMat(0.03, 0.5, false);
+    m.haloMat = merMat(0.17, 1.0, true);
     m.haloMat.uniforms.uOpacity.value = 0;
     m.glow = 0;
     m.pick = [];
@@ -495,7 +472,7 @@
       let prevNo = null, prevL = 0;
       tr.anchorNos.forEach((no, vi) => {
         if (no == null) return;
-        const L = tr.cum[vi * SUB];
+        const L = tr.cum[tr.anchorIdx[vi]];
         if (prevNo != null) {
           for (let k = prevNo + 1; k < no; k++) {
             const Lk = prevL + ((k - prevNo) / (no - prevNo)) * (L - prevL);
@@ -503,7 +480,7 @@
             m.ptL[k] = { tr, L: Lk };
           }
         }
-        local.push({ no, at: { p: tr.ps[vi * SUB].clone(), n: tr.ns[vi * SUB].clone() } });
+        local.push({ no, at: { p: tr.ps[tr.anchorIdx[vi]].clone(), n: tr.ns[tr.anchorIdx[vi]].clone() } });
         m.ptL[no] = { tr, L };
         prevNo = no; prevL = L;
       });
@@ -537,8 +514,8 @@
       uMajor: { value: 0 }, uAll: { value: 0 },
       uHiMer: { value: -1 }, uHiMajor: { value: 0 }, uHiAll: { value: 0 }, uBackPt: { value: 0.12 },
       uScale: { value: 1000 },
-      uColor: { value: new THREE.Color(0xf3e3c6) },
-      uHiColor: { value: new THREE.Color(0xffd79a) }
+      uColor: { value: new THREE.Color(0xf2e6c8) },
+      uHiColor: { value: new THREE.Color(0xffd23c) }
     },
     vertexShader: `
       attribute vec3 surfN; attribute float aMer; attribute float aMajor;
@@ -566,12 +543,12 @@
         if (r > 1.0) discard;
         float core = smoothstep(0.55, 0.2, r);
         float a = vA * (core * 0.9 + (1.0 - r) * 0.35);
-        gl_FragColor = vec4(mix(uColor, uHiColor, vHi) * (0.75 + 0.4 * core), a);
+        gl_FragColor = vec4(mix(uColor, uHiColor, vHi) * (0.8 + 0.3 * core), min(1.0, a * 1.2));
       }`,
     transparent: true,
     depthWrite: false,
     depthTest: false,
-    blending: THREE.AdditiveBlending
+    blending: THREE.NormalBlending
   });
   const points = new THREE.Points(ptGeo, ptMat);
   points.renderOrder = 5;
@@ -932,9 +909,9 @@
 
   /* ---------- 動畫 ---------- */
   const clock = new THREE.Clock();
-  const COL_IDLE = new THREE.Color(0x7fd6c4);
-  const COL_LIT = new THREE.Color(0xffe6c2);
-  const COL_HALO = new THREE.Color(0xffd29a);
+  const COL_IDLE = new THREE.Color(0x5fc7b4);
+  const COL_LIT = new THREE.Color(0xff7433);   // 亮起：橘紅（參考解剖經絡圖的配色）
+  const COL_HALO = new THREE.Color(0xffa25a);
 
   function animate() {
     requestAnimationFrame(animate);
@@ -971,12 +948,13 @@
       const dim = anySel && m.id !== selectedId ? 0.55 : 1;
       const cu = m.coreMat.uniforms, hu = m.haloMat.uniforms;
       cu.uColor.value.copy(COL_IDLE).lerp(COL_LIT, g);
-      cu.uOpacity.value = (0.13 + 0.17 * zoomIn) * dim * (1 - g) + 0.6 * g;
+      cu.uOpacity.value = (0.3 + 0.25 * zoomIn) * dim * (1 - g) + 0.9 * g;
       cu.uBack.value = (0.35 + 0.2 * g) * (1 - view.opaque);
       cu.uTime.value = t;
       cu.uFlow.value = g;
+      cu.uRadius.value = 0.03 * (1 + 0.9 * g);
       hu.uColor.value.copy(COL_IDLE).lerp(COL_HALO, g);
-      hu.uOpacity.value = 0.22 * g * (0.9 + 0.1 * Math.sin(t * 1.6));
+      hu.uOpacity.value = 0.16 * g * (0.9 + 0.1 * Math.sin(t * 1.6));
       hu.uBack.value = 0.3 * (1 - view.opaque);
       hu.uTime.value = t;
       hu.uFlow.value = g;
@@ -1004,6 +982,7 @@
     select, open: openMeridian, reset: resetView, meridians: MERIDIANS, byId, points: PT, version: VERSION,
     get selected() { return selectedId; },
     scene, camera, controls, renderer, canvas, stage, labelsEl, toast: showToast,
-    snapToSkin, atLength, mirror, SKIN_OFF, bodyDepth, bodyShell, meridianGroup, pointsObj: points, hooks, view, userActed
+    snapToSkin, atLength, mirror, SKIN_OFF, bodyDepth, bodyShell, meridianGroup, pointsObj: points, hooks, view, userActed,
+    model: MODEL, landmarks: window.TCM_POINTS.landmarks
   };
 })();

@@ -471,3 +471,17 @@ body { display: grid; place-items: center; }
   border-radius: 50%;
   background: #8a2a10;
 }
+
+/* ---------- 載入中、模型出處 ---------- */
+.loading {
+  position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(circle at 50% 45%, #1c1610, #050403 70%); color: #e9d6b8; font-size: 14px; letter-spacing: .12em;
+  transition: opacity .6s ease; pointer-events: none;
+}
+.loading b { width: 160px; height: 3px; border-radius: 2px; background: rgba(233, 214, 184, .15); overflow: hidden; }
+.loading i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #c9955a, #ffe1b0); transition: width .2s; }
+.loading.done { opacity: 0; }
+.credit {
+  position: absolute; right: 10px; bottom: calc(1px + env(safe-area-inset-bottom)); z-index: 4;
+  font-size: 9px; color: rgba(233, 214, 184, .38); pointer-events: none; letter-spacing: .02em;
+}
