@@ -1,0 +1,257 @@
+/* ===== 中醫方證資料庫・大廳（經絡銅人） ===== */
+:root {
+  --bronze: #d6a66b;
+  --bronze-soft: rgba(214, 166, 107, 0.55);
+  --bronze-faint: rgba(214, 166, 107, 0.2);
+  --jade: #8fdccb;
+  --warm: #ffe3b8;
+  --text: #f1e6d4;
+  --text-dim: rgba(241, 230, 212, 0.58);
+  --glass: rgba(20, 15, 10, 0.6);
+  --font: "Noto Serif TC", "Songti TC", "PingFang TC", "Microsoft JhengHei", serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #050403;
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body { display: grid; place-items: center; }
+
+/* ---- 9:16 舞台 ---- */
+.stage {
+  position: relative;
+  height: min(100vh, 177.78vw);
+  height: min(100dvh, 177.78vw);
+  aspect-ratio: 9 / 16;
+  background: #070605;
+  overflow: hidden;
+}
+
+.canvas-wrap,
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.canvas-wrap canvas:active { cursor: grabbing; }
+.canvas-wrap.is-hover canvas { cursor: pointer; }
+
+.fx-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 46%, transparent 58%, rgba(0, 0, 0, 0.7) 100%);
+}
+
+/* ---- 標籤（像地圖一樣，放大才出現） ---- */
+.labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.lbl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  color: rgba(246, 236, 220, 0.92);
+  white-space: nowrap;
+  text-shadow: 0 0 4px #000, 0 0 8px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  transition: opacity .35s ease;
+  will-change: transform, opacity;
+}
+.lbl.mer {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--jade);
+}
+.lbl.major { color: #fbf1df; font-weight: 500; }
+.lbl.hi { color: var(--warm); }
+
+/* ---- HUD ---- */
+.hud-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 0;
+  pointer-events: none;
+}
+.title { display: flex; flex-direction: column; gap: 4px; }
+.title-zh {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: var(--text);
+  text-shadow: 0 0 14px rgba(214, 166, 107, 0.35);
+}
+.title-sub {
+  font-size: 11px;
+  letter-spacing: 0.5em;
+  color: var(--bronze);
+  opacity: 0.85;
+}
+.hud-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+.version {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  border: 1px solid var(--bronze-faint);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(10, 8, 6, 0.4);
+}
+.icon-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--bronze-faint);
+  background: rgba(20, 15, 10, 0.45);
+  color: var(--bronze);
+  font-size: 17px;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.icon-btn:hover {
+  border-color: var(--bronze-soft);
+  box-shadow: 0 0 14px rgba(214, 166, 107, 0.3);
+}
+
+/* ---- 提示 ---- */
+.hint {
+  position: absolute;
+  left: 50%;
+  top: calc(78px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 1.2s;
+}
+.hint.hidden { opacity: 0; }
+
+.tip {
+  position: absolute;
+  padding: 4px 10px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--warm);
+  background: var(--glass);
+  border: 1px solid var(--bronze-faint);
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(14px, -50%);
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.tip.show { opacity: 1; }
+
+/* 已點亮的經絡名稱 */
+.sel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 8px);
+  padding: 7px 16px;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--warm);
+  background: var(--glass);
+  border: 1px solid rgba(255, 220, 170, 0.25);
+  border-radius: 999px;
+  box-shadow: 0 0 24px rgba(255, 210, 150, 0.12);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .35s, transform .35s;
+}
+.sel.show { opacity: 1; transform: translate(-50%, 0); }
+.sel small {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-left: 8px;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  padding: 10px 18px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  background: var(--glass);
+  border: 1px solid var(--bronze-faint);
+  border-radius: 12px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  text-align: center;
+}
+.toast.show { opacity: 1; }
+
+/* ---- 經絡選單 ---- */
+.chips {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none;
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  background: rgba(20, 15, 10, 0.5);
+  border: 1px solid var(--bronze-faint);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color .2s, border-color .2s, box-shadow .2s;
+}
+.chip:hover { color: var(--text); border-color: var(--bronze-soft); }
+.chip.active {
+  color: var(--warm);
+  border-color: rgba(255, 220, 170, 0.45);
+  box-shadow: 0 0 14px rgba(255, 210, 150, 0.18);
+}

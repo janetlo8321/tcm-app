@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#070605">
+  <title>經絡銅人</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="lobby.css">
+</head>
+<body>
+
+  <!-- 9:16 大廳舞台 -->
+  <main id="stage" class="stage">
+    <div id="canvas-wrap" class="canvas-wrap"></div>
+    <div class="fx-vignette"></div>
+
+    <!-- 縮放後才出現的經絡名、穴位名 -->
+    <div id="labels" class="labels"></div>
+
+    <header class="hud-top">
+      <div class="title">
+        <span class="title-zh">中醫方證資料庫</span>
+        <span class="title-sub">經絡銅人</span>
+      </div>
+      <div class="hud-right">
+        <span id="ver" class="version"></span>
+        <button id="btn-reset" class="icon-btn" type="button" aria-label="回到全身" title="回到全身">⟲</button>
+      </div>
+    </header>
+
+    <div id="hint" class="hint"></div>
+    <div id="tip" class="tip"></div>
+    <div id="sel" class="sel"></div>
+    <div id="toast" class="toast"></div>
+
+    <nav id="chips" class="chips" aria-label="經絡列表"></nav>
+  </main>
+
+  <script src="lib/three.min.js"></script>
+  <script src="lib/OrbitControls.js"></script>
+  <script src="lobby.js"></script>
+</body>
+</html>
