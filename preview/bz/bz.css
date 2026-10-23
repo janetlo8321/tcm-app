@@ -409,7 +409,7 @@ body.dash-on { overflow: hidden; }
 .tcm-dash .dbar.b .bt i { background: linear-gradient(90deg, #1f9a72, #3fe0a8); box-shadow: 0 0 8px rgba(63, 224, 168, .6); }
 .tcm-dash .dbar .bn { text-align: right; font-variant-numeric: tabular-nums; color: #8fe3ff; font-size: 13px; }
 .tcm-dash .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.tcm-dash .heat .hr { display: grid; grid-template-columns: 8em repeat(5, 1fr); gap: 4px; margin-bottom: 4px; align-items: center; }
+.tcm-dash .heat .hr { display: grid; grid-template-columns: 8em repeat(8, 1fr); gap: 4px; margin-bottom: 4px; align-items: center; }
 .tcm-dash .heat .hh span { font-size: 11px; text-align: center; color: rgba(220, 236, 245, .6); }
 .tcm-dash .heat .hl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .tcm-dash .heat .hc { height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px;
@@ -426,5 +426,9 @@ body.dash-on { overflow: hidden; }
   .tcm-dash .sat.s3 { left: 87%; top: 50%; } .tcm-dash .sat.s4 { left: 17%; top: 86%; } .tcm-dash .sat.s5 { left: 83%; top: 86%; }
   .tcm-dash .cmp { grid-template-columns: 1fr; }
   .tcm-dash .dbar { grid-template-columns: 6em 1fr 2.6em; }
-  .tcm-dash .heat .hr { grid-template-columns: 5.5em repeat(5, 1fr); }
+  .tcm-dash .heat .hr { grid-template-columns: 4.5em repeat(8, 1fr); }
 }
+
+.st-chips .st-other { border-style: dashed; background: none; color: #8fe3ff; }
+.st-chips .st-oin { min-height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid #2bb8e8; background: rgba(43, 184, 232, .08); color: #fff; font: inherit; font-size: 14px; outline: none; width: 11em; }
+@media (max-width: 600px) { .tcm-dash .heat .hh span { font-size: 9px; } .tcm-dash .heat .hc { font-size: 11px; height: 24px; } }

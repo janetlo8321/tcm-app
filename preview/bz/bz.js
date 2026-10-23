@@ -904,7 +904,7 @@
   const ST = {
     region: ['台北', '新北', '桃竹苗', '中彰投', '雲嘉南', '高屏', '宜蘭', '花蓮', '台東', '離島'],
     sex: ['女', '男'],
-    age: ['<18', '18–29', '30–44', '45–64', '65+'],
+    age: ['<18', '18–29', '30–44', '45–64', '65–74', '75–84', '85–99', '100+'],
     body: ['平和', '氣虛', '陽虛', '陰虛', '痰濕', '濕熱', '血瘀', '氣鬱', '特稟'],
     concern: ['睡眠', '疼痛', '腸胃', '情緒壓力', '疲勞', '體重', '皮膚', '婦科', '慢性病控制'],
     sport: ['規律運動', '偶爾運動', '很少運動'],
@@ -931,7 +931,13 @@
       return true;
     } catch (e) { return false; }
   }
-  const chips = (k, multi, val) => `<div class="st-chips" data-k="${k}" data-multi="${multi ? 1 : ''}">${ST[k].map(v => `<button type="button" class="${(multi ? (val || []).includes(v) : val === v) ? 'on' : ''}" data-val="${E(v)}">${E(v)}</button>`).join('')}</div>`;
+  // 自己新增的選項（每一類「⊕ 其他（可新增）」打的字），記在這台裝置，下次直接出現
+  const STO = 'tcm-stats-opts-v1';
+  const stOpts = () => { try { return JSON.parse(localStorage.getItem(STO) || '{}') || {}; } catch (e) { return {}; } };
+  const stAddOpt = (k, v) => { const o = stOpts(); o[k] = o[k] || []; if (!ST[k].includes(v) && !o[k].includes(v)) o[k].push(v); try { localStorage.setItem(STO, JSON.stringify(o)); } catch (e) {} };
+  const NO_OTHER = { sex: 1, age: 1 };
+  const chip = (v, on) => `<button type="button" class="${on ? 'on' : ''}" data-val="${E(v)}">${E(v)}</button>`;
+  const chips = (k, multi, val) => `<div class="st-chips" data-k="${k}" data-multi="${multi ? 1 : ''}">${ST[k].concat(stOpts()[k] || []).map(v => chip(v, multi ? (val || []).includes(v) : val === v)).join('')}${NO_OTHER[k] ? '' : '<button type="button" class="st-other" data-other>⊕ 其他（可新增）</button><input type="text" class="st-oin" placeholder="輸入後按 Enter" hidden>'}</div>`;
   function statOpen() {
     if (!cur) return;
     const doc = docOf();
@@ -955,6 +961,8 @@
   root.addEventListener('click', e => {
     const m = e.target.closest('.st-modal'); if (!m) return;
     e.stopPropagation();
+    const oth = e.target.closest('[data-other]');
+    if (oth) { const inp = oth.nextElementSibling; oth.hidden = true; inp.hidden = false; inp.focus(); return; }
     const c = e.target.closest('.st-chips button');
     if (c) {
       const box = c.parentNode;
@@ -978,6 +986,25 @@
       stSync();
     }
   }, true);
+
+  root.addEventListener('keydown', e => {
+    const inp = e.target; if (!inp.classList || !inp.classList.contains('st-oin') || e.isComposing) return;
+    const box = inp.parentNode, oth = box.querySelector('[data-other]');
+    if (e.key === 'Escape') { inp.value = ''; inp.hidden = true; oth.hidden = false; return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const v = inp.value.trim(); inp.value = ''; inp.hidden = true; oth.hidden = false;
+    if (!v) return;
+    const k = box.dataset.k; stAddOpt(k, v);
+    let b = [...box.querySelectorAll('button[data-val]')].find(x => x.dataset.val === v);
+    if (!b) { oth.insertAdjacentHTML('beforebegin', chip(v, false)); b = oth.previousElementSibling; }
+    if (!box.dataset.multi) box.querySelectorAll('button.on').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  });
+  root.addEventListener('focusout', e => {   // 打完沒按 Enter 就點別處：也算新增
+    const inp = e.target; if (!inp.classList || !inp.classList.contains('st-oin') || !inp.value.trim()) return;
+    inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  });
 
   // 齒輪 → 第二層選單 → 總統計
   function gearInit() {
@@ -1028,7 +1055,7 @@
     const recs = cmp ? all.filter(r => r.region === '台北' || r.region === '花蓮') : dashReg === '全部' ? all : all.filter(r => r.region === dashReg);
     const n = recs.length, cnt = reg => all.filter(r => r.region === reg).length;
     const top = k => { const t = tally(recs, k)[0]; return t ? { v: t[0], p: t[1] / Math.max(1, n) } : { v: '—', p: 0 }; };
-    const others = ST.region.filter(r => r !== '台北' && r !== '花蓮');
+    const others = [...new Set(ST.region.concat(stOpts().region || [], all.map(r => r.region)))].filter(r => r && r !== '台北' && r !== '花蓮');
     const tabs = ['全部', '台北', '花蓮', '台北⇄花蓮'];
     const sat = CATS.map((c, i) => { const t = top(c.k); return `<button type="button" class="sat s${i}${dashCat === c.k ? ' on' : ''}" data-dash="c:${c.k}">
         <svg viewBox="0 0 100 100">${ring(t.p, 42, 5)}<circle r="34" cx="50" cy="50" class="in"/></svg>
