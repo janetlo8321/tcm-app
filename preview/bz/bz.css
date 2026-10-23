@@ -158,3 +158,47 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
   .bz-rr .bz-meter { margin-top: 4px; }
   .bz-acts { max-width: 420px; margin-left: auto; }
 }
+
+/* ===== 報告單即辨證路徑（依手稿模板） ===== */
+.bz-body > .bz-rep { margin-top: 14px; }
+.bz-name { max-width: 320px; margin-bottom: 12px; }
+.bz-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 14px; }
+.bz-form .wide { grid-column: 1 / -1; }
+@media (max-width: 340px) { .bz-form { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .bz-form { gap: 12px 8px; } .bz-rep select, .bz-rep input { font-size: 16px; padding: 9px 8px; } .bz-rep select { padding-right: 26px; background-position: calc(100% - 14px) 50%, calc(100% - 8px) 50%; } .bz-bg2 button { min-width: 32px; padding: 0 7px; } }
+.bz-fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bz-lb { font-size: 14px; color: var(--bz-muted); }
+.bz-lb small { margin-left: 8px; color: var(--bz-herb); font-size: 13px; }
+.bz-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.bz-tag { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 999px; font-size: 15px; background: var(--bz-herb-soft); color: var(--bz-herb); }
+.bz-tag.s { background: var(--bz-s-soft); color: var(--bz-rep-ink); }
+.bz-tag a { color: inherit; text-decoration: none; }
+.bz-tag button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: none; color: inherit; opacity: .55; cursor: pointer; font-size: 15px; line-height: 1; }
+.bz-tag button:hover { opacity: 1; background: rgba(0, 0, 0, .06); }
+.bz-bgs { display: flex; flex-wrap: wrap; gap: 6px; }
+.bz-bg2 { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 22%, transparent); }
+.bz-bg2 button { min-width: 40px; min-height: 34px; padding: 0 10px; border: 0; background: var(--bz-rep-fill); color: var(--bz-rep-ink); cursor: pointer; font-size: 16px; }
+.bz-bg2 button + button { border-left: 1px solid color-mix(in srgb, var(--bz-rep-ink) 22%, transparent); }
+.bz-bg2 button.on { background: var(--bz-rep-mark); color: #fff; font-weight: 700; }
+.bz-box { display: flex; flex-wrap: wrap; gap: 6px; min-height: 46px; padding: 8px; border-radius: 8px; background: var(--bz-rep-fill); border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 14%, transparent); align-items: center; }
+.bz-addrow { display: flex; gap: 8px; }
+.bz-addrow select { flex: 1; }
+.bz-addrow input { flex: 1; }
+.bz-adj { display: flex; gap: 6px; }
+.bz-adj button { width: 46px; border: 0; border-radius: 8px; background: rgba(118, 118, 128, .12); color: var(--bz-muted); cursor: pointer; font-size: 18px; }
+.bz-plus { align-self: flex-start; min-height: 40px; padding: 0 14px; border: 1.5px dashed color-mix(in srgb, var(--bz-rep-ink) 35%, transparent); border-radius: 8px; background: none; color: var(--bz-rep-ink); cursor: pointer; font-size: 15px; }
+.bz-hint { margin: 0; font-size: 13px; color: var(--bz-muted); }
+.bz-ref { margin-top: 18px; }
+.bz-ref h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 18px; }
+.bz-ref h2 small { font-size: 12px; font-weight: 400; color: var(--bz-muted); }
+.bz-rep input, .bz-rep select { min-width: 0; }
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .bz-body { max-width: 1180px; }
+  .bz-meter { grid-template-columns: 1fr 1fr; column-gap: 40px; }
+}
+@media print { #bz .bz-ref, #bz .bz-plus, #bz .bz-addrow, #bz .bz-tag button, #bz .bz-adj button { display: none !important; } }
+@media (max-width: 520px) {
+  .bz-bgs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .bz-bg2 { display: flex; }
+  .bz-bg2 button { flex: 1; min-height: 32px; font-size: 15px; }
+}

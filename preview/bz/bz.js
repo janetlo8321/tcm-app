@@ -129,15 +129,15 @@
   root.setAttribute('aria-label', '八綱辨證');
   document.body.appendChild(root);
 
-  let cur = null, pats = [], pick = { bg: {}, tongue: new Set(), pulse: new Set(), sx: new Set() }, chosen = null, more = {};
+  let cur = null, pats = [], report = null;
 
-  function open(id) {
+  function open(id, keepFields) {
     const o = typeof by !== 'undefined' && by[id];
     if (!o || o.kind !== 'zd') return false;
     cur = o; pats = patterns(o);
-    pick = { bg: {}, tongue: new Set(), pulse: new Set(), sx: new Set() };
-    chosen = null; more = {};
+    const old = report;
     report = blankReport();
+    if (keepFields && old) report.name = old.name;
     root.hidden = false;
     document.documentElement.classList.add('bz-open');
     draw();
@@ -149,53 +149,78 @@
     document.documentElement.classList.remove('bz-open');
   }
 
-  function score(p) {   // 符合的條件數；八綱相反的扣分
-    let s = 0, n = 0;
-    AX.forEach(a => { const want = pick.bg[a.k]; if (!want) return; n++; const got = side(axVal(p.ax, a.k)); if (got === want) s++; else if (got === -want) s -= 1; });
-    ['tongue', 'pulse', 'sx'].forEach(k => pick[k].forEach(v => { n++; if (p[k].includes(v)) s++; }));
-    return { s, n };
+  /* ---------- 報告單的資料 ---------- */
+  const OTHER = '__other__';
+  const today = () => { const d = new Date(); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
+  function blankReport() {
+    return { name: '', sx: [], tongue: '', pulse: '', pat: '', bg: {}, fx: '', fxOther: '', herbs: [], adj: [], note: '', ax: { yy: 0, xs: 0, hr: 0, bl: 0 } };
   }
   const uniq = k => { const m = new Map(); pats.forEach(p => p[k].forEach(v => m.set(v, (m.get(v) || 0) + 1))); return [...m.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]); };
+  // 依已填的伴隨症狀、舌、脈、八綱，算每個證型符合幾項
+  function score(p) {
+    const r = report;
+    let s = 0, n = 0;
+    if (!r.bgAuto) AX.forEach(a => { const want = r.bg[a.k]; if (!want) return; n++; const got = side(axVal(p.ax, a.k)); if (got === want) s++; else if (got === -want) s--; });
+    r.sx.forEach(v => { n++; if (p.sx.includes(v)) s++; });
+    if (r.tongue) { n++; if (p.tongue.includes(r.tongue)) s++; }
+    if (r.pulse) { n++; if (p.pulse.includes(r.pulse)) s++; }
+    return { s, n };
+  }
+  function ranked() {
+    const xs = pats.map(p => ({ p, sc: score(p) }));
+    if (xs.some(x => x.sc.n)) xs.sort((a, b) => (b.sc.s - a.sc.s) || (a.p.i - b.p.i));
+    return xs;
+  }
+  function fxComp(name) {
+    if (!name) return null;
+    for (const p of pats) for (const f of p.fx) if (f.name === name) return f.comp;
+    return compOf(name);
+  }
+  function herbsOf(name) { const c = fxComp(name); return c ? c.hs.map(h => ({ n: h.n, id: h.id || null })) : []; }
+  const herbId = n => { const h = typeof NB_HERB !== 'undefined' && NB_HERB[n]; return h ? h.id : null; };
+  function allHerbNames() { return (DB.herbs || []).map(h => h.name).sort((a, b) => a.localeCompare(b, 'zh-Hant')); }
+  function allFormulaNames(first) {
+    const set = new Set(first);
+    pats.forEach(p => p.fx.forEach(f => set.add(f.name)));
+    const local = [...set];
+    const all = (DB.formulas || []).map(f => f.name).filter(n => !set.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+    return { local, all };
+  }
+  function setPattern(p) {
+    const r = report;
+    r.pat = p.name;
+    if (!r.tongue) r.tongue = p.tongue[0] || '';
+    if (!r.pulse) r.pulse = p.pulse[0] || '';
+    r.ax = { ...p.ax, bl: -p.ax.bl };
+    r.bg = {}; AX.forEach(a => { const v = side(r.ax[a.k]); if (v) r.bg[a.k] = v; });
+    r.bgAuto = true;   // 由證型帶出的八綱，不拿來算符合程度
+    r.fx = p.fx[0] ? p.fx[0].name : '';
+    r.herbs = herbsOf(r.fx);
+  }
 
-  const LIM = { tongue: 14, pulse: 14, sx: 18 };
-  function chips(k, all, cls) {
-    const list = more[k] ? all : all.slice(0, LIM[k]);
-    pick[k].forEach(v => { if (!list.includes(v)) list.push(v); });
-    const btn = all.length > LIM[k] ? `<button type="button" class="bz-chip more" data-more="${k}">${more[k] ? '收起' : `更多 ${all.length - LIM[k]} 項`}</button>` : '';
-    return list.map(v => `<button type="button" class="bz-chip ${cls}${pick[k].has(v) ? ' on' : ''}" data-pk="${k}" data-v="${E(v)}">${E(v)}</button>`).join('') + btn;
+  /* ---------- 畫面：報告單本身就是辨證的路徑（主訴 → 伴隨症狀、舌、脈 → 證型 → 處方 → 藥物 → 加減） ---------- */
+  function opt(v, label, sel) { return `<option value="${E(v)}"${sel ? ' selected' : ''}>${E(label)}</option>`; }
+  function pickOrType(key, list, val, ph) {   // 下拉選單＋最後一列「其他（自訂）」→ 自己打字
+    const typed = val && !list.includes(val);
+    return `<select data-f="${key}">${opt('', '請選擇', !val)}${list.map(v => opt(v, v, v === val)).join('')}${opt(OTHER, '⊕ 其他（自訂）', typed || !!report['_t_' + key])}</select>
+      ${typed || report['_t_' + key] ? `<input type="text" data-t="${key}" value="${E(typed ? val : '')}" placeholder="自己輸入${ph}">` : ''}`;
   }
-  function herbChips(fx) {
-    if (!fx.comp) return '<i class="bz-tbd">組成待補</i>';
-    return fx.comp.hs.map(h => h.id ? `<a class="bz-herb" href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : `<span class="bz-herb">${E(h.n)}</span>`).join('') + (fx.comp.etc ? '<span class="bz-herb more">…</span>' : '');
-  }
-  function bars(ax, small) {
-    return `<div class="bz-bars${small ? ' sm' : ''}">${AX.map(a => { const v = axVal(ax, a.k);
-      return `<div class="bz-bar"><span class="l">${a.k === 'bl' ? '表' : a.a}</span><span class="t"><i style="left:${(50 + v * 44).toFixed(1)}%"></i></span><span class="r">${a.k === 'bl' ? '裡' : a.b}</span></div>`; }).join('')}</div>`;
-  }
-  function card(p, sc, rank) {
-    const tags = ['bl', 'hr', 'xs'].map(k => axTag(p.ax, AX.find(a => a.k === k))).join('・') + '　→ ' + (side(p.ax.yy) < 0 ? '陰證' : side(p.ax.yy) > 0 ? '陽證' : '陰陽兩可');
-    const hit = (k, v) => pick[k].has(v) ? ' hit' : '';
-    return `<article class="bz-card${chosen === p.i ? ' chosen' : ''}${sc && sc.n && sc.s <= 0 ? ' dim' : ''}" data-pi="${p.i}">
-      <header><h3>${E(p.name)}</h3>${sc && sc.n ? `<span class="bz-score">${Math.max(0, sc.s)}/${sc.n} 符合</span>` : ''}<small>${SRC[p.src] || ''}</small></header>
-      <p class="bz-tags">${E(tags)}</p>
-      ${p.tongue.length ? `<div class="bz-row"><b class="bz-k t">舌</b><div>${p.tongue.map(v => `<span class="bz-mini t${hit('tongue', v)}">${E(v)}</span>`).join('')}</div></div>` : ''}
-      ${p.pulse.length ? `<div class="bz-row"><b class="bz-k p">脈</b><div>${p.pulse.map(v => `<span class="bz-mini p${hit('pulse', v)}">${E(v)}</span>`).join('')}</div></div>` : ''}
-      ${p.sx.length ? `<div class="bz-row"><b class="bz-k s">症</b><div>${p.sx.map(v => `<span class="bz-mini s${hit('sx', v)}">${E(v)}</span>`).join('')}</div></div>` : ''}
-      ${p.bj ? `<div class="bz-row"><b class="bz-k">機</b><div class="bz-txt">${E(p.bj)}</div></div>` : ''}
-      ${p.zf ? `<div class="bz-row"><b class="bz-k z">法</b><div class="bz-txt"><strong>${E(p.zf)}</strong></div></div>` : ''}
-      <div class="bz-fx">${p.fx.length ? p.fx.map(f => `<div class="bz-fx1"><b class="bz-fname">${E(f.raw)}</b><div class="bz-herbs">${herbChips(f)}</div></div>`).join('') : `<div class="bz-fx1"><b class="bz-fname">${E(p.fxText || '（未列方）')}</b></div>`}
-        ${p.jj ? `<p class="bz-jj">加減：${E(p.jj)}</p>` : ''}</div>
-      <button type="button" class="bz-use" data-use="${p.i}">${chosen === p.i ? '✓ 已填入報告單' : '選這個證型，填入報告單'}</button>
-    </article>`;
-  }
+  const herbTag = (h, i, k) => `<span class="bz-tag">${h.id ? `<a href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : E(h.n)}<button type="button" data-del="${k}" data-i="${i}" aria-label="移除${E(h.n)}">×</button></span>`;
 
   function draw() {
-    const o = cur;
-    const scored = pats.map(p => ({ p, sc: score(p) }));
-    const any = scored.some(x => x.sc.n);
-    if (any) scored.sort((a, b) => (b.sc.s - a.sc.s) || (a.p.i - b.p.i));
-    const T = uniq('tongue'), P = uniq('pulse'), S = uniq('sx');
-    const step = (n, t, sub, body) => `<section class="bz-step"><h2><span class="bz-n">${n}</span>${t}${sub ? `<small>${sub}</small>` : ''}</h2>${body}</section>`;
+    const o = cur, r = report;
+    const sysGroups = {};
+    zzDiseases.filter(d => !d.dup && !/青光眼/.test(d.name)).forEach(d => (sysGroups[d.sys] = sysGroups[d.sys] || []).push(d));
+    const R = ranked(), anyCrit = R.some(x => x.sc.n);
+    const patNames = [];
+    R.forEach(x => { if (!patNames.includes(x.p.name)) patNames.push(x.p.name); });
+    const patLabel = n => { const x = R.find(y => y.p.name === n); return anyCrit && x && x.sc.n ? `${n}（符合 ${Math.max(0, x.sc.s)}/${x.sc.n}）` : n; };
+    const typedPat = r.pat && !patNames.includes(r.pat);
+    const curPat = pats.find(p => p.name === r.pat);
+    const { local, all } = allFormulaNames(curPat ? curPat.fx.map(f => f.name) : []);
+    const fxTyped = r.fx === OTHER;
+    const SX = uniq('sx').filter(v => !r.sx.includes(v));
+
     root.innerHTML = `
       <div class="bz-top">
         <button type="button" class="bz-back" data-bz="close" aria-label="返回">‹ 返回</button>
@@ -203,103 +228,61 @@
         <button type="button" class="bz-tbl" data-bzgo="${o.id}">原表格</button>
       </div>
       <div class="bz-body">
-      ${pats.length ? `<div class="bz-main"><div class="bz-ask">
-        ${step(1, '八綱', '先分大方向，不確定就留空', `<div class="bz-bg">${AX.map(a => `<div class="bz-seg" data-ax="${a.k}">
-            <button type="button" data-w="-1" class="${pick.bg[a.k] === -1 ? 'on' : ''}">${a.k === 'bl' ? '表' : a.a}</button>
-            <button type="button" data-w="0" class="${!pick.bg[a.k] ? 'on' : ''}">？</button>
-            <button type="button" data-w="1" class="${pick.bg[a.k] === 1 ? 'on' : ''}">${a.k === 'bl' ? '裡' : a.b}</button></div>`).join('')}</div>`)}
-        ${T.length ? step(2, '舌象', '看到的舌、苔', `<div class="bz-chips">${chips('tongue', T, 't')}</div>`) : ''}
-        ${P.length ? step(3, '脈象', '摸到的脈', `<div class="bz-chips">${chips('pulse', P, 'p')}</div>`) : ''}
-        ${S.length ? step(4, '症狀', '問診所得', `<div class="bz-chips">${chips('sx', S, 's')}</div>`) : ''}
-        </div><div class="bz-res">
-        ${step(5, '證型', any ? `依符合程度排序・共 ${pats.length} 個` : `共 ${pats.length} 個・點上面的條件來縮小範圍`,
-          (any ? '<button type="button" class="bz-reset" data-bz="reset">清除條件</button>' : '') + `<div class="bz-cards">${scored.map((x, k) => card(x.p, x.sc, k)).join('')}</div>`)}
-      </div></div>` : `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以先看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單仍可手動填寫。</p>`}
-        ${step(pats.length ? 6 : 1, '辨證結果報告單', '每一欄都可以點選或輸入', reportHtml())}
+      <div class="bz-rep" id="bzRep">
+        <div class="bz-rh"><b>辨證結果報告單</b><span>${today()}</span></div>
+        <label class="bz-name">姓名<input type="text" data-v="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label>
+        <div class="bz-form">
+          <label>主訴<select data-f="cc">${Object.entries(sysGroups).map(([sy, ds]) => `<optgroup label="${E(sy)}">${ds.map(d => opt(d.id, d.name, d.id === o.id)).join('')}</optgroup>`).join('')}</select></label>
+          <div class="bz-fld"><span class="bz-lb">伴隨症狀</span>
+            <select data-f="sx">${opt('', r.sx.length ? '再加一項…' : '可選多項', true)}${SX.map(v => opt(v, v)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
+            ${r._t_sx ? `<input type="text" data-add="sx" placeholder="輸入症狀後按 Enter">` : ''}
+            ${r.sx.length ? `<div class="bz-tags">${r.sx.map((v, i) => `<span class="bz-tag s">${E(v)}<button type="button" data-del="sx" data-i="${i}" aria-label="移除">×</button></span>`).join('')}</div>` : ''}</div>
+          <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
+          <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
+          <div class="bz-fld"><span class="bz-lb">證型</span>
+            <div class="bz-bgs">${AX.map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
+            <select data-f="pat">${opt('', pats.length ? (anyCrit ? '請選擇（依符合程度排序）' : '請選擇') : '這個病沒有整理好的證型，可自訂', !r.pat)}${patNames.map(n => opt(n, patLabel(n), n === r.pat)).join('')}${opt(OTHER, '⊕ 其他（自訂）', typedPat || !!r._t_pat)}</select>
+            ${typedPat || r._t_pat ? `<input type="text" data-t="pat" value="${E(typedPat ? r.pat : '')}" placeholder="自己輸入證型">` : ''}</div>
+          <div class="bz-fld"><span class="bz-lb">處方</span>
+            <select data-f="fx">${opt('', '請選擇', !r.fx)}
+              ${local.length ? `<optgroup label="${curPat ? '這個證型／本病常用' : '本病常用'}">${local.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
+              ${all.length ? `<optgroup label="其他方劑">${all.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
+              ${opt(OTHER, '⊕ 自定義處方', fxTyped)}</select>
+            ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
+          <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
+            <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
+            <div class="bz-addrow"><select data-f="herb">${opt('', '加一味藥…', true)}${allHerbNames().map(n => opt(n, n)).join('')}${opt(OTHER, '⊕ 其他（自訂）')}</select>
+              ${r._t_herb ? `<input type="text" data-add="herb" placeholder="輸入藥名後按 Enter">` : ''}</div></div>
+          <div class="bz-fld wide"><span class="bz-lb">藥物加減</span>
+            ${r.adj.map((v, i) => `<div class="bz-adj"><input type="text" data-adj="${i}" value="${E(v)}" placeholder="例如：痛甚加延胡索、川楝子"><button type="button" data-del="adj" data-i="${i}" aria-label="刪除這一列">×</button></div>`).join('')}
+            <button type="button" class="bz-plus" data-bz="adj">⊕ 加一列</button>
+            ${curPat && curPat.jj ? `<p class="bz-hint">書上的加減：${E(curPat.jj)}</p>` : ''}</div>
+        </div>
+        <div class="bz-meter">${AX.map(a => { const v = r.ax[a.k];
+          return `<div class="bz-m" data-ax="${a.k}"><span class="bz-ml">${a.k === 'bl' ? '表 / 裡' : a.a + ' / ' + a.b}</span>
+            <div class="bz-mt" role="slider" tabindex="0" aria-label="${a.a}${a.b}" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="${Math.round(v * 100)}"><i style="left:${(50 + v * 46).toFixed(1)}%"></i></div>
+            <span class="bz-me l">${a.k === 'bl' ? '表' : a.a}</span><span class="bz-me r">${a.k === 'bl' ? '裡' : a.b}</span></div>`; }).join('')}</div>
+        <label class="bz-note">醫囑 / 備註<textarea data-v="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
+        <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空</button></div>
+      </div>
+      ${curPat ? `<section class="bz-ref"><h2>參考：${E(curPat.name)}<small>${SRC[curPat.src] || ''}</small></h2>${refCard(curPat)}</section>`
+        : !pats.length ? `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單每一欄都能自己輸入。</p>` : ''}
       </div>`;
   }
-
-  /* ---------- 報告單 ---------- */
-  let report = null;
-  const today = () => { const d = new Date(); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
-  function blankReport() { return { name: '', tongue: '', pulse: '', pat: '', fx: '', fxOther: '', fxOtherComp: '', note: '', ax: { yy: 0, xs: 0, hr: 0, bl: 0 } }; }
-  const OTHER = '__other__';
-  function opt(v, label, sel) { return `<option value="${E(v)}"${sel ? ' selected' : ''}>${E(label)}</option>`; }
-  function selectWithOther(key, list, val, ph) {
-    const has = !val || list.includes(val);
-    return `<select data-rp="${key}">${opt('', ph || '請選擇', !val)}${list.map(v => opt(v, v, v === val)).join('')}${opt(OTHER, '其他（自訂）', !has)}</select>
-      ${!has ? `<input type="text" data-rpo="${key}" value="${E(val)}" placeholder="輸入${ph || ''}">` : ''}`;
-  }
-  function allFormulaNames() {
-    const set = new Set();
-    pats.forEach(p => p.fx.forEach(f => set.add(f.name)));
-    const local = [...set];
-    const all = (DB.formulas || []).map(f => f.name).filter(n => !set.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
-    return { local, all };
-  }
-  function fxComp(name) {
-    if (!name) return null;
-    for (const p of pats) for (const f of p.fx) if (f.name === name) return f.comp;
-    return compOf(name);
-  }
-  function reportHtml() {
-    const r = report, o = cur;
-    const sysGroups = {};
-    zzDiseases.filter(d => !d.dup && !/青光眼/.test(d.name)).forEach(d => (sysGroups[d.sys] = sysGroups[d.sys] || []).push(d));
-    const T = uniq('tongue'), P = uniq('pulse');
-    const { local, all } = allFormulaNames();
-    const fxIsOther = r.fx === OTHER;
-    const comp = fxIsOther ? null : fxComp(r.fx);
-    return `<div class="bz-rep" id="bzRep">
-      <div class="bz-rh"><b>辨證結果報告單</b><span>${today()}</span></div>
-      <div class="bz-rcols"><div class="bz-rl">
-      <div class="bz-grid">
-        <label>姓名<input type="text" data-rp="name" value="${E(r.name)}" placeholder="輸入" autocomplete="off"></label>
-        <label>主訴<select data-rp="cc">${Object.entries(sysGroups).map(([s, ds]) => `<optgroup label="${E(s)}">${ds.map(d => opt(d.id, d.name, d.id === o.id)).join('')}</optgroup>`).join('')}</select></label>
-        <label>舌象${selectWithOther('tongue', T, r.tongue, '舌象')}</label>
-        <label>脈象${selectWithOther('pulse', P, r.pulse, '脈象')}</label>
-        <label>證型${selectWithOther('pat', pats.map(p => p.name).filter((v, i, a) => a.indexOf(v) === i), r.pat, '證型')}</label>
-        <label>處方<select data-rp="fx">${opt('', '請選擇', !r.fx)}
-            ${local.length ? `<optgroup label="本病常用">${local.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
-            ${all.length ? `<optgroup label="其他方劑">${all.map(n => opt(n, n, n === r.fx)).join('')}</optgroup>` : ''}
-            ${opt(OTHER, '其他（自訂）', fxIsOther)}</select>
-          ${fxIsOther ? `<input type="text" data-rpx="fxOther" value="${E(r.fxOther)}" placeholder="自訂處方名">` : ''}</label>
-      </div>
-      ${r.fx ? `<div class="bz-comp"><b>${E(fxIsOther ? (r.fxOther || '自訂處方') : r.fx)}・組成</b>
-        ${fxIsOther ? `<textarea data-rpx="fxOtherComp" rows="2" placeholder="輸入藥物，例如：黃耆 15g、桂枝 9g…">${E(r.fxOtherComp)}</textarea>`
-          : comp ? `<div class="bz-herbs">${comp.hs.map(h => h.id ? `<a class="bz-herb" href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : `<span class="bz-herb">${E(h.n)}</span>`).join('')}${comp.etc ? '<span class="bz-herb more">…</span>' : ''}</div>` : '<i class="bz-tbd">組成待補</i>'}</div>` : ''}
-      </div><div class="bz-rr">
-      <div class="bz-meter">${AX.map(a => { const v = r.ax[a.k];
-        return `<div class="bz-m" data-ax="${a.k}"><span class="bz-ml">${a.k === 'bl' ? '表 / 裡' : a.a + ' / ' + a.b}</span>
-          <div class="bz-mt" role="slider" tabindex="0" aria-label="${a.a}${a.b}" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="${Math.round(v * 100)}"><i style="left:${(50 + v * 46).toFixed(1)}%"></i></div>
-          <span class="bz-me l">${a.k === 'bl' ? '表' : a.a}</span><span class="bz-me r">${a.k === 'bl' ? '裡' : a.b}</span></div>`; }).join('')}</div>
-      <label class="bz-note">醫囑 / 備註<textarea data-rp="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
-      </div></div>
-      <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空報告單</button></div>
+  function refCard(p) {   // 選定證型的書上內容，方便對照記憶
+    return `<div class="bz-card">
+      ${p.tongue.length ? `<div class="bz-row"><b class="bz-k t">舌</b><div>${p.tongue.map(v => `<span class="bz-mini t">${E(v)}</span>`).join('')}</div></div>` : ''}
+      ${p.pulse.length ? `<div class="bz-row"><b class="bz-k p">脈</b><div>${p.pulse.map(v => `<span class="bz-mini p">${E(v)}</span>`).join('')}</div></div>` : ''}
+      ${p.sx.length ? `<div class="bz-row"><b class="bz-k s">症</b><div>${p.sx.map(v => `<span class="bz-mini">${E(v)}</span>`).join('')}</div></div>` : ''}
+      ${p.bj ? `<div class="bz-row"><b class="bz-k">機</b><div class="bz-txt">${E(p.bj)}</div></div>` : ''}
+      ${p.zf ? `<div class="bz-row"><b class="bz-k z">法</b><div class="bz-txt"><strong>${E(p.zf)}</strong></div></div>` : ''}
+      <div class="bz-fx">${p.fx.length ? p.fx.map(f => `<div class="bz-fx1"><b class="bz-fname">${E(f.raw)}</b><div class="bz-herbs">${f.comp ? f.comp.hs.map(h => h.id ? `<a class="bz-herb" href="#${h.id}" data-bzgo="${h.id}">${E(h.n)}</a>` : `<span class="bz-herb">${E(h.n)}</span>`).join('') : '<i class="bz-tbd">組成待補</i>'}</div></div>`).join('') : `<b class="bz-fname">${E(p.fxText || '（未列方）')}</b>`}</div>
     </div>`;
-  }
-  function usePattern(i) {
-    const p = pats[i];
-    if (!p) return;
-    chosen = i;
-    report.pat = p.name;
-    report.tongue = p.tongue.find(v => pick.tongue.has(v)) || p.tongue[0] || '';
-    report.pulse = p.pulse.find(v => pick.pulse.has(v)) || p.pulse[0] || '';
-    report.fx = p.fx[0] ? p.fx[0].name : '';
-    report.ax = { ...p.ax, bl: -p.ax.bl };
-    draw();
-    const rep = root.querySelector('#bzRep');
-    if (rep) rep.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-  function redrawReport() {
-    const old = root.querySelector('#bzRep');
-    if (!old) return;
-    const y = root.scrollTop;
-    old.outerHTML = reportHtml();
-    root.scrollTop = y;
   }
 
   /* ---------- 操作 ---------- */
+  function keep(fn) { const y = root.scrollTop; fn(); root.scrollTop = y; }
+  function focusLater(sel) { const el = root.querySelector(sel); if (el) el.focus(); }
   root.addEventListener('click', e => {
     const t = e.target;
     const g = t.closest('[data-bzgo]');
@@ -308,43 +291,74 @@
     if (b) {
       const k = b.dataset.bz;
       if (k === 'close') close();
-      else if (k === 'reset') { pick = { bg: {}, tongue: new Set(), pulse: new Set(), sx: new Set() }; keep(draw); }
       else if (k === 'print') window.print();
-      else if (k === 'clear') { report = blankReport(); chosen = null; keep(draw); }
+      else if (k === 'clear') { report = blankReport(); keep(draw); }
+      else if (k === 'adj') { report.adj.push(''); keep(draw); focusLater(`[data-adj="${report.adj.length - 1}"]`); }
       return;
     }
-    const seg = t.closest('.bz-seg button');
-    if (seg) { const ax = seg.parentNode.dataset.ax, w = +seg.dataset.w; if (w) pick.bg[ax] = w; else delete pick.bg[ax]; keep(draw); return; }
-    const m = t.closest('[data-more]');
-    if (m) { more[m.dataset.more] = !more[m.dataset.more]; keep(draw); return; }
-    const c = t.closest('[data-pk]');
-    if (c) { const s = pick[c.dataset.pk], v = c.dataset.v; s.has(v) ? s.delete(v) : s.add(v); keep(draw); return; }
-    const u = t.closest('[data-use]');
-    if (u) { usePattern(+u.dataset.use); return; }
-  });
-  function keep(fn) { const y = root.scrollTop; fn(); root.scrollTop = y; }
-  root.addEventListener('change', e => {
-    const t = e.target, k = t.dataset.rp;
-    if (k === 'cc') { open(t.value); return; }
-    if (k === 'fx') { report.fx = t.value; redrawReport(); return; }
-    if (k && t.tagName === 'SELECT') {
-      report[k] = t.value === OTHER ? ' ' : t.value;
-      if (k === 'pat') { const p = pats.find(x => x.name === t.value); if (p) { usePattern(p.i); return; } }
-      redrawReport();
-      if (t.value === OTHER) { const inp = root.querySelector(`[data-rpo="${k}"]`); if (inp) { inp.value = ''; inp.focus(); } }
+    const d = t.closest('[data-del]');
+    if (d) { report[d.dataset.del].splice(+d.dataset.i, 1); keep(draw); return; }
+    const w = t.closest('.bz-bg2 button');
+    if (w) {   // 八綱：點一下選、再點一下取消；刻度跟著動
+      const k = w.parentNode.dataset.ax, v = +w.dataset.w;
+      report.bgAuto = false;
+      report.bg[k] = report.bg[k] === v ? 0 : v;
+      if (!report.bg[k]) delete report.bg[k];
+      report.ax[k] = (report.bg[k] || 0) * 0.6;
+      keep(draw);
     }
   });
+  root.addEventListener('change', e => {
+    const t = e.target, k = t.dataset.f, r = report;
+    if (!k) return;
+    if (k === 'cc') { open(t.value, true); return; }
+    if (t.value === OTHER) {   // 其他（自訂）：出現輸入框
+      r['_t_' + k] = true;
+      if (k === 'fx') { r.fx = OTHER; r.herbs = []; }
+      else if (k !== 'sx' && k !== 'herb') r[k] = '';
+      keep(draw);
+      focusLater(k === 'fx' ? '[data-v="fxOther"]' : k === 'sx' || k === 'herb' ? `[data-add="${k}"]` : `[data-t="${k}"]`);
+      return;
+    }
+    r['_t_' + k] = false;
+    if (k === 'sx') { if (t.value && !r.sx.includes(t.value)) r.sx.push(t.value); }
+    else if (k === 'herb') { if (t.value && !r.herbs.some(h => h.n === t.value)) r.herbs.push({ n: t.value, id: herbId(t.value) }); }
+    else if (k === 'pat') { const p = pats.find(x => x.name === t.value); if (p) setPattern(p); else r.pat = t.value; }
+    else if (k === 'fx') { r.fx = t.value; r.herbs = herbsOf(t.value); }
+    else r[k] = t.value;
+    keep(draw);
+  });
   root.addEventListener('input', e => {
+    const t = e.target, r = report;
+    if (t.dataset.v) r[t.dataset.v] = t.value;
+    if (t.dataset.t) r[t.dataset.t] = t.value;
+    if (t.dataset.adj) r.adj[+t.dataset.adj] = t.value;
+  });
+  root.addEventListener('keydown', e => {   // 自訂症狀、藥名：按 Enter 加入
     const t = e.target;
-    if (t.dataset.rp && t.tagName !== 'SELECT') report[t.dataset.rp] = t.value;
-    if (t.dataset.rpo) report[t.dataset.rpo] = t.value || ' ';
-    if (t.dataset.rpx) report[t.dataset.rpx] = t.value;
+    if (!t.dataset || !t.dataset.add || e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    const v = t.value.trim(), k = t.dataset.add;
+    if (v) { if (k === 'sx') { if (!report.sx.includes(v)) report.sx.push(v); } else if (!report.herbs.some(h => h.n === v)) report.herbs.push({ n: v, id: herbId(v) }); }
+    keep(draw);
+    focusLater(`[data-add="${k}"]`);
+  });
+  root.addEventListener('focusout', e => {   // 打完字離開輸入框也加入
+    const t = e.target;
+    if (!t.dataset || !t.dataset.add || !t.value.trim()) return;
+    const v = t.value.trim(), k = t.dataset.add;
+    if (k === 'sx') { if (!report.sx.includes(v)) report.sx.push(v); } else if (!report.herbs.some(h => h.n === v)) report.herbs.push({ n: v, id: herbId(v) });
+    t.value = '';
+    setTimeout(() => keep(draw), 0);
+  });
+  root.addEventListener('change', e => {   // 自訂的舌、脈、證型打完後重算排序
+    if (e.target.dataset && e.target.dataset.t) keep(draw);
   });
   // 八綱刻度：拖曳或用方向鍵調整
   let drag = null;
   function setAx(el, x) {
-    const r = el.getBoundingClientRect(), k = el.closest('[data-ax]').dataset.ax;
-    const v = Math.max(-1, Math.min(1, ((x - r.left) / r.width - 0.5) / 0.46));
+    const rc = el.getBoundingClientRect(), k = el.closest('[data-ax]').dataset.ax;
+    const v = Math.max(-1, Math.min(1, ((x - rc.left) / rc.width - 0.5) / 0.46));
     report.ax[k] = v;
     el.querySelector('i').style.left = (50 + v * 46).toFixed(1) + '%';
     el.setAttribute('aria-valuenow', Math.round(v * 100));

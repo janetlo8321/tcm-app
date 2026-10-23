@@ -57,15 +57,18 @@
     ['顱面骨・咽喉', () => L.layers.face.visible, v => { L.layers.face.visible = v; }],
     ['經絡', () => view.showMeridians, v => { view.showMeridians = v; L.meridianGroup.visible = v; }],
     ['穴位', () => view.showPoints, v => { view.showPoints = v; L.pointsObj.visible = v; }],
+    ['穴道名', () => view.showPointNames, v => { view.showPointNames = v; if (v && !view.showPoints) { view.showPoints = true; L.pointsObj.visible = true; } }],
     ['骨度分寸', () => L.layers.rulers.visible, v => { L.layers.rulers.visible = v; }]
   ];
+  const boxes = [];
   LAYERS.forEach(([name, get, set]) => {
     const row = document.createElement('label');
     row.className = 'layer-row';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = get();
-    cb.addEventListener('change', () => set(cb.checked));
+    boxes.push([cb, get]);
+    cb.addEventListener('change', () => { set(cb.checked); boxes.forEach(([c, g]) => { c.checked = g(); }); });
     row.append(cb, document.createTextNode(name));
     panel.appendChild(row);
   });

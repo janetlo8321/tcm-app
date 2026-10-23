@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/23 23:53';
+  const UPDATED = '10/24 00:05';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -580,7 +580,7 @@
 
   /* ---------- 外掛模組（骨骼臟腑、循行、工具列）用的掛勾 ---------- */
   const hooks = { frame: [], select: [], tap: [], hover: [] };
-  const view = { opaque: 0, opaqueTarget: 0, tourGlow: 1, showMeridians: true, showPoints: true };
+  const view = { opaque: 0, opaqueTarget: 0, tourGlow: 1, showMeridians: true, showPoints: true, showPointNames: false };   // 預設：皮膚、經絡、穴點；穴道名從圖層打開
 
   /* ---------- 點亮 / 進入 ---------- */
   let selectedId = null, hoveredId = null;
@@ -876,7 +876,7 @@
 
     // 穴名
     const cand = [];
-    if (view.showPoints) PT.forEach((o, i) => {
+    if (view.showPoints && view.showPointNames) PT.forEach((o, i) => {
       const hi = o.m.id === selectedId;
       let a = o.major ? Math.max(lod.lblMajor, lod.lblAll) : lod.lblAll;
       if (hi) a = Math.max(a, o.major ? Math.max(lod.hiLblMajor, lod.hiLblAll) : lod.hiLblAll);
