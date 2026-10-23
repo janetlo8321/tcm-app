@@ -67,7 +67,7 @@ async function unlock(keys, remember) {
 }
 
 /* ---- 大廳（經絡銅人）：一開啟先進大廳，按「進入資料庫」才到資料庫 ---- */
-let lobbyOpen = false, pendingHtml = null, lobbyEl = null, appShown = false, pendingGo = null;
+let lobbyOpen = false, pendingHtml = null, lobbyEl = null, appShown = false, pendingGo = null, pendingBz = false;
 function openLobby() {
   if (!lobbyEl || !document.body.contains(lobbyEl)) {
     lobbyEl = document.createElement('div');
@@ -97,16 +97,21 @@ function onMsg(e) {
   if (!e.data || e.data.type !== 'tcm-enter') return;
   loadData();
   pendingGo = typeof e.data.go === 'string' ? e.data.go : null;
+  pendingBz = !!e.data.bz;   // 大廳點病名：打開八綱辨證，而不是表格
   closeLobby();
 }
 function goApp() {
-  const id = pendingGo; pendingGo = null;
+  const id = pendingGo, bz = pendingBz; pendingGo = null; pendingBz = false;
   if (!id || !document.body) return;
+  if (bz && window.TCMBZ && window.TCMBZ.open(id)) return;
   const a = document.createElement('a');   // 交給資料庫自己的 data-go 點擊處理
   a.href = '#' + id; a.dataset.go = id; a.hidden = true;
   document.body.appendChild(a); a.click(); a.remove();
 }
 function showApp(html) {
+  // 預覽：解鎖後加上八綱辨證（程式在 bz/，不含資料，資料取自解鎖後的資料庫）
+  const i = html.lastIndexOf('</body>');
+  if (i > 0) html = html.slice(0, i) + '<link rel="stylesheet" href="bz/bz.css"><script src="bz/bz.js"><\/script>' + html.slice(i);
   document.open(); document.write(html); document.close();
   lobbyEl = null; appShown = true;
   if (pendingGo) { const t0 = Date.now(); (function wait() { if (document.readyState === 'complete' || Date.now() - t0 > 5000) setTimeout(goApp, 120); else setTimeout(wait, 50); })(); }

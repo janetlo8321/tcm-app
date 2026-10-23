@@ -1,0 +1,147 @@
+/* ===== 八綱辨證（資料庫內的全螢幕頁） ===== */
+#bz {
+  --bz-bg: var(--bg, #f2f2f7);
+  --bz-card: var(--surface, #fff);
+  --bz-ink: var(--ink, #1c1c1e);
+  --bz-muted: var(--muted, #8a8a8e);
+  --bz-line: var(--line-soft, #e5e5ea);
+  --bz-acc: var(--accent, #007aff);
+  --bz-herb: var(--herb, #248a3d);
+  --bz-herb-soft: var(--herb-soft, #e3f5e8);
+  --bz-t: #c2410c; --bz-t-soft: #fdecef;
+  --bz-p: #1d4ed8; --bz-p-soft: #e6eefc;
+  --bz-s: #57534e; --bz-s-soft: #f1f0ee;
+  --bz-rep-ink: #1f2a24; --bz-rep-fill: #f2f4f0; --bz-rep-mark: #3e6b55;
+  position: fixed; inset: 0; z-index: 2147483640;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: var(--bz-bg); color: var(--bz-ink);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  #bz { --bz-t-soft: rgba(244, 114, 182, .14); --bz-t: #f9a8d4; --bz-p-soft: rgba(96, 165, 250, .14); --bz-p: #93c5fd; --bz-s-soft: rgba(255, 255, 255, .07); --bz-s: #d6d3d1;
+        --bz-rep-ink: #e7ece9; --bz-rep-fill: rgba(255, 255, 255, .06); --bz-rep-mark: #7fc2a0; }
+}
+html.bz-open, html.bz-open body { overflow: hidden; }
+#bz[hidden] { display: none; }
+#bz * { box-sizing: border-box; }
+#bz button, #bz select, #bz input, #bz textarea { font: inherit; color: inherit; }
+
+.bz-top {
+  position: sticky; top: 0; z-index: 2;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+  background: color-mix(in srgb, var(--bz-bg) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: .5px solid var(--bz-line);
+}
+.bz-back, .bz-tbl { border: 0; background: none; color: var(--bz-acc); padding: 8px 4px; min-height: 44px; cursor: pointer; font-size: 17px; }
+.bz-title { text-align: center; line-height: 1.25; min-width: 0; }
+.bz-title small { display: block; font-size: 12px; color: var(--bz-muted); }
+.bz-title b { display: block; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.bz-body { max-width: 860px; margin: 0 auto; padding: 8px 16px calc(40px + env(safe-area-inset-bottom, 0px)); }
+.bz-step { margin: 18px 0 0; }
+.bz-step h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+.bz-step h2 small { font-size: 13px; font-weight: 400; color: var(--bz-muted); }
+.bz-n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--bz-ink); color: var(--bz-bg); font-size: 13px; transform: translateY(-2px); }
+
+/* 八綱：四組三段選擇 */
+.bz-bg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 640px) { .bz-bg { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.bz-seg { display: flex; padding: 2px; gap: 2px; border-radius: 10px; background: rgba(118, 118, 128, .12); }
+.bz-seg button { flex: 1; min-height: 40px; border: 0; border-radius: 8px; background: none; cursor: pointer; font-size: 17px; }
+.bz-seg button[data-w="0"] { flex: .6; color: var(--bz-muted); }
+.bz-seg button.on { background: var(--bz-card); font-weight: 700; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
+
+/* 舌、脈、症選項 */
+.bz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.bz-chip { border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; min-height: 36px; cursor: pointer; font-size: 15px; line-height: 1.3; }
+.bz-chip.t { background: var(--bz-t-soft); color: var(--bz-t); }
+.bz-chip.p { background: var(--bz-p-soft); color: var(--bz-p); }
+.bz-chip.s { background: var(--bz-s-soft); color: var(--bz-s); }
+.bz-chip.on { color: #fff; font-weight: 600; }
+.bz-chip.t.on { background: var(--bz-t); }
+.bz-chip.p.on { background: var(--bz-p); }
+.bz-chip.s.on { background: var(--bz-s); color: var(--bz-bg); }
+.bz-chip.more { background: none; border-color: var(--bz-line); color: var(--bz-acc); }
+.bz-reset { border: 0; background: none; color: var(--bz-acc); cursor: pointer; padding: 0 0 8px; font-size: 15px; }
+
+/* 證型卡 */
+.bz-cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); }
+.bz-card { background: var(--bz-card); border-radius: 14px; padding: 14px 14px 12px; box-shadow: 0 0 0 .5px rgba(60, 60, 67, .14), 0 2px 8px rgba(0, 0, 0, .04); transition: opacity .2s; }
+.bz-card.dim { opacity: .45; }
+.bz-card.chosen { box-shadow: 0 0 0 2px var(--bz-herb), 0 4px 14px rgba(0, 0, 0, .08); }
+.bz-card header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bz-card h3 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.3; }
+.bz-card header small { margin-left: auto; font-size: 12px; color: var(--bz-muted); }
+.bz-score { font-size: 12px; font-weight: 600; color: #fff; background: var(--bz-herb); border-radius: 999px; padding: 1px 8px; }
+.bz-tags { margin: 2px 0 8px; font-size: 13px; color: var(--bz-muted); }
+.bz-row { display: grid; grid-template-columns: 26px 1fr; gap: 6px; align-items: start; margin: 5px 0; }
+.bz-k { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; font-size: 13px; background: var(--bz-s-soft); color: var(--bz-s); }
+.bz-k.t { background: var(--bz-t-soft); color: var(--bz-t); }
+.bz-k.p { background: var(--bz-p-soft); color: var(--bz-p); }
+.bz-k.z { background: var(--bz-herb-soft); color: var(--bz-herb); }
+.bz-mini { display: inline-block; margin: 0 4px 4px 0; padding: 1px 8px; border-radius: 6px; font-size: 14px; background: var(--bz-s-soft); }
+.bz-mini.t { background: var(--bz-t-soft); color: var(--bz-t); }
+.bz-mini.p { background: var(--bz-p-soft); color: var(--bz-p); }
+.bz-mini.hit { box-shadow: inset 0 0 0 1.5px currentColor; font-weight: 600; }
+.bz-txt { font-size: 15px; padding-top: 1px; }
+.bz-fx { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bz-herb-soft); }
+.bz-fx1 + .bz-fx1 { margin-top: 8px; }
+.bz-fname { display: block; color: var(--bz-herb); font-size: 17px; }
+.bz-herbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.bz-herb { padding: 1px 8px; border-radius: 6px; background: var(--bz-card); color: var(--bz-herb); font-size: 14px; text-decoration: none; box-shadow: 0 0 0 .5px rgba(36, 138, 61, .3); }
+a.bz-herb:hover { background: var(--bz-herb); color: #fff; }
+.bz-herb.more { box-shadow: none; background: none; }
+.bz-tbd { font-size: 13px; color: var(--bz-muted); }
+.bz-jj { margin: 6px 0 0; font-size: 13px; color: var(--bz-muted); }
+.bz-use { display: block; width: 100%; margin-top: 10px; min-height: 44px; border: 0; border-radius: 10px; background: rgba(118, 118, 128, .12); color: var(--bz-acc); font-weight: 600; cursor: pointer; }
+.bz-card.chosen .bz-use { background: var(--bz-herb); color: #fff; }
+.bz-none { padding: 14px; border-radius: 12px; background: var(--bz-card); color: var(--bz-muted); }
+.bz-none a { color: var(--bz-acc); }
+
+/* 報告單（參考 InBody 結果單的樣子） */
+.bz-rep { background: var(--bz-card); color: var(--bz-rep-ink); border: 2px solid var(--bz-rep-ink); border-radius: 16px; padding: 18px 18px 16px; }
+.bz-rh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 10px; margin-bottom: 14px; border-bottom: 2.5px solid var(--bz-rep-ink); }
+.bz-rh b { font-family: "Songti TC", "Noto Serif TC", serif; font-size: 24px; letter-spacing: .04em; }
+.bz-rh span { color: var(--bz-muted); font-size: 15px; }
+.bz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 12px; }
+@media (max-width: 420px) { .bz-grid { grid-template-columns: 1fr; } }
+.bz-rep label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--bz-muted); min-width: 0; }
+.bz-rep select, .bz-rep input, .bz-rep textarea {
+  width: 100%; min-height: 46px; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 14%, transparent); background: var(--bz-rep-fill); color: var(--bz-rep-ink); font-size: 17px;
+}
+.bz-rep select { appearance: none; -webkit-appearance: none; padding-right: 34px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+.bz-rep select + input { margin-top: 4px; }
+.bz-rep textarea { resize: vertical; line-height: 1.5; }
+.bz-comp { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bz-herb-soft); }
+.bz-comp > b { color: var(--bz-herb); font-size: 15px; }
+.bz-comp textarea { margin-top: 6px; }
+.bz-meter { margin: 18px 0 6px; display: grid; gap: 14px; }
+.bz-m { display: grid; grid-template-columns: 76px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.bz-ml { grid-row: 1 / 3; font-size: 20px; font-family: "Songti TC", "Noto Serif TC", serif; color: var(--bz-rep-ink); }
+.bz-mt { position: relative; height: 36px; border-radius: 4px; background: var(--bz-rep-fill); border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 12%, transparent); touch-action: none; cursor: pointer; }
+.bz-mt::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1.5px dashed color-mix(in srgb, var(--bz-rep-ink) 55%, transparent); }
+.bz-mt i { position: absolute; top: 50%; width: 22px; height: 26px; margin: -13px 0 0 -11px; border-radius: 4px; background: var(--bz-rep-mark); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.bz-mt:focus-visible { outline: 2px solid var(--bz-acc); outline-offset: 2px; }
+.bz-me { grid-column: 2; font-size: 13px; color: var(--bz-muted); }
+.bz-me.l { grid-row: 2; justify-self: start; }
+.bz-me.r { grid-row: 2; justify-self: end; }
+.bz-note { margin-top: 16px; padding-top: 14px; border-top: 1.5px dashed color-mix(in srgb, var(--bz-rep-ink) 25%, transparent); }
+.bz-acts { display: flex; gap: 8px; margin-top: 14px; }
+.bz-acts button { flex: 1; min-height: 44px; border: 0; border-radius: 10px; background: rgba(118, 118, 128, .12); color: var(--bz-acc); font-weight: 600; cursor: pointer; }
+
+/* 病證頁上的入口 */
+.bz-entry { display: inline-flex; align-items: center; min-height: 40px; margin: 4px 0 10px; padding: 6px 16px; border: 0; border-radius: 999px; background: var(--bz-herb, #248a3d); background: var(--herb, #248a3d); color: #fff; font-weight: 600; font-size: 16px; cursor: pointer; }
+
+/* 列印：只印報告單 */
+@media print {
+  html.bz-open body > *:not(#bz) { display: none !important; }
+  #bz { position: static; overflow: visible; background: #fff; }
+  #bz .bz-top, #bz .bz-step:not(:last-child), #bz .bz-step h2, #bz .bz-acts { display: none !important; }
+  #bz .bz-rep { border-color: #000; }
+}
+html.bz-open button[title="回到大廳"] { display: none !important; }

@@ -2,7 +2,7 @@
  * 病證區域（左上角小人）
  *   點小人 → 同一個人身上出現各「證」系統的區域
  *   點區域 → 鏡頭移過去、相關臟腑亮起，下方列出這一系的病
- *   點病名 → 進入資料庫，直接打開那一個病證
+ *   點病名 → 進入資料庫，直接打開那一個病證的八綱辨證
  *   分類照資料庫「病證」的系統；氣血津液、血液、內分泌、小兒、癌症、其他屬全身，放在下方
  *   病名清單：model/zz.json（tools/zz.py 由 tcm-notes 病證.json 產生）
  * ========================================================= */
@@ -138,7 +138,7 @@
     const s = DATA.systems.find(x => x.name === cur);
     const h = document.createElement('h3');
     h.style.setProperty('--c', COLOR[cur]);
-    h.innerHTML = `${cur}<small>${s.diseases.length} 個病證・點病名進入資料庫</small>`;
+    h.innerHTML = `${cur}<small>${s.diseases.length} 個病證・點病名開始辨證</small>`;
     listEl.appendChild(h);
     s.diseases.forEach(d => {
       const b = document.createElement('button');
@@ -152,7 +152,7 @@
     listEl.scrollTop = 0;
   }
   function openDisease(id) {
-    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go: id }, '*');
+    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go: id, bz: true }, '*');   // 進入資料庫後直接打開八綱辨證
     else location.href = '../#' + encodeURIComponent(id);
   }
 
