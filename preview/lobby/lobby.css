@@ -914,3 +914,23 @@ body { display: grid; place-items: center; }
 .pt-q-list p { margin: 8px 10px; font-size: 13px; color: rgba(243,236,224,.55); }
 .zz-on .pt-q { display: none; }
 @media (max-width: 420px) { .pt-q label { width: 128px; } }
+
+/* ===== 穴位小卡（輕點穴點）：毛玻璃，部位紅字 ===== */
+.xue { position: absolute; left: 0; top: 0; z-index: 7; width: min(300px, calc(100% - 16px)); max-height: 60%; overflow-y: auto; overscroll-behavior: contain;
+  padding: 14px 16px 14px; border-radius: 18px; color: #f4efe6; font-family: var(--font); font-size: 13.5px; line-height: 1.7;
+  background: linear-gradient(160deg, rgba(60,52,44,.55), rgba(18,15,12,.5)); border: 1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 16px 44px rgba(0,0,0,.45);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s, visibility 0s .2s; }
+.xue.show { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .25s; animation: xueIn .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes xueIn { from { scale: .94; } }
+.xue header { display: flex; align-items: baseline; gap: 8px; margin: 0 26px 8px 0; }
+.xue header b { font-size: 18px; font-weight: 600; letter-spacing: .08em; }
+.xue header small { font-size: 11px; color: rgba(244,239,230,.6); }
+.xue h4 { margin: 8px 0 2px; font-size: 13px; font-weight: 700; color: #fff; }
+.xue p { margin: 0; color: rgba(244,239,230,.88); }
+.xue .xue-pos p { color: #ff6b5e; font-weight: 500; }
+.xue .xue-none { color: rgba(244,239,230,.55); }
+.xue-x { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.1); color: #fff; font-size: 12px; cursor: pointer; }
+.zz-on .xue { display: none; }

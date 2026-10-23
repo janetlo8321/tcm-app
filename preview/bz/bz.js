@@ -89,7 +89,7 @@
     const uniqOut = out.filter(p => { const k = [p.name, p.src, p.fx.map(f => f.name).join('+'), p.tongue.join('/')].join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
     uniqOut.forEach((p, i) => {
       p.i = i; p.ax = bagang(p);
-      p.tongue = [...new Set(p.tongue.map(v => v.replace(/^舌苔/, '苔')))];
+      p.tongue = [...new Set(p.tongue.map(v => v.replace(/^舌苔/, '苔').replace(/^舌質?/, '')).filter(Boolean))];   // 下拉不要開頭的「舌」
       p.pulse = [...new Set(p.pulse.map(v => v.replace(/脈象?/g, '').replace(/^[：:，,\s]+/, '')).filter(Boolean))];   // 下拉不要「脈」字
     });
     return (cache[o.id] = uniqOut);
@@ -193,7 +193,7 @@
   const T_COLOR = [[/淡白/, 0], [/淡紅/, 2], [/淡/, 1], [/絳/, 5], [/紫|瘀|暗|青/, 6], [/紅/, 4]];
   const T_COAT = [[/薄白/, 0], [/白.*(滑|膩|厚)|(滑|膩|厚).*白/, 2], [/白/, 1], [/薄黃/, 3], [/黃.*(膩|燥|厚)|(膩|燥|厚).*黃/, 5], [/黃/, 4], [/灰/, 6], [/黑|焦/, 7], [/少|無|剝|光|鏡/, 8], [/膩|滑|厚/, 2]];
   function tongueRank(v) {
-    const coat = /^(舌)?苔/.test(v), t = coat ? v : v.split(/苔/)[0];
+    const coat = /^(舌)?苔/.test(v) || (!/淡|紅|絳|紫|瘀|暗|青|胖|瘦|裂|齒/.test(v.split(/苔/)[0]) && /白|黃|膩|滑|厚|灰|黑|剝|少|無|乾|燥/.test(v)), t = coat ? v : v.split(/苔/)[0];
     const hit = (coat ? T_COAT : T_COLOR).find(([re]) => re.test(t));
     return (coat ? 100 : 0) + (hit ? hit[1] : coat ? 9 : 3) + (coat ? 0 : /苔/.test(v) ? 0.5 : 0);
   }
@@ -203,7 +203,7 @@
     let s = 0, n = 0;
     if (!r.bgAuto) AX.forEach(a => { const want = r.bg[a.k]; if (!want) return; n++; const got = side(axVal(p.ax, a.k)); if (got === want) s++; else if (got === -want) s--; });
     r.sx.forEach(v => { n++; if (p.sx.includes(v)) s++; });
-    if (r.tongue) { n++; if (p.tongue.includes(r.tongue)) s++; }
+    if (r.tongue) { n++; if (p.tongue.includes(r.tongue.replace(/^舌苔/, '苔').replace(/^舌質?/, ''))) s++; }
     if (r.pulse) { n++; if (p.pulse.includes(r.pulse.replace(/脈象?/g, ''))) s++; }
     return { s, n };
   }
@@ -363,8 +363,9 @@
       const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
       out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: (list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]).concat([{ t: '⊕ 其他（自訂）', v: OTHER, cls: 'dir' }]) });
     }
-    const allMine = uniqBy(myFx(), x => x.n);
-    if (allMine.length) out.push({ t: '我輸入過的方', kids: allMine.map((x, i) => fxLeaf(`${i + 1}. ${x.n}`, x.tag || '')).map((x, i) => ({ ...x, v: allMine[i].n })) });
+    // 我輸入過的方：所有病證輸入過的都列出來，同名只留一個（本病的排前面）
+    const allMine = uniqBy(myFx().concat(...Object.values(myFxAll())), x => x.n);
+    if (allMine.length) out.push({ t: '我輸入過的方', cls: 'hit', kids: allMine.map((x, i) => ({ t: `${i + 1}. ${x.n}`, v: x.n })) });
     const local = uniqBy(pats, p => p.name).filter(p => p.fx.length);
     if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: p.fx.map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => p.fx), f => f.name).length });
     return out.concat(FX_SYS, [{ t: '⊕ 自定義處方', v: OTHER, cls: 'dir' }]);
@@ -390,6 +391,8 @@
     if (!name || !cur) return;
     const all = myFxAll(), list = all[cur.id] || [], tag = bgTag();
     if (list.some(x => x.n === name && x.tag === tag)) return;
+    const i = list.findIndex(x => x.n === name);   // 同一病同名的方只留一筆（記最後一次的虛實陰陽寒熱）
+    if (i >= 0) list.splice(i, 1);
     list.push({ n: name, tag });
     all[cur.id] = list;
     try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
