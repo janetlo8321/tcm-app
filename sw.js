@@ -1,5 +1,5 @@
 /* 離線快取：有網路時拿最新的，沒網路時用上次存下來的 */
-const CACHE = 'tcm-app-v1';
+const CACHE = 'tcm-app-v2';
 const FILES = ['./', 'data.enc', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); });
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
