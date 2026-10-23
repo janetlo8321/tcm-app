@@ -887,3 +887,30 @@ body { display: grid; place-items: center; }
   .tb-tog { left: 30px; top: 98px; }
   .toolbar { left: 16px; top: 136px; }
 }
+
+/* ===== 右上：查詢穴位（毛玻璃小框） ===== */
+.pt-q { position: relative; }
+.pt-q label { display: flex; align-items: center; gap: 6px; width: 150px; height: 34px; padding: 0 10px; border-radius: 17px;
+  color: var(--bronze); background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 4px 16px rgba(0,0,0,.25);
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+.pt-q svg { flex: none; opacity: .85; }
+.pt-q input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: none; color: #f3ece0;
+  font-family: var(--font); font-size: 14px; letter-spacing: .06em; -webkit-appearance: none; appearance: none; }
+.pt-q input::placeholder { color: rgba(243,236,224,.55); }
+.pt-q input::-webkit-search-cancel-button { filter: invert(1) opacity(.6); }
+.pt-q label:focus-within { border-color: rgba(214,166,107,.6); }
+.pt-q-list { position: absolute; right: 0; top: 40px; z-index: 20; width: 220px; max-height: min(52vh, 420px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; border-radius: 16px; background: linear-gradient(160deg, rgba(40,34,28,.72), rgba(14,12,10,.62)); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 14px 40px rgba(0,0,0,.45); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+  animation: ptqIn .25s cubic-bezier(.2,.8,.2,1); }
+@keyframes ptqIn { from { opacity: 0; transform: translateY(-6px); } }
+.pt-q-list[hidden] { display: none; }
+.pt-q-list button { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: #f3ece0;
+  font-family: var(--font); text-align: left; cursor: pointer; }
+.pt-q-list button b { font-weight: 500; font-size: 15px; letter-spacing: .06em; }
+.pt-q-list button small { margin-left: auto; font-size: 11px; color: rgba(243,236,224,.55); white-space: nowrap; }
+.pt-q-list button:hover, .pt-q-list button:focus-visible { background: rgba(214,166,107,.22); outline: none; }
+.pt-q-list p { margin: 8px 10px; font-size: 13px; color: rgba(243,236,224,.55); }
+.zz-on .pt-q { display: none; }
+@media (max-width: 420px) { .pt-q label { width: 128px; } }

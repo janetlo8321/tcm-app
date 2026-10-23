@@ -286,3 +286,10 @@ html.bz-open button[title="回到大廳"] { display: none !important; }
 .bz-mcol button:is(.or, .bl, .gy) { border-left: 3px solid var(--bz-k); border-radius: 2px 8px 8px 2px; background: color-mix(in srgb, var(--bz-k) 14%, transparent); margin-bottom: 2px; }
 .bz-mcol button:is(.or, .bl, .gy):hover, .bz-mcol button:is(.or, .bl, .gy).on { background: var(--m-acc); }
 @media (max-width: 700px) { .bz-mcol, .bz-mcol:first-child { width: 100%; } }
+
+/* ---- 處方查詢（放大鏡＋輸入） ---- */
+.bz-q { position: relative; display: flex; align-items: center; margin-top: 8px; }
+.bz-q svg { position: absolute; left: 12px; color: color-mix(in srgb, var(--bz-rep-ink) 55%, transparent); pointer-events: none; }
+#bz .bz-q input { width: 100%; min-height: 40px; padding: 7px 12px 7px 36px; border-radius: 8px; font-size: 15px;
+  border: 1px solid color-mix(in srgb, var(--bz-rep-ink) 14%, transparent); background: var(--bz-rep-fill); color: var(--bz-rep-ink); -webkit-appearance: none; appearance: none; }
+#bz .bz-q input:focus { outline: none; border-color: var(--bz-acc); }

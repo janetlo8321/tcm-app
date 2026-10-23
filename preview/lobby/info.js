@@ -266,6 +266,44 @@
   };
   body.addEventListener('change', onPick);
   tr.addEventListener('change', onPick);
+  /* ---------- 右上：查詢穴位（打字就列出相關穴位，點一下鏡頭飛過去） ---------- */
+  function flyToPoint(o) {
+    const dist = 7, tgt = o.p.clone();
+    if (openId && !WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
+    flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
+  }
+  const qBox = document.createElement('div');
+  qBox.className = 'pt-q';
+  qBox.innerHTML = '<label><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" placeholder="查詢" autocomplete="off" enterkeyhint="search" aria-label="查詢穴位"></label><div class="pt-q-list" role="listbox" hidden></div>';
+  const hudBtns = document.querySelector('.hud-btns');
+  if (hudBtns) hudBtns.prepend(qBox);
+  const qIn = qBox.querySelector('input'), qList = qBox.querySelector('.pt-q-list');
+  let qHits = [];
+  function qRun() {
+    const q = qIn.value.trim();
+    if (!q) { qList.hidden = true; return; }
+    const seen = new Set();
+    qHits = PT.filter(o => o.name && o.name.includes(q))
+      .sort((a, b) => (b.name.startsWith(q) - a.name.startsWith(q)) || (b.side > 0) - (a.side > 0) || a.name.length - b.name.length)
+      .filter(o => { const k = o.m.id + '|' + o.no; if (seen.has(k)) return false; seen.add(k); return true; })
+      .slice(0, 40);
+    qList.innerHTML = qHits.length ? qHits.map((o, i) => `<button type="button" data-i="${i}"><b>${E(o.name)}</b><small>${E(o.m.name)}・${o.no}</small></button>`).join('') : '<p>找不到相關穴位</p>';
+    qList.hidden = false;
+  }
+  function qPick(o) {
+    if (!o) return;
+    qList.hidden = true; qIn.blur();
+    L.select(o.m.id);
+    spin = false; controls.autoRotate = false;
+    flyToPoint(o);
+    L.toast(`${o.m.name}・${o.name}`, 1800);
+  }
+  qIn.addEventListener('input', qRun);
+  qIn.addEventListener('focus', qRun);
+  qIn.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); qPick(qHits[0]); } else if (e.key === 'Escape') { qIn.value = ''; qList.hidden = true; } });
+  qList.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) qPick(qHits[+b.dataset.i]); });
+  document.addEventListener('pointerdown', e => { if (!qBox.contains(e.target)) qList.hidden = true; }, true);
+
   L.hooks.open.push(open);
   L.hooks.select.push(id => { if (openId && id !== openId) close(id ? false : true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });

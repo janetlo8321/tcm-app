@@ -278,7 +278,7 @@
     el.setAttribute('role', 'menu');
     docOf().body.appendChild(el);
     menu = { key, cas, el, path: path || [], def, timer: 0 };
-    cas.querySelector('.bz-cas-btn').setAttribute('aria-expanded', 'true');
+    const btn0 = cas.querySelector('.bz-cas-btn'); if (btn0) btn0.setAttribute('aria-expanded', 'true');
     cas.classList.add('open');
     el.addEventListener('pointerover', e => {
       clearTimeout(menu && menu.timer);
@@ -356,7 +356,14 @@
     }
     const out = [];
     const hit = bgMatches();
-    if (hit) out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: hit.list.length ? hit.list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }] });
+    if (hit) {
+      // 符合的方 + 自己輸入過的方（同一病、同樣的虛實陰陽寒熱），前面加序號；最後一列可以自訂
+      const mine = myFx().filter(x => x.tag === hit.key && !hit.list.some(y => y.v === x.n)).map(x => fxLeaf(x.n, '自訂'));
+      const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
+      out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: (list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]).concat([{ t: '⊕ 其他（自訂）', v: OTHER, cls: 'dir' }]) });
+    }
+    const allMine = uniqBy(myFx(), x => x.n);
+    if (allMine.length) out.push({ t: '我輸入過的方', kids: allMine.map((x, i) => fxLeaf(`${i + 1}. ${x.n}`, x.tag || '')).map((x, i) => ({ ...x, v: allMine[i].n })) });
     const local = uniqBy(pats, p => p.name).filter(p => p.fx.length);
     if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: p.fx.map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => p.fx), f => f.name).length });
     return out.concat(FX_SYS, [{ t: '⊕ 自定義處方', v: OTHER, cls: 'dir' }]);
@@ -370,7 +377,21 @@
     let best = 0; pats.forEach(p => { best = Math.max(best, sc(p)); });
     const ps = best ? pats.filter(p => sc(p) === best) : [];
     const list = uniqBy(ps.flatMap(p => p.fx.map(f => fxLeaf(f.name, p.name))), x => x.v);
-    return { tag: best < want.length && best ? tag + '（部分）' : tag, list };
+    return { tag: best < want.length && best ? tag + '（部分）' : tag, key: tag, list };
+  }
+  // 自己輸入的方：存在這台裝置，依病名分開；記下輸入當時選的虛實陰陽寒熱
+  const MYFX = 'tcm-bz-myfx-v1';
+  function myFxAll() { try { return JSON.parse(localStorage.getItem(MYFX) || '{}') || {}; } catch (e) { return {}; } }
+  function myFx() { return (cur && myFxAll()[cur.id]) || []; }
+  function bgTag() { const want = AX.filter(a => report.bg[a.k]); return report.bgAuto || !want.length ? '' : want.map(a => report.bg[a.k] < 0 ? a.a : a.b).join('・'); }
+  function saveMyFx(name) {
+    name = String(name || '').trim();
+    if (!name || !cur) return;
+    const all = myFxAll(), list = all[cur.id] || [], tag = bgTag();
+    if (list.some(x => x.n === name && x.tag === tag)) return;
+    list.push({ n: name, tag });
+    all[cur.id] = list;
+    try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
   }
   // 加一味藥：溫／寒涼／中性 → 分類 → 藥
   function herbTree() {
@@ -384,6 +405,7 @@
   function pickCas(key, v) {
     const r = report;
     if (v == null || v === '') return;
+    if (key === 'fxq') key = 'fx';   // 查詢選到的方
     if (key === 'herb') {
       if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
       r._t_herb = false;
@@ -437,7 +459,8 @@
 </div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
             ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxTree(), r.fx)}
-            ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}</div>
+            ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}
+            <label class="bz-q" data-cas="fxq"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" data-q placeholder="查詢" autocomplete="off" enterkeyhint="search" aria-label="查詢處方"></label></div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
             <div class="bz-addrow">${HT ? cascade('herb', '加一味藥…', HT, null)
@@ -539,6 +562,42 @@
     else if (k === 'fx') { r.fx = t.value; r.herbs = herbsOf(t.value); }
     else r[k] = t.value;
     keep(draw);
+  });
+  // 自訂處方打完（按 Enter 或離開輸入框）：記下來，下次會出現在「符合的方」清單裡
+  root.addEventListener('change', e => {
+    if (!e.target.dataset || e.target.dataset.v !== 'fxOther') return;
+    const v = e.target.value.trim();
+    if (!v) return;
+    saveMyFx(v);
+    report.fx = v; report.fxOther = '';   // 選單上直接顯示這個方名
+    keep(draw);
+  });
+  root.addEventListener('keydown', e => { if (e.target.dataset && e.target.dataset.v === 'fxOther' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
+  // 處方查詢：打字就列出相關方劑（資料庫的方＋自己輸入過的方），點一下選用
+  function fxSearch(q) {
+    q = q.trim();
+    if (!q) return [];
+    const mine = new Set(); Object.values(myFxAll()).forEach(l => l.forEach(x => mine.add(x.n)));
+    if (!FX_SYS) fxTree();
+    const leaves = []; const walk = l => l.forEach(x => x.kids ? walk(x.kids) : x.v && leaves.push(x.v)); walk(FX_SYS);
+    const names = uniqBy((DB.formulas || []).map(f => f.name).concat(leaves, pats.flatMap(p => p.fx.map(f => f.name)), [...mine]), x => x);
+    return names.filter(n => n.includes(q))
+      .sort((a, b) => (b.startsWith(q) - a.startsWith(q)) || a.length - b.length || a.localeCompare(b, 'zh-Hant'))
+      .slice(0, 60).map(n => fxLeaf(n, mine.has(n) && !(DB.formulas || []).some(f => f.name === n) ? '自訂' : ''));
+  }
+  root.addEventListener('input', e => {
+    const t = e.target;
+    if (!t.matches || !t.matches('[data-q]')) return;
+    const anchor = t.closest('.bz-q'), list = fxSearch(t.value);
+    CAS.fxq = { tree: list.length ? list : (t.value.trim() ? [{ t: '找不到相關的方', v: '', cls: 'none' }] : []), val: report.fx };
+    if (!CAS.fxq.tree.length) { closeMenu(); return; }
+    if (menu && menu.key === 'fxq') { menu.def = CAS.fxq; menu.path = []; renderMenu(); } else openMenu(anchor, []);
+  });
+  root.addEventListener('keydown', e => {
+    if (!e.target.matches || !e.target.matches('[data-q]') || e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    const first = fxSearch(e.target.value)[0];
+    if (first) { closeMenu(); pickCas('fx', first.v); }
   });
   root.addEventListener('input', e => {
     const t = e.target, r = report;
