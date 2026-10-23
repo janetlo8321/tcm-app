@@ -32,6 +32,11 @@
           <button id="btn-reset" class="icon-btn" type="button" aria-label="回到全身" title="回到全身">⟲</button>
           <button id="btn-enter" class="enter-btn" type="button" aria-label="進入資料庫" title="進入資料庫">›</button>
         </div>
+        <!-- 經絡按鈕：收成右上一個 ›，點開才在上方展開 -->
+        <div class="chip-row">
+          <nav id="chips" class="chips" aria-label="經絡列表"></nav>
+          <button id="chip-tog" class="chip-tog" type="button" aria-expanded="false" aria-label="經絡列表" title="經絡列表">›</button>
+        </div>
       </div>
     </header>
 
@@ -39,8 +44,6 @@
     <div id="tip" class="tip"></div>
     <div id="sel" class="sel"></div>
     <div id="toast" class="toast"></div>
-
-    <nav id="chips" class="chips" aria-label="經絡列表"></nav>
 
     <div id="loading" class="loading"><span>載入人體模型…</span><b><i></i></b></div>
     <div class="credit">人體模型：BodyParts3D © DBCLS（CC BY 4.0）</div>

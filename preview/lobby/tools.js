@@ -39,6 +39,16 @@
   const bPen = mk('pen', '畫筆');
   const bNote = mk('note', '標注');
   stage.appendChild(bar);
+  // 工具列收成左上一個 ›，點開才展開
+  const tog = document.createElement('button');
+  tog.type = 'button';
+  tog.className = 'tb-tog';
+  tog.textContent = '›';
+  tog.setAttribute('aria-label', '工具');
+  tog.setAttribute('aria-expanded', 'false');
+  tog.title = '工具';
+  tog.addEventListener('click', () => tog.setAttribute('aria-expanded', String(stage.classList.toggle('tb-open'))));
+  stage.appendChild(tog);
 
   /* ---------- 透明／不透 ---------- */
   bSkin.addEventListener('click', () => {

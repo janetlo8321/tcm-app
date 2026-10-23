@@ -186,7 +186,10 @@
     camera.position.copy(controls.target).add(_o.setFromSpherical(_s0));
     if (k >= 1) anim = null;
   });
-  controls.addEventListener('start', () => { anim = null; });
+  // 打開經絡資訊時人會在中間慢慢轉；手一碰就停，放開 5 秒後再轉（選了某一穴就不轉）
+  let lastUser = 0, spin = false;
+  controls.addEventListener('start', () => { anim = null; lastUser = performance.now(); });
+  L.hooks.frame.push(() => { if (openId && spin) controls.autoRotate = !anim && performance.now() - lastUser > 5000; });
 
   function closeUp(m) {
     const ps = PT.filter(o => o.m === m && o.side > 0);
@@ -222,6 +225,7 @@
     if (!openId) back = { tgt: controls.target.clone(), pos: camera.position.clone() };
     openId = id;
     controls.autoRotate = false;
+    spin = true; lastUser = 0;
     const cu = closeUp(m);
     if (cu) flyTo(cu.tgt, cu.pos, 500);
     body.innerHTML = content(m);
@@ -242,6 +246,7 @@
     panel.classList.remove('show');
     wxPanel.classList.remove('show');
     stage.classList.remove('ip-on');
+    spin = false; controls.autoRotate = false;
     if (fly !== false && back) flyTo(back.tgt, back.pos, 500);
     back = null;
   }
@@ -256,6 +261,7 @@
     const dist = 7, tgt = o.p.clone();
     if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
     flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
+    spin = false; controls.autoRotate = false;
     L.toast(`${m.name}・${o.name}`, 1600);
   };
   body.addEventListener('change', onPick);

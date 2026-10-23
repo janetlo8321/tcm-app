@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.6.0';
-  const UPDATED = '10/24 02:23';
+  const UPDATED = '10/24 02:41';
   const FIX_NO = 16;
 
   const $ = id => document.getElementById(id);
@@ -576,6 +576,12 @@
     });
     chipsEl.appendChild(b);
     chipEls[m.id] = b;
+  });
+
+  // 右上的 ›：展開／收起經絡按鈕
+  const chipTog = $('chip-tog');
+  chipTog.addEventListener('click', () => {
+    chipTog.setAttribute('aria-expanded', String(chipTog.closest('.stage').classList.toggle('chips-open')));
   });
 
   /* ---------- 外掛模組（骨骼臟腑、循行、工具列）用的掛勾 ---------- */
