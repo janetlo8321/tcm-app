@@ -356,9 +356,14 @@
   const esc = t => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   function trRender() {
     trFor = cur && cur.m.id; trK = -1;
-    const j = JING && cur && JING[cur.m.id];
+    const html = cur && trHtml(cur.m);
+    trBody.innerHTML = html ? `<section><h3>循行<small>${esc(cur.m.name)}</small></h3><p class="ip-p">${html}</p></section>` : '';
+  }
+  function trHtml(m) {   // 循行經文，每一句字幕對到的範圍包成 .tr-s
+    const j = JING && JING[m.id];
     const sec = j && (j.secs || []).find(x => x.h === '循行');
-    if (!sec) { trBody.innerHTML = ''; return; }
+    if (!sec || !TOURS[m.id]) return '';
+    const steps = buildTour(m).steps;
     const text = sec.p.join('\n');
     // 去掉標點後比對每一句字幕，找出它在經文裡的範圍
     // 字幕和講義用字略有出入（裏／裡、別目銳眥／別銳眥…），所以用句首、句尾幾個字當錨點
@@ -376,7 +381,7 @@
     };
     const marks = [];
     let from = 0;
-    cur.steps.forEach((st, k) => {
+    steps.forEach((st, k) => {
       const q = st.t.split('').filter(c => !PUNC.test(c)).map(nz).join('');
       if (!q) return;
       let a = find(q, from, true);
@@ -396,7 +401,7 @@
       i = mk.b;
     }
     html += esc(text.slice(i));
-    trBody.innerHTML = `<section><h3>循行<small>${esc(cur.m.name)}</small></h3><p class="ip-p">${html.replace(/●/g, '<br>●').replace(/\n/g, '<br>').replace(/^<br>/, '')}</p></section>`;
+    return html.replace(/●/g, '<br>●').replace(/\n/g, '<br>').replace(/^<br>/, '');
   }
   function trStep(st) {
     if (!cur || !st) return;
@@ -404,12 +409,13 @@
     const k = cur.steps.indexOf(st);
     if (k === trK) return;
     trK = k;
-    let on = null;
-    trBody.querySelectorAll('.tr-s').forEach(el => { const hit = +el.dataset.k === k; el.classList.toggle('on', hit); if (hit) on = el; });
-    if (on) {
-      const r = on.getBoundingClientRect(), b = trBody.getBoundingClientRect();
-      if (r.top < b.top + 40 || r.bottom > b.bottom - 40) trBody.scrollTo({ top: trBody.scrollTop + r.top - b.top - b.height / 3, behavior: 'smooth' });
-    }
+    document.querySelectorAll(`.tr-s[data-m="${cur.m.id}"], .tr-ip .tr-s`).forEach(el => {
+      const hit = +el.dataset.k === k; el.classList.toggle('on', hit);
+      if (!hit) return;
+      const box = el.closest('.ip-body'); if (!box || !box.offsetParent) return;
+      const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+      if (r.top < b.top + 40 || r.bottom > b.bottom - 40) box.scrollTo({ top: box.scrollTop + r.top - b.top - b.height / 3, behavior: 'smooth' });
+    });
   }
   const nameEl = $p('.pl-name'), capEl = $p('.pl-cap'), playBtn = $p('.pl-play'), range = $p('.pl-range');
 
@@ -427,6 +433,7 @@
   function setPlaying(on) {
     playing = on;
     playBtn.textContent = on ? '❚❚' : '▶';
+    if (typeof syncBtn === 'function') syncBtn();
     if (!on && cur) cur.head.visible = false;
   }
   function stepAt(L0) {
@@ -496,6 +503,44 @@
   // 分享連結：#LU 之類，開啟時直接點亮該經
   const h = (location.hash || '').slice(1).toUpperCase();
   if (L.byId[h]) setTimeout(() => L.select(h), 300);
+
+  /* 經絡資訊面板（點兩下經絡）：「循行」標題旁一顆小亮點，按了光點沿經絡跑，面板裡的經文跟著一句句亮起來 */
+  function infoHook() {
+    const body = document.querySelector('.ip:not(.tr-ip):not(.ip-left) .ip-body');
+    if (!body) return false;
+    const deco = () => {
+      const id = L.info && L.info.openId, m = id && L.byId[id];
+      if (!m || !TOURS[m.id]) return;
+      const html = trHtml(m); if (!html) return;
+      body.querySelectorAll('.ip-sec').forEach(sec => {
+        const h = sec.querySelector('h3');
+        if (!h || h.textContent.trim().replace('●', '') !== '循行' || sec.dataset.tr) return;
+        sec.dataset.tr = 1;
+        sec.querySelectorAll('.ip-p').forEach((p, i) => { if (i) p.remove(); });
+        const p = sec.querySelector('.ip-p'); if (!p) return;
+        p.innerHTML = html.replace(/class="tr-s"/g, `class="tr-s" data-m="${m.id}"`);
+        if (L.xue && L.xue.linkify) L.xue.linkify(p);
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'ip-play'; b.dataset.m = m.id; b.setAttribute('aria-label', '播放循行'); b.innerHTML = '<i></i>';
+        h.appendChild(b);
+        syncBtn();
+      });
+      trK = -1;
+    };
+    new MutationObserver(deco).observe(body, { childList: true });
+    body.addEventListener('click', e => {
+      const b = e.target.closest('.ip-play'); if (!b) return;
+      e.stopPropagation();
+      if (!cur || cur.m.id !== b.dataset.m) L.select(b.dataset.m);
+      if (playing) { setPlaying(false); }
+      else { if (!open) setOpen(true); setPlaying(true); trK = -1; trStep(stepAt(prog * cur.total)); }
+      syncBtn();
+    });
+    deco();
+    return true;
+  }
+  function syncBtn() { document.querySelectorAll('.ip-play').forEach(b => b.classList.toggle('on', playing && cur && cur.m.id === b.dataset.m)); }
+  (function wait(n) { if (!infoHook() && n < 100) setTimeout(() => wait(n + 1), 200); })(0);
 
   L.tour = { TOURS, show };
 })();

@@ -174,7 +174,7 @@
     if (id) { L.select(id); L.open(id); }
   });
   L.hooks.open.push(() => { back.hidden = true; backId = null; });
-  L.xue = { show: o => { show(o); hov = false; } };
+  L.xue = { show: o => { show(o); hov = false; }, linkify };
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
   L.hooks.select.push(id => { if (cur && id !== cur.m.id) hide(); });
 })();
