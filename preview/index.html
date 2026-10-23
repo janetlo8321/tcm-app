@@ -93,7 +93,9 @@ function closeLobby() {
 }
 // 大廳傳來 go：進入資料庫後直接打開那一個條目（例如病證區域點的病名）
 function onMsg(e) {
+  if (e.data && e.data.type === 'tcm-lobby-loaded') { loadData(); return; }
   if (!e.data || e.data.type !== 'tcm-enter') return;
+  loadData();
   pendingGo = typeof e.data.go === 'string' ? e.data.go : null;
   closeLobby();
 }
@@ -121,9 +123,14 @@ function showApp(html) {
 }
 window.addEventListener('message', onMsg);
 openLobby();
-(async () => {
+// 先讓大廳的人體模型下載（不跟 13 MB 的資料庫搶網路）；模型載完、按進入資料庫、或 20 秒後才抓資料庫
+let dataStarted = false;
+setTimeout(loadData, 20000);
+async function loadData() {
+  if (dataStarted) return;
+  dataStarted = true;
   try {
-    const r = await fetch('data.enc', { cache: 'no-store' });
+    const r = await fetch('data.enc', { cache: 'no-cache' });   // 每次都問伺服器有沒有更新，沒變就不重抓
     if (!r.ok) throw new Error('HTTP ' + r.status);
     blob = new Uint8Array(await r.arrayBuffer());
     if (String.fromCharCode.apply(null, blob.slice(0, 4)) !== 'TCM1') throw new Error('檔案格式不對');
@@ -137,7 +144,7 @@ openLobby();
     try { localStorage.removeItem(KEY); } catch (e) {}
   }
   say('請輸入密碼。'); $('f').hidden = false; $('hint').hidden = false; $('pw').focus();
-})();
+}
 $('f').addEventListener('submit', async e => {
   e.preventDefault(); $('go').disabled = true; say('解鎖中…');
   try {

@@ -19,6 +19,7 @@
   ]).then(([model, pts]) => {
     window.TCM_MODEL = model;
     window.TCM_POINTS = pts;
+    if (window.parent !== window) window.parent.postMessage({ type: 'tcm-lobby-loaded' }, '*');   // 外層這時才開始下載資料庫
     say('建立經絡…');
     setTimeout(() => run(0), 30);
   }).catch(e => { console.error(e); say('人體模型載入失敗，請重新整理'); });
