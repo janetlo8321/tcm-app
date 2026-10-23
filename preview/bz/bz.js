@@ -148,6 +148,7 @@
     if (!host) document.documentElement.classList.add('bz-open');
     draw();
     root.scrollTop = 0;
+    pullOnce();
     return true;
   }
   function unmount() {
@@ -392,6 +393,59 @@
     list.push({ n: name, tag });
     all[cur.id] = list;
     try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
+    syncFx(true);
+  }
+  /* ---------- 自訂的方：用 GitHub 私人備份庫（tcm-notes）在電腦、手機之間同步 ----------
+   * 每台裝置第一次按「☁ 同步」貼上只能讀寫 tcm-notes 內容的金鑰（只存在這台裝置）；之後自動合併上傳／下載 */
+  const GH_KEY = 'tcm-gh-token-v1', GH_URL = 'https://api.github.com/repos/janetlo8321/tcm-notes/contents/sync/myfx.json';
+  const ghToken = () => { try { return localStorage.getItem(GH_KEY) || ''; } catch (e) { return ''; } };
+  const b64e = t => btoa(unescape(encodeURIComponent(t))), b64d = t => decodeURIComponent(escape(atob(t.replace(/\s/g, ''))));
+  function mergeFx(a, b) {
+    const out = {};
+    [a, b].forEach(src => Object.entries(src || {}).forEach(([id, l]) => {
+      const dst = out[id] = out[id] || [];
+      (l || []).forEach(x => { if (x && x.n && !dst.some(y => y.n === x.n && y.tag === x.tag)) dst.push({ n: x.n, tag: x.tag || '' }); });
+    }));
+    return out;
+  }
+  let syncing = null, syncMsg = '';
+  async function syncFx(push, tries) {
+    const tok = ghToken();
+    if (!tok) return false;
+    if (syncing) { await syncing.catch(() => {}); }
+    syncing = (async () => {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(GH_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
+      else if (r.status !== 404) throw new Error(r.status === 401 ? '金鑰無效或過期' : r.status === 403 || r.status === 404 ? '金鑰沒有 tcm-notes 的權限' : 'HTTP ' + r.status);
+      const merged = mergeFx(remote, myFxAll());
+      try { localStorage.setItem(MYFX, JSON.stringify(merged)); } catch (e) {}
+      if (JSON.stringify(merged) !== JSON.stringify(remote) && (push || !sha)) {
+        const w = await fetch(GH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步自訂處方', content: b64e(JSON.stringify(merged, null, 1)), ...(sha ? { sha } : {}) }) });
+        if ((w.status === 409 || w.status === 422) && (tries || 0) < 2) { syncing = null; return syncFx(push, (tries || 0) + 1); }
+        if (!w.ok) throw new Error(w.status === 403 || w.status === 404 ? '金鑰沒有寫入 tcm-notes 的權限' : 'HTTP ' + w.status);
+      }
+      return true;
+    })();
+    try { await syncing; syncMsg = '已同步 ' + new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }); return true; }
+    catch (e) { syncMsg = '同步失敗：' + e.message; return false; }
+    finally { syncing = null; const el = root.querySelector('[data-bz="sync"]'); if (el) el.title = syncMsg; }
+  }
+  let pulled = false;
+  async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) keep(draw); }
+  async function syncSetup() {
+    const W = winOf(), has = !!ghToken();
+    const v = W.prompt(has ? `自訂處方已設定同步（${syncMsg || '尚未同步'}）。\n要換金鑰就貼上新的；輸入「關閉」停止這台裝置的同步；直接按確定立即同步。`
+      : '貼上 GitHub 金鑰（只限 tcm-notes 的 Contents 讀寫），之後這台裝置的自訂處方會自動同步。', '');
+    if (v == null) return;
+    const t = v.trim();
+    if (t === '關閉') { try { localStorage.removeItem(GH_KEY); } catch (e) {} W.alert('這台裝置已停止同步（已存的方還在）。'); keep(draw); return; }
+    if (t) { try { localStorage.setItem(GH_KEY, t); } catch (e) {} }
+    const ok = await syncFx(true);
+    W.alert(ok ? '同步完成。電腦和手機都設定好之後，自訂的方會自動互通。' : syncMsg);
+    keep(draw);
   }
   // 加一味藥：溫／寒涼／中性 → 分類 → 藥
   function herbTree() {
@@ -472,7 +526,7 @@
             ${curPat && curPat.jj ? `<p class="bz-hint">書上的加減：${E(curPat.jj)}</p>` : ''}</div>
         </div>
         <label class="bz-note">醫囑 / 備註<textarea data-v="note" rows="3" placeholder="輸入">${E(r.note)}</textarea></label>
-        <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空</button></div>
+        <div class="bz-acts"><button type="button" data-bz="print">列印</button><button type="button" data-bz="clear">清空</button><button type="button" data-bz="sync" title="${E(syncMsg)}">${ghToken() ? '☁ 已同步' : '☁ 同步'}</button></div>
       </div>
       ${curPat ? `<section class="bz-ref"><h2>參考：${E(curPat.name)}<small>${SRC[curPat.src] || ''}</small></h2>${refCard(curPat)}</section>`
         : !pats.length ? `<p class="bz-none">這個病證沒有可拆成證型的表格（例如只有針灸圖或段落）。可以看<a href="#${o.id}" data-bzgo="${o.id}">原表格／內文</a>，報告單每一欄都能自己輸入。</p>` : ''}
@@ -508,6 +562,7 @@
       const k = b.dataset.bz;
       if (k === 'go') { if (host) { if (onGo) onGo(cur.id); } else { close(); go(cur.id); } }
       else if (k === 'close') close();
+      else if (k === 'sync') syncSetup();
       else if (k === 'print') (root.ownerDocument.defaultView || window).print();
       else if (k === 'clear') { report = blankReport(); keep(draw); }
       else if (k === 'adj') { report.adj.push(''); keep(draw); focusLater(`[data-adj="${report.adj.length - 1}"]`); }
