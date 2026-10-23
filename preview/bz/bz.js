@@ -775,5 +775,121 @@
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
   fxlRefresh();
 
+  /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
+   * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
+  const XHK = 'tcm-xh-v1', XH_URL = GH_URL.replace('myfx.json', 'xh.json');
+  const xhLoad = () => { try { const o = JSON.parse(localStorage.getItem(XHK) || '{}'); return { w: o.w || {}, e: o.e || {} }; } catch (e) { return { w: {}, e: {} }; } };
+  let XS = xhLoad();
+  const xhSave = () => { try { localStorage.setItem(XHK, JSON.stringify(XS)); } catch (e) {} clearTimeout(xhSave.t); xhSave.t = setTimeout(() => xhSync(true), 1500); };
+  function xhMerge(a, b) {   // 每一欄、每一格各取比較新的那一份
+    const out = { w: {}, e: {} };
+    [a, b].forEach(src => ['w', 'e'].forEach(k => Object.entries((src && src[k]) || {}).forEach(([id, v]) => { if (!out[k][id] || (v.t || 0) > (out[k][id].t || 0)) out[k][id] = v; })));
+    return out;
+  }
+  async function xhSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(XH_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = { w: {}, e: {} }, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
+      const merged = xhMerge(remote, xhLoad());
+      const changed = JSON.stringify(merged) !== JSON.stringify(XS);
+      XS = merged; try { localStorage.setItem(XHK, JSON.stringify(XS)); } catch (e) {}
+      if (changed) xhDecorate();
+      if (push && JSON.stringify(merged) !== JSON.stringify(remote))
+        await fetch(XH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步脈證處方表', content: b64e(JSON.stringify(merged, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  const xhOK = () => typeof XH !== 'undefined' && typeof xhOrder !== 'undefined';
+  if (typeof xhApply === 'function' && xhOK()) {
+    // 不再調換欄位：一律照原表順序
+    try { xhOrder = XH_DEF.slice(); localStorage.removeItem('xhOrder'); } catch (e) {}
+    window.xhMove = () => {};
+    window.xhApply = function () {
+      const st = document.getElementById('xhCss'), g = document.querySelector('.xh-g'); if (!st || !g) return;
+      xhOrder = XH_DEF.slice();
+      g.style.gridTemplateColumns = xhOrder.map(i => ((XS.w[i] && XS.w[i].v) || XH.cols[i].w) + 'em').join(' ');
+      st.textContent = xhOrder.map((c, p) => `.xh-g [data-c="${c}"]{grid-column:${p + 1}}`).join('');
+    };
+    const _init = window.xhInit;
+    window.xhInit = function () { const r = _init.apply(this, arguments); xhDecorate(); xhSync(false); return r; };
+  }
+  function xhDecorate() {
+    const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
+    const sec = g.closest('.xh-sec');
+    if (sec) {
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。紅字、藍字照原表。方名可以點。';
+      const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
+    }
+    g.querySelectorAll('.xh-h').forEach(h => {
+      h.removeAttribute('draggable'); h.removeAttribute('title');
+      if (!h.querySelector('.xh-rs')) { const i = document.createElement('i'); i.className = 'xh-rs'; i.setAttribute('aria-label', '拖曳調整欄寬'); h.appendChild(i); }
+    });
+    g.querySelectorAll('.xh-c').forEach((c, i) => {
+      c.dataset.xi = i;
+      const ed = XS.e[i]; if (!ed) return;
+      let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
+      if (d.innerHTML !== ed.h) d.innerHTML = ed.h;
+      c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
+    });
+    window.xhApply();
+  }
+  // 拉欄寬
+  let rsz = null;
+  document.addEventListener('pointerdown', e => {
+    const h = e.target.closest && e.target.closest('.xh-rs'); if (!h) return;
+    e.preventDefault(); e.stopPropagation();
+    const head = h.closest('.xh-h'), g = head.closest('.xh-g'), c = +head.dataset.xhc;
+    const fs = parseFloat(getComputedStyle(g).fontSize) || 13;
+    rsz = { c, x: e.clientX, w0: head.offsetWidth / fs, fs };
+    head.classList.add('rsz');
+    try { h.setPointerCapture(e.pointerId); } catch (er) {}
+  }, true);
+  document.addEventListener('pointermove', e => {
+    if (!rsz) return;
+    const v = Math.max(2, Math.round((rsz.w0 + (e.clientX - rsz.x) / rsz.fs) * 10) / 10);
+    XS.w[rsz.c] = { v, t: Date.now() }; window.xhApply();
+  });
+  const rszEnd = () => { if (!rsz) return; rsz = null; document.querySelectorAll('.xh-h.rsz').forEach(x => x.classList.remove('rsz')); xhSave(); };
+  document.addEventListener('pointerup', rszEnd); document.addEventListener('pointercancel', rszEnd);
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-xhwreset]'); if (!b) return;
+    e.stopPropagation();
+    const t = Date.now(); Object.keys(XS.w).forEach(k => { XS.w[k] = { v: XH.cols[k].w, t }; }); window.xhApply(); xhSave();
+  }, true);
+  // 長按格子 → 這一格變成可以編輯
+  let lp = null, lpFired = false;
+  document.addEventListener('pointerdown', e => {
+    const c = e.target.closest && e.target.closest('.xh-c'); if (!c || c.classList.contains('editing')) return;
+    lpFired = false; clearTimeout(lp && lp.t);
+    lp = { c, x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; xhEdit(c); }, 550) };
+  });
+  document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } });
+  ['pointerup', 'pointercancel', 'scroll'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
+  document.addEventListener('click', e => { if (lpFired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopPropagation(); lpFired = false; } }, true);
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xh-c.editing')) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c:not(.editing)')) e.preventDefault(); });
+  function xhEdit(c) {
+    let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
+    c.classList.add('editing'); c.classList.remove('e');
+    d.contentEditable = 'true'; d.focus();
+    try { const r = document.createRange(); r.selectNodeContents(d); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch (er) {}
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (er) {}
+    const done = () => {
+      d.removeEventListener('blur', done);
+      d.contentEditable = 'false'; c.classList.remove('editing');
+      const h = d.innerHTML.replace(/<br>$/, '').trim();
+      const i = +c.dataset.xi;
+      if (!(XS.e[i] && XS.e[i].h === h)) { XS.e[i] = { h, t: Date.now() }; c.classList.add('xh-ed'); xhSave(); }
+      c.classList.toggle('e', !h);
+    };
+    d.addEventListener('blur', done);
+    d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
+  }
+  xhDecorate();
+
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();
