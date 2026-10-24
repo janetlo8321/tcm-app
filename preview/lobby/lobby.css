@@ -979,14 +979,24 @@ body { display: grid; place-items: center; }
   .stage.xue-on .sel, .stage.xue-on .player, .stage.xue-on .pl-dot { opacity: 0 !important; pointer-events: none !important; }
 }
 
-/* 經絡列表鈕移到左上（工具列 › 的下面） */
-.chip-tog { position: fixed; left: 18px; top: calc(128px + env(safe-area-inset-top, 0px)); z-index: 6; }
-.toolbar { top: calc(166px + env(safe-area-inset-top, 0px)); }
+/* 經絡列表鈕 « 在左上工具列 › 的正下方，經絡按鈕在它右邊展開 */
+.chip-tog { position: absolute; left: 18px; top: calc(124px + env(safe-area-inset-top, 0px)); z-index: 6; }
+.toolbar { top: calc(164px + env(safe-area-inset-top, 0px)); }
+.chips.chips-left { position: absolute; left: 58px; right: auto; bottom: auto; top: calc(124px + env(safe-area-inset-top, 0px)); z-index: 6;
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 0; overflow: visible; max-width: min(calc(100% - 76px), 760px);
+  opacity: 0; visibility: hidden; transform: translateX(-10px); transition: opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1), visibility 0s .25s; }
+.stage.chips-open .chips.chips-left { opacity: 1; visibility: visible; transform: none; transition: opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); }
+.chips.chips-left .chip { background: rgba(20, 15, 10, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.stage.chips-open .toolbar { opacity: 0 !important; pointer-events: none; }
+.stage.ip-on .chips.chips-left, .zz-on .chips.chips-left { display: none; }
+.sel.show { pointer-events: auto; cursor: pointer; }
 @media (min-aspect-ratio: 1/1) and (min-width: 900px) {
-  .chip-tog { left: 30px; top: 142px; }
-  .toolbar { top: 182px; }
+  .chip-tog { left: 30px; top: 138px; }
+  .chips.chips-left { left: 70px; top: 138px; }
+  .toolbar { top: 178px; }
 }
 /* 循行經文：臟腑與部位用紅字 */
 .tr-red { color: #ff7a6b; }
 .tr-s.on .tr-red { color: #ff8f80; }
 .stage.chips-open .chip-tog { transform: none; background: rgba(214,166,107,.18); }
+.stage.chips-open .hint { opacity: 0 !important; }

@@ -95,11 +95,7 @@
     const o = nearestPoint(x, y, type === 'touch' ? 22 : 12);
     if (!o) { if (performance.now() - shownAt > 600) hide(); return false; }   // 剛打開（例如查詢點兩下的第二下）不要馬上收起
     const now = performance.now();
-    if (last && last.o === o && now - last.t < 380) {   // 點兩下：打開經絡資訊
-      last = null; hide();
-      L.select(o.m.id); L.open(o.m.id);
-      return true;
-    }
+    if (last && last.o === o && now - last.t < 380) return true;   // 點兩下：一樣是這一穴的小卡
     last = { o, t: now };
     L.select(o.m.id);
     show(o);

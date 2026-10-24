@@ -267,10 +267,14 @@
   body.addEventListener('change', onPick);
   tr.addEventListener('change', onPick);
   /* ---------- 右上：查詢穴位（打字就列出相關穴位，點一下鏡頭飛過去） ---------- */
+  // 點穴名／查詢：看整個人（人在畫面中間），轉到看得見這一穴的那一面，亮點標出位置
   function flyToPoint(o) {
-    const dist = 7, tgt = o.p.clone();
-    if (openId && !WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
-    flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
+    const d = V3(o.n.x, 0, o.n.z);
+    if (d.lengthSq() < 0.05) d.set(o.p.x, 0, o.p.z);
+    if (d.lengthSq() < 0.05) d.set(0, 0, 1);
+    d.normalize();
+    const tgt = V3(0, -0.3, 0), dist = 40;
+    flyTo(tgt, tgt.clone().addScaledVector(d, dist).add(V3(0, 1, 0)), 600);
   }
   const qBox = document.createElement('div');
   qBox.className = 'pt-q';
