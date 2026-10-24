@@ -540,3 +540,7 @@ header.top { position: relative; }
 .bz-hcg-l button small { margin-left: 5px; color: var(--muted, #888); font-size: .85em; }
 .bz-hcg-l button.mine { font-weight: 700; }
 .bz-hcg-l button.on { outline: 2px solid #e0302a; outline-offset: -2px; }
+.bz-h1row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 12px; }
+.bz-h1row h1 { margin: 0; }
+.bz-h1row .tb-path { margin: 0; }
+.bz-h1row + section.sec.tb { margin-top: 8px !important; padding-top: 0 !important; }

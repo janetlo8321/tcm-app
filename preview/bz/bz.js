@@ -1265,6 +1265,9 @@
           l.appendChild(h1);
           grid.classList.add('bz-tbmini');
         }
+      } else {   // 電腦：分類路徑放在藥名右邊
+        const h1 = document.querySelector('#entry > h1'), path = sec.querySelector(':scope > .tb-path');
+        if (h1 && path) { const row = document.createElement('div'); row.className = 'bz-h1row'; h1.before(row); row.append(h1, path); }
       }
     }
     // 分類路徑：手機放到最上面（版本號左邊）
