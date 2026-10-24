@@ -1221,5 +1221,66 @@
     xgSave(); xgRender(sp);
   });
 
+  // 電腦版：溫／寒涼／中性三個下拉直排（手機由 App 內建的下拉處理）
+  document.addEventListener('click', e => {
+    if (innerWidth <= 820 || !e.target.closest) return;
+    const h = e.target.closest('.xl-split[data-cmp] .xl-gh');
+    if (h) { const g = h.parentNode, on = !g.classList.contains('open'); document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open')); g.classList.toggle('open', on); return; }
+    if (e.target.closest('.xl-gl') && !e.target.closest('.xl-gl button')) return;
+    document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open'));
+  }, true);
+
+  /* ---------- 藥材頁：功效的條目名稱藍字、後面原本藍字改粗黑；神農本草經移到功效下面；
+   *            手機：上方返回列縮小、歸經等四格縮小放在藥名右邊、分類路徑放到最上面版本號左邊 ---------- */
+  const PHONE = () => innerWidth <= 820;
+  function herbDecorate() {
+    const sec = document.querySelector('#entry > section.sec.tb:not([data-bzh])');
+    if (sec) {
+      sec.dataset.bzh = '';
+      const gx = [...sec.querySelectorAll(':scope > h3')].find(h => h.textContent.trim() === '功效'), ul = gx && gx.nextElementSibling;
+      if (ul && ul.matches('ul.tb-list')) {
+        ul.classList.add('bz-gx');
+        ul.querySelectorAll(':scope > li').forEach(li => {
+          const lead = [];
+          for (const n of [...li.childNodes]) {
+            if (n.nodeType === 3 && /[：:]/.test(n.nodeValue)) {
+              const i = n.nodeValue.search(/[：:]/);
+              if (i > 0) { const t = document.createTextNode(n.nodeValue.slice(0, i)); n.nodeValue = n.nodeValue.slice(i); lead.push(t); li.insertBefore(t, n); }
+              if (lead.length) { const s = document.createElement('span'); s.className = 'bz-term'; li.insertBefore(s, lead[0]); lead.forEach(x => s.appendChild(x)); }
+              break;
+            }
+            lead.push(n);
+            if (lead.length > 4) break;
+          }
+        });
+        const sn = sec.querySelector(':scope > .sn'); if (sn) ul.after(sn);
+      }
+      if (PHONE()) {
+        const grid = sec.querySelector(':scope > .tb-grid'), h1 = document.querySelector('#entry > h1'), kind = h1 && h1.previousElementSibling;
+        if (grid && h1) {
+          const hero = document.createElement('div'); hero.className = 'bz-hero';
+          const l = document.createElement('div'); l.className = 'bz-hero-l';
+          h1.before(hero); hero.append(l, grid);
+          if (kind && kind.classList.contains('kind')) l.appendChild(kind);
+          l.appendChild(h1);
+          grid.classList.add('bz-tbmini');
+        }
+      }
+    }
+    // 分類路徑：手機放到最上面（版本號左邊）
+    const top = document.querySelector('header.top'), ver = top && top.querySelector('.ver');
+    let cr = top && top.querySelector('.bz-crumb');
+    const path = PHONE() && document.querySelector('#entry > section.sec.tb .tb-path');
+    if (!top || !ver) return;
+    if (!path) { if (cr) cr.remove(); top.classList.remove('bz-crumb-on'); return; }
+    if (!cr) { cr = document.createElement('p'); cr.className = 'bz-crumb'; top.appendChild(cr); }
+    if (cr.innerHTML !== path.innerHTML) cr.innerHTML = path.innerHTML;
+    path.classList.add('bz-moved');
+    top.classList.add('bz-crumb-on');
+    cr.style.top = ver.offsetTop + 'px';
+  }
+  new MutationObserver(() => requestAnimationFrame(herbDecorate)).observe(document.getElementById('entry') || document.body, { childList: true });
+  herbDecorate();
+
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();
