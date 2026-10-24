@@ -118,6 +118,9 @@
       xs: v(excess, defic),
       bl: half ? 0 : ext >= 2.5 ? Math.min(1, 0.35 + ext / 10) : -0.6
     };
+    // 證型名直接寫了虛／實、寒／熱的，以名稱為準（例：「虛證」那一列的清燥救肺湯，字面多「清」「燥」會被估成兩可）
+    const nm = p.name, pin = (k, a, b) => { const A = nm.includes(a), B = nm.includes(b); if (A && !B) ax[k] = Math.min(ax[k], -0.5); else if (B && !A) ax[k] = Math.max(ax[k], 0.5); };
+    pin('xs', '虛', '實'); pin('hr', '寒', '熱');
     ax.yy = Math.max(-1, Math.min(1, (1.2 * ax.hr + 0.7 * ax.xs + 0.5 * Math.sign(ax.bl)) / 2.4));   // 寒、虛、裡偏陰；熱、實、表偏陽
     return ax;
   }
@@ -312,7 +315,7 @@
     for (let c = 0; c <= path.length; c++) cols.push(levelAt(c));
     const col = (lv, c) => `<div class="bz-mcol">${N && c ? `<button type="button" class="bz-mback" data-back>‹ ${E(levelAt(c - 1)[path[c - 1]].t)}</button>` : ''}${lv.map((x, i) => x.sec != null
       ? `<div class="bz-msec ${x.cls || ''}">${E(x.sec)}</div>`
-      : `<button type="button" data-c="${c}" data-i="${i}" data-k="${x.kids ? 1 : 0}" class="${[x.cls || '', path[c] === i ? 'on' : '', x.v != null && x.v === def.val ? 'cur' : ''].join(' ')}">${E(x.t)}${x.note ? `<em>${E(x.note)}</em>` : ''}${x.kids ? `<small>${x.n != null ? x.n : x.kids.length}</small><i>›</i>` : ''}</button>`).join('')}</div>`;
+      : `<button type="button" data-c="${c}" data-i="${i}" data-k="${x.kids ? 1 : 0}" class="${[x.cls || '', path[c] === i ? 'on' : '', x.v != null && x.v === def.val ? 'cur' : ''].join(' ')}"><span class="bz-mt">${E(x.t)}</span>${x.note ? `<em>${E(x.note)}</em>` : ''}${x.kids ? `<small>${x.n != null ? x.n : x.kids.length}</small><i>›</i>` : ''}</button>`).join('')}</div>`;
     el.innerHTML = N ? col(cols[cols.length - 1], cols.length - 1) : cols.map(col).join('');
     if (!N && keep) [...el.children].slice(0, keep).forEach((x, k) => { x.scrollTop = tops[k] || 0; });
     placeMenu();
@@ -355,19 +358,32 @@
       const rest = (DB.formulas || []).map(f => f.name).filter(n => !used.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
       if (rest.length) FX_SYS.push({ t: '其他方劑', kids: rest.map(n => fxLeaf(n)) });
     }
-    const out = [];
+    return fxOtherTree();
+  }
+  // 處方：選了八綱就是「符合的方」；沒選就是本病的方。第一列「＋新增」
+  function fxMainTree() {
+    fxTree();
     const hit = bgMatches();
     if (hit) {
-      // 符合的方 + 自己輸入過的方（同一病、同樣的虛實陰陽寒熱），前面加序號；最後一列可以自訂
       const mine = myFx().filter(x => x.tag === hit.key && !hit.list.some(y => y.v === x.n)).map(x => fxLeaf(x.n, '自訂'));
       const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
-      out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: (list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]).concat([{ t: '⊕ 其他（自訂）', v: OTHER, cls: 'dir' }]) });
+      return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]);
     }
+    const seen = new Set(), list = [];
+    pats.forEach(p => p.fx.forEach(f => { if (!seen.has(f.name)) { seen.add(f.name); list.push({ ...fxLeaf(f.name), note: p.name }); } }));
+    myFx().forEach(x => { if (!seen.has(x.n)) { seen.add(x.n); list.push(fxLeaf(x.n, '自訂')); } });
+    return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? [{ sec: '本病的方', cls: 'hit' }] : [], list.map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` })));
+  }
+  // 其他處方：我輸入過的方、本病常用（依證型）、各系統的方
+  function fxOtherTree() {
+    const out = [];
     // 我輸入過的方：所有病證輸入過的都列出來，同名只留一個（本病的排前面）
     const allMine = uniqBy(myFx().concat(...Object.values(myFxAll())), x => x.n);
     if (allMine.length) out.push({ t: '我輸入過的方', cls: 'hit', kids: allMine.map((x, i) => ({ t: `${i + 1}. ${x.n}`, v: x.n })) });
     const local = uniqBy(pats, p => p.name).filter(p => p.fx.length);
-    if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: p.fx.map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => p.fx), f => f.name).length });
+    // 同名證型（例：失音有兩列「虛證」）的方要合在一起，不能只留第一列
+    const fxOf = n => uniqBy(pats.filter(p => p.name === n).flatMap(p => p.fx), f => f.name);
+    if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: fxOf(p.name).map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => fxOf(p.name)), f => f.name).length });
     return out.concat(FX_SYS, [{ t: '⊕ 自定義處方', v: OTHER, cls: 'dir' }]);
   }
   // 虛實、陰陽、寒熱：選了之後，找本病裡八綱相符的證型，帶出它們的方
@@ -464,7 +480,7 @@
   function pickCas(key, v) {
     const r = report;
     if (v == null || v === '') return;
-    if (key === 'fxq' || key === 'fxhit') key = 'fx';   // 查詢、符合的方選到的方
+    if (key === 'fxq' || key === 'fxhit' || key === 'fxo') key = 'fx';   // 查詢、符合的方選到的方
     if (key === 'herb') {
       if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
       r._t_herb = false;
@@ -514,13 +530,14 @@
           ${r.sx.length ? `<div class="bz-tags wide">${r.sx.map((v, i) => `<span class="bz-tag s">${E(v)}<button type="button" data-del="sx" data-i="${i}" aria-label="移除">×</button></span>`).join('')}</div>` : ''}
           <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
-          <div class="bz-fld"><span class="bz-lb">證型</span>
+          <div class="bz-fld wide"><span class="bz-lb">證型</span>
             <div class="bz-bgs">${AX.filter(a => a.k !== 'bl').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
 </div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
-            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxTree(), r.fx)}
+            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxMainTree(), r.fx)}
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}
             <label class="bz-q" data-cas="fxq"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" data-q placeholder="查詢" autocomplete="off" enterkeyhint="search" aria-label="查詢處方"></label></div>
+          <div class="bz-fld"><span class="bz-lb">其他處方</span>${cascade('fxo', '請選擇', fxTree(), r.fx)}</div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
             <div class="bz-addrow">${HT ? cascade('herb', '加一味藥…', HT, null)
@@ -589,9 +606,7 @@
       report.ax[k] = (report.bg[k] || 0) * 0.6;
       keep(draw);
       const fc = root.querySelector('[data-cas="fx"]');   // 處方那格自動跳出相符的方
-      // 只跳出「符合的方」那一欄，不帶出左邊整個分類選單
-      const hit = fc && Object.keys(report.bg).length && CAS.fx && CAS.fx.tree[0] && CAS.fx.tree[0].cls === 'hit' ? CAS.fx.tree[0] : null;
-      if (hit) { CAS.fxhit = { tree: hit.kids, val: report.fx }; openMenu(fc, [], 'fxhit'); }
+      if (fc && Object.keys(report.bg).length && bgMatches()) openMenu(fc);
     }
   });
   // 滑鼠：碰到選單鈕就展開；離開選單鈕和選單一下子就收起
@@ -904,7 +919,7 @@
   const ST = {
     region: ['台北', '新北', '桃竹苗', '中彰投', '雲嘉南', '高屏', '宜蘭', '花蓮', '台東', '離島'],
     sex: ['女', '男'],
-    age: ['<18', '18–29', '30–44', '45–64', '65+'],
+    age: ['<18', '18–29', '30–44', '45–64', '65–74', '75–84', '85–99', '100+'],
     body: ['平和', '氣虛', '陽虛', '陰虛', '痰濕', '濕熱', '血瘀', '氣鬱', '特稟'],
     concern: ['睡眠', '疼痛', '腸胃', '情緒壓力', '疲勞', '體重', '皮膚', '婦科', '慢性病控制'],
     sport: ['規律運動', '偶爾運動', '很少運動'],
@@ -931,7 +946,13 @@
       return true;
     } catch (e) { return false; }
   }
-  const chips = (k, multi, val) => `<div class="st-chips" data-k="${k}" data-multi="${multi ? 1 : ''}">${ST[k].map(v => `<button type="button" class="${(multi ? (val || []).includes(v) : val === v) ? 'on' : ''}" data-val="${E(v)}">${E(v)}</button>`).join('')}</div>`;
+  // 自己新增的選項（每一類「⊕ 其他（可新增）」打的字），記在這台裝置，下次直接出現
+  const STO = 'tcm-stats-opts-v1';
+  const stOpts = () => { try { return JSON.parse(localStorage.getItem(STO) || '{}') || {}; } catch (e) { return {}; } };
+  const stAddOpt = (k, v) => { const o = stOpts(); o[k] = o[k] || []; if (!ST[k].includes(v) && !o[k].includes(v)) o[k].push(v); try { localStorage.setItem(STO, JSON.stringify(o)); } catch (e) {} };
+  const NO_OTHER = { sex: 1, age: 1 };
+  const chip = (v, on) => `<button type="button" class="${on ? 'on' : ''}" data-val="${E(v)}">${E(v)}</button>`;
+  const chips = (k, multi, val) => `<div class="st-chips" data-k="${k}" data-multi="${multi ? 1 : ''}">${ST[k].concat(stOpts()[k] || []).map(v => chip(v, multi ? (val || []).includes(v) : val === v)).join('')}${NO_OTHER[k] ? '' : '<button type="button" class="st-other" data-other>⊕ 其他（可新增）</button><input type="text" class="st-oin" placeholder="輸入後按 Enter" hidden>'}</div>`;
   function statOpen() {
     if (!cur) return;
     const doc = docOf();
@@ -955,6 +976,8 @@
   root.addEventListener('click', e => {
     const m = e.target.closest('.st-modal'); if (!m) return;
     e.stopPropagation();
+    const oth = e.target.closest('[data-other]');
+    if (oth) { const inp = oth.nextElementSibling; oth.hidden = true; inp.hidden = false; inp.focus(); return; }
     const c = e.target.closest('.st-chips button');
     if (c) {
       const box = c.parentNode;
@@ -978,6 +1001,25 @@
       stSync();
     }
   }, true);
+
+  root.addEventListener('keydown', e => {
+    const inp = e.target; if (!inp.classList || !inp.classList.contains('st-oin') || e.isComposing) return;
+    const box = inp.parentNode, oth = box.querySelector('[data-other]');
+    if (e.key === 'Escape') { inp.value = ''; inp.hidden = true; oth.hidden = false; return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const v = inp.value.trim(); inp.value = ''; inp.hidden = true; oth.hidden = false;
+    if (!v) return;
+    const k = box.dataset.k; stAddOpt(k, v);
+    let b = [...box.querySelectorAll('button[data-val]')].find(x => x.dataset.val === v);
+    if (!b) { oth.insertAdjacentHTML('beforebegin', chip(v, false)); b = oth.previousElementSibling; }
+    if (!box.dataset.multi) box.querySelectorAll('button.on').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  });
+  root.addEventListener('focusout', e => {   // 打完沒按 Enter 就點別處：也算新增
+    const inp = e.target; if (!inp.classList || !inp.classList.contains('st-oin') || !inp.value.trim()) return;
+    inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  });
 
   // 齒輪 → 第二層選單 → 總統計
   function gearInit() {
@@ -1028,7 +1070,7 @@
     const recs = cmp ? all.filter(r => r.region === '台北' || r.region === '花蓮') : dashReg === '全部' ? all : all.filter(r => r.region === dashReg);
     const n = recs.length, cnt = reg => all.filter(r => r.region === reg).length;
     const top = k => { const t = tally(recs, k)[0]; return t ? { v: t[0], p: t[1] / Math.max(1, n) } : { v: '—', p: 0 }; };
-    const others = ST.region.filter(r => r !== '台北' && r !== '花蓮');
+    const others = [...new Set(ST.region.concat(stOpts().region || [], all.map(r => r.region)))].filter(r => r && r !== '台北' && r !== '花蓮');
     const tabs = ['全部', '台北', '花蓮', '台北⇄花蓮'];
     const sat = CATS.map((c, i) => { const t = top(c.k); return `<button type="button" class="sat s${i}${dashCat === c.k ? ' on' : ''}" data-dash="c:${c.k}">
         <svg viewBox="0 0 100 100">${ring(t.p, 42, 5)}<circle r="34" cx="50" cy="50" class="in"/></svg>
@@ -1065,6 +1107,205 @@
     return head + bars(tally(recs, dashCat), recs.length);
   }
   gearInit();
+
+  /* ---------- 病證表的組成列：每一列都從主方欄開始（證型格往下延伸蓋住組成列）；只有一個方時不再重複方名 ---------- */
+  if (typeof nbTable === 'function' && typeof nbCompHtml === 'function') {
+    try {
+      const src = nbTable.toString(), old = 'const act = body.filter(x => x.r <= r && last(x) > r);';
+      if (src.includes(old)) window.nbTable = (0, eval)('(' + src.replace(old, "const act = body.filter(x => x.r <= r && (last(x) > r || (last(x) === r && span(x).every(p => roleAt(p) === 'k'))));") + ')');
+    } catch (e) {}
+    const _comp = nbCompHtml;
+    window.nbCompHtml = function () {
+      const h = _comp.apply(this, arguments);
+      return (h.match(/<span class="cmp-f">/g) || []).length === 1 ? h.replace(/<span class="cmp-f"><b>[^<]*<\/b>/, '<span class="cmp-f">') : h;
+    };
+  }
+
+  /* ---------- 藥物總表：分類改成三組（溫、寒涼、中性）；平常只顯示選的分類（粉紅）＋比較欄（橘），左上 ⊞ 進總表、總表左上 « 回來 ---------- */
+  const XG = [
+    ['or', '溫', [['辛溫解表', ['辛溫解表藥']], ['理氣', ['理氣藥', '行氣止痛']], ['芳香化濕', ['芳香化濕藥']], ['補氣', ['補氣藥']], ['補血', ['補血藥']],
+      ['活血化瘀', ['活血止痛藥', '活血調經藥', '活血療傷藥']], ['補陽', ['補陽藥']]]],
+    ['bl', '寒涼', [['辛涼解表', ['辛涼解表藥']], ['清熱瀉火', ['清熱瀉火藥']], ['清熱燥濕', ['清熱燥濕藥']], ['清熱涼血', ['清熱涼血藥']],
+      ['清熱解毒', ['清熱解毒藥', '喉頭疼痛', '熱毒痢疾', '其他']], ['清虛熱', ['清虛熱藥']], ['攻下潤下', ['攻下藥', '潤下藥', '峻下逐水藥']],
+      ['利尿利濕', ['利尿消腫', '利尿通淋', '利濕退黃']], ['平肝', ['平肝息風藥', '熄風止痙藥']], ['止血', ['涼血止血藥', '收斂止血藥', '化瘀止血藥', '溫經止血藥']], ['補陰', ['補陰藥']]]],
+    ['gy', '中性', [['祛風濕', ['祛風濕藥']], ['化痰', ['化痰']], ['止咳平喘', ['止咳平喘藥']], ['固澀', ['固表止汗', '固精縮尿止帶', '歛肺澀腸', '斂肺澀腸']],
+      ['安神', ['安神藥']], ['開竅', ['開竅藥']], ['消食', ['消食藥']], ['外用', ['外用藥']], ['驅蟲', ['驅蟲藥']], ['湧吐', ['湧吐藥']]]]
+  ];
+  const XGK = 'tcm-xlcmp-v1';
+  let xg = null;   // { key: { name, cls, ids, n } }
+  const xgSt = (() => { try { return JSON.parse(sessionStorage.getItem(XGK) || '{}') || {}; } catch (e) { return {}; } })();
+  const xgSave = () => { try { sessionStorage.setItem(XGK, JSON.stringify(xgSt)); } catch (e) {} };
+  function xgBuild() {
+    const cats = typeof sheetCats === 'function' ? sheetCats() : [];
+    xg = {};
+    XG.forEach(([cls, , list]) => list.forEach(([name, ts]) => {
+      const cs = cats.filter(c => ts.includes(c.t));
+      if (cs.length) xg[name] = { name, cls, ids: cs.flatMap(c => c.ids), n: cs.reduce((a, c) => a + c.n, 0), hs: cs.flatMap(c => c.hs || []) };
+    }));
+  }
+  // 從總表裡把某些分類（xlc-編號）那幾段複製出來：分類那一列到下一個分類之前
+  function xgRows(ids) {
+    const byTable = new Map();
+    ids.forEach(i => {
+      const td = document.getElementById('xlc-' + i); if (!td) return;
+      const tb = td.closest('table'), tr = td.closest('tr');
+      const rows = [tr]; let n = tr.nextElementSibling;
+      while (n && !n.querySelector('[id^="xlc-"]')) { rows.push(n); n = n.nextElementSibling; }
+      while (rows.length > 1 && rows[rows.length - 1].classList.contains('xl-blank')) rows.pop();
+      if (!byTable.has(tb)) byTable.set(tb, []);
+      byTable.get(tb).push(...rows);
+    });
+    return [...byTable].map(([tb, rows]) => {
+      const t = document.createElement('table'); t.className = 'xl';
+      const cg = tb.querySelector('colgroup'); if (cg) t.appendChild(cg.cloneNode(true));
+      const b = document.createElement('tbody'); rows.forEach(r => { const c = r.cloneNode(true); c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id')); c.querySelectorAll('.xl-hit').forEach(x => x.classList.remove('xl-hit')); b.appendChild(c); });
+      t.appendChild(b); return t.outerHTML;
+    }).join('');
+  }
+  function xgPane(side) {
+    const k = xgSt[side], g = k && xg[k];
+    if (side === 'p') return `<header class="xl-ph"><button type="button" class="xl-pb" data-xltotal title="藥物總表（可放大縮小）" aria-label="進入藥物總表">⊞</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>` : '<b class="xl-pt">選左邊的分類</b>'}</header><div class="xl-pbody">${g ? xgRows(g.ids) : ''}</div>`;
+    return `<header class="xl-ph"><button type="button" class="xl-pb" data-xlpick title="換一個分類來比較" aria-label="換比較的分類">＋</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small><button type="button" class="xl-px" data-xlclr aria-label="清除比較">✕</button>` : '<b class="xl-pt">比較</b>'}</header>` +
+      (g ? `<div class="xl-pbody">${xgRows(g.ids)}</div>` : '<div class="xl-pbody xl-pempty"><button type="button" class="xl-pplus" data-xlpick aria-label="選一個分類來比較">＋</button><p>按 ＋，再選左邊一個分類來比較</p></div>');
+  }
+  function xgRender(sp) {
+    sp = sp || document.querySelector('.xl-split[data-cmp]'); if (!sp) return;
+    const c = sp.querySelector('.xl-cmp');
+    c.querySelector('.xl-pane-p').innerHTML = xgPane('p');
+    c.querySelector('.xl-pane-o').innerHTML = xgPane('o');
+    sp.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
+  }
+  function xgMode(sp, total) {
+    sp.classList.toggle('xl-total', total); sp.classList.remove('xl-picking');
+    xgSt.total = total; xgSave();
+  }
+  function xgDecorate() {
+    const sp = document.querySelector('.xl-split:not([data-cmp])'); if (!sp) return;
+    const list = sp.querySelector('.xl-grps'); if (!list) return;
+    xgBuild(); if (!Object.keys(xg).length) return;
+    sp.dataset.cmp = '';
+    const btn = g => `<button type="button" data-xg="${E(g.name)}" class="${g.cls === 'gy' ? '' : g.cls}">${E(g.name)}<small>${g.n}</small></button>`;
+    list.innerHTML = XG.map(([cls, name, l]) => { const gs = l.map(x => xg[x[0]]).filter(Boolean); return `<div class="xl-grp xl-grp-${cls}"><p class="xl-gh">${name}<small>${gs.length} 類</small></p><div class="xl-gl">${gs.map(btn).join('')}</div></div>`; }).join('');
+    const tag = sp.querySelector('.xl-idx summary .tag'); if (tag) tag.textContent = Object.keys(xg).length + ' 類';
+    const zb = sp.querySelector('.xl-zoombar');
+    if (zb && !zb.querySelector('[data-xlback]')) zb.insertAdjacentHTML('afterbegin', '<button type="button" class="xl-back" data-xlback aria-label="回到分類比較">«</button>');
+    const main = sp.querySelector('.xl-main');
+    main.insertAdjacentHTML('beforebegin', '<div class="xl-cmp"><section class="xl-pane xl-pane-p"></section><section class="xl-pane xl-pane-o"></section></div>');
+    if (!xgSt.p || !xg[xgSt.p]) xgSt.p = Object.keys(xg)[0];
+    if (xgSt.o && !xg[xgSt.o]) xgSt.o = null;
+    xgRender(sp);
+    xgMode(sp, !!xgSt.total);
+  }
+  let xgT = 0;
+  new MutationObserver(() => { cancelAnimationFrame(xgT); xgT = requestAnimationFrame(xgDecorate); }).observe(document.body, { childList: true, subtree: true });
+  xgDecorate();
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('[data-xg], [data-xltotal], [data-xlback], [data-xlpick], [data-xlclr]');
+    if (!t) return;
+    const sp = t.closest('.xl-split'); if (!sp) return;
+    if (t.dataset.xltotal != null) return xgMode(sp, true);
+    if (t.dataset.xlback != null) return xgMode(sp, false);
+    if (t.dataset.xlpick != null) { sp.classList.toggle('xl-picking'); return; }
+    if (t.dataset.xlclr != null) { xgSt.o = null; xgSave(); return xgRender(sp); }
+    const g = xg[t.dataset.xg]; if (!g) return;
+    if (sp.classList.contains('xl-total')) {   // 總表：跳到那一類（左上角），框起來
+      const wrap = sp.querySelector('.xl-wrap'), el = document.getElementById('xlc-' + g.ids[0]); if (!wrap || !el) return;
+      const r = wrap.getBoundingClientRect(), c = el.getBoundingClientRect(), sh = wrap.querySelector('.xl-sheet');
+      sh.style.paddingRight = wrap.clientWidth + 'px'; sh.style.paddingBottom = wrap.clientHeight + 'px';
+      wrap.scrollTop += c.top - r.top; wrap.scrollLeft += c.left - r.left;
+      document.querySelectorAll('.xl-hit').forEach(x => x.classList.remove('xl-hit'));
+      g.ids.forEach(i => { const x = document.getElementById('xlc-' + i); if (x) x.classList.add('xl-hit'); });
+      xgSt.p = g.name;
+    } else if (sp.classList.contains('xl-picking')) { xgSt.o = g.name; sp.classList.remove('xl-picking'); }
+    else xgSt.p = g.name;
+    xgSave(); xgRender(sp);
+  });
+
+  // 電腦版：溫／寒涼／中性三個下拉直排（手機由 App 內建的下拉處理）
+  document.addEventListener('click', e => {
+    if (innerWidth <= 820 || !e.target.closest) return;
+    const h = e.target.closest('.xl-split[data-cmp] .xl-gh');
+    if (h) { const g = h.parentNode, on = !g.classList.contains('open'); document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open')); g.classList.toggle('open', on); return; }
+    if (e.target.closest('.xl-gl') && !e.target.closest('.xl-gl button')) return;
+    document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open'));
+  }, true);
+
+  /* ---------- 藥材頁：功效的條目名稱藍字、後面原本藍字改粗黑；神農本草經移到功效下面；
+   *            手機：上方返回列縮小、歸經等四格縮小放在藥名右邊、分類路徑放到最上面版本號左邊 ---------- */
+  const PHONE = () => innerWidth <= 820;
+  function herbDecorate() {
+    const sec = document.querySelector('#entry > section.sec.tb:not([data-bzh])');
+    if (sec) {
+      sec.dataset.bzh = '';
+      const gx = [...sec.querySelectorAll(':scope > h3')].find(h => h.textContent.trim() === '功效'), ul = gx && gx.nextElementSibling;
+      if (ul && ul.matches('ul.tb-list')) {
+        ul.classList.add('bz-gx');
+        ul.querySelectorAll(':scope > li').forEach(li => {
+          const lead = [];
+          for (const n of [...li.childNodes]) {
+            if (n.nodeType === 3 && /[：:]/.test(n.nodeValue)) {
+              const i = n.nodeValue.search(/[：:]/);
+              if (i > 0) { const t = document.createTextNode(n.nodeValue.slice(0, i)); n.nodeValue = n.nodeValue.slice(i); lead.push(t); li.insertBefore(t, n); }
+              if (lead.length) { const s = document.createElement('span'); s.className = 'bz-term'; li.insertBefore(s, lead[0]); lead.forEach(x => s.appendChild(x)); }
+              break;
+            }
+            lead.push(n);
+            if (lead.length > 4) break;
+          }
+        });
+        const sn = sec.querySelector(':scope > .sn'); if (sn) ul.after(sn);
+      }
+      if (PHONE()) {
+        const grid = sec.querySelector(':scope > .tb-grid'), h1 = document.querySelector('#entry > h1'), kind = h1 && h1.previousElementSibling;
+        if (grid && h1) {
+          const hero = document.createElement('div'); hero.className = 'bz-hero';
+          const l = document.createElement('div'); l.className = 'bz-hero-l';
+          h1.before(hero); hero.append(l, grid);
+          if (kind && kind.classList.contains('kind')) l.appendChild(kind);
+          l.appendChild(h1);
+          grid.classList.add('bz-tbmini');
+        }
+      } else {   // 電腦：分類路徑放在藥名右邊
+        const h1 = document.querySelector('#entry > h1'), path = sec.querySelector(':scope > .tb-path');
+        if (h1 && path) { const row = document.createElement('div'); row.className = 'bz-h1row'; h1.before(row); row.append(h1, path); }
+      }
+    }
+    // 分類路徑：手機放到最上面（版本號左邊）
+    const top = document.querySelector('header.top'), ver = top && top.querySelector('.ver');
+    let cr = top && top.querySelector('.bz-crumb');
+    const path = PHONE() && document.querySelector('#entry > section.sec.tb .tb-path');
+    if (!top || !ver) return;
+    if (!path) { if (cr) cr.remove(); top.classList.remove('bz-crumb-on'); return; }
+    if (!cr) { cr = document.createElement('p'); cr.className = 'bz-crumb'; top.appendChild(cr); }
+    if (cr.innerHTML !== path.innerHTML) cr.innerHTML = path.innerHTML;
+    path.classList.add('bz-moved');
+    top.classList.add('bz-crumb-on');
+    cr.style.top = ver.offsetTop + 'px';
+  }
+  new MutationObserver(() => requestAnimationFrame(herbDecorate)).observe(document.getElementById('entry') || document.body, { childList: true });
+  herbDecorate();
+
+
+  // 藥材頁左邊的分類檢索：也用 28 類分組（溫、寒涼、中性）；點分類看同類藥，點「藥物總表 →」到比較頁
+  let hcSel = null, hcFor = null;
+  if (typeof herbCatsHtml === 'function') window.herbCatsHtml = function (h) {
+    if (!xg || !Object.keys(xg).length) xgBuild();
+    const gs = Object.values(xg); if (!gs.length || !h) return '';
+    const mine = gs.filter(g => g.hs.some(x => x.g === h.id));
+    if (hcFor !== h.id) { hcFor = h.id; if (!hcSel || !mine.some(g => g.name === hcSel)) hcSel = mine.length ? mine[0].name : gs[0].name; }
+    const sel = xg[hcSel] || gs[0];
+    const btn = g => `<button type="button" data-bzhc="${E(g.name)}" class="${g.name === sel.name ? 'on ' : ''}${mine.includes(g) ? 'mine' : ''}">${E(g.name)}<small>${g.n}</small></button>`;
+    return `<p class="hc-head">分類檢索<span class="tag">${gs.length} 類</span></p><div class="bz-hcg">` +
+      XG.map(([cls, name, l]) => { const gg = l.map(x => xg[x[0]]).filter(Boolean); return `<div class="bz-hcg-g bz-hcg-${cls}"><p class="bz-hcg-h">${name}<small>${gg.length} 類</small></p><div class="bz-hcg-l">${gg.map(btn).join('')}</div></div>`; }).join('') +
+      `</div><div class="hc-box"><p class="hc-title">${E(sel.name)}<a href="#sheet" data-bzhcsheet="${E(sel.name)}">藥物總表 →</a></p>
+      <p class="hc-herbs">${sel.hs.map(x => `<a href="#${x.g}" data-go="${x.g}" class="xl-${x.f}${x.g === h.id ? ' cur' : ''}">${typeof stripTags === 'function' ? stripTags(x.h) : E(x.h)}</a>`).join('')}</p></div>`;
+  };
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-bzhc], [data-bzhcsheet]'); if (!b) return;
+    if (b.dataset.bzhc) { hcSel = b.dataset.bzhc; const box = document.getElementById('herbCats'); if (box && typeof by !== 'undefined' && typeof state !== 'undefined') box.innerHTML = window.herbCatsHtml(by[state.cur]); return; }
+    e.preventDefault(); xgSt.p = b.dataset.bzhcsheet; xgSt.total = false; xgSave();
+    if (typeof go === 'function') go('sheet');
+  });
 
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();

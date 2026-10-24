@@ -358,6 +358,7 @@
     trFor = cur && cur.m.id; trK = -1;
     const html = cur && trHtml(cur.m);
     trBody.innerHTML = html ? `<section><h3>循行<small>${esc(cur.m.name)}</small></h3><p class="ip-p">${html}</p></section>` : '';
+    setTimeout(() => redify(trBody), 0);   // 等穴名連結做完再標紅
   }
   function trHtml(m) {   // 循行經文，每一句字幕對到的範圍包成 .tr-s
     const j = JING && JING[m.id];
@@ -402,6 +403,21 @@
     }
     html += esc(text.slice(i));
     return html.replace(/●/g, '<br>●').replace(/\n/g, '<br>').replace(/^<br>/, '');
+  }
+  // 循行經文裡的臟腑和部位用紅字（依「十二經絡循行經過的臟腑／部位」整理表）
+  const RED = ['膀胱', '大腸', '小腸', '心包', '三焦', '肺', '胃', '脾', '心', '腎', '膽', '肝', '腦',
+    '客主人', '喉嚨', '缺盆', '足跗', '大迎', '目', '耳', '鼻', '頔', '䪼', '顓', '頰', '唇', '口', '舌', '齒', '頸', '項', '咽', '膈', '膕'];
+  const RED_RE = new RegExp(RED.join('|'), 'g');
+  function redify(root) {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('.tr-red, h3, small, button') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const nodes = []; while (w.nextNode()) nodes.push(w.currentNode);
+    nodes.forEach(n => {
+      const t = n.nodeValue; RED_RE.lastIndex = 0;
+      if (!RED_RE.test(t)) return;
+      const span = document.createElement('span');
+      span.innerHTML = esc(t).replace(RED_RE, m => `<span class="tr-red">${m}</span>`);
+      n.replaceWith(...span.childNodes);
+    });
   }
   function trStep(st) {
     if (!cur || !st) return;
@@ -520,6 +536,7 @@
         const p = sec.querySelector('.ip-p'); if (!p) return;
         p.innerHTML = html.replace(/class="tr-s"/g, `class="tr-s" data-m="${m.id}"`);
         if (L.xue && L.xue.linkify) L.xue.linkify(p);
+        redify(p);
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'ip-play'; b.dataset.m = m.id; b.setAttribute('aria-label', '播放循行'); b.innerHTML = '<i></i>';
         h.appendChild(b);
@@ -542,5 +559,5 @@
   function syncBtn() { document.querySelectorAll('.ip-play').forEach(b => b.classList.toggle('on', playing && cur && cur.m.id === b.dataset.m)); }
   (function wait(n) { if (!infoHook() && n < 100) setTimeout(() => wait(n + 1), 200); })(0);
 
-  L.tour = { TOURS, show };
+  L.tour = { TOURS, show, play: () => { if (!cur) return; setOpen(true); setPlaying(true); }, get curId() { return cur && cur.m.id; } };
 })();

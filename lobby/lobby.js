@@ -11,9 +11,9 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v2.7.0';
-  const UPDATED = '10/24 04:34';
-  const FIX_NO = 17;
+  const VERSION = 'v2.8.0';
+  const UPDATED = '10/25 01:08';
+  const FIX_NO = 18;
 
   const $ = id => document.getElementById(id);
   const stage = $('stage'), wrap = $('canvas-wrap'), labelsEl = $('labels');
@@ -563,17 +563,13 @@
     b.className = 'chip';
     b.textContent = m.short;
     b.title = m.name;
-    b.addEventListener('click', () => {
+    b.addEventListener('click', () => {   // 點一下或兩下都直接進入這條經的資訊
       const now = performance.now();
-      if (lastChip && lastChip.id === m.id && now - lastChip.t < 350) {
-        lastChip = null;
-        select(m.id);
-        openMeridian(m.id);
-        return;
-      }
+      if (lastChip && lastChip.id === m.id && now - lastChip.t < 600) return;   // 點兩下的第二下：已經打開了
       lastChip = { id: m.id, t: now };
-      select(selectedId === m.id ? null : m.id);
-      clearTimeout(chipT); chipT = setTimeout(collapseChips, 420);   // 選好就收合（留一點時間給點兩下）
+      select(m.id);
+      openMeridian(m.id);
+      collapseChips();
     });
     chipsEl.appendChild(b);
     chipEls[m.id] = b;
@@ -581,6 +577,11 @@
 
   // 右上的 ›：展開／收起經絡按鈕
   const chipTog = $('chip-tog');
+  // « 放在左上工具列 › 的正下方，經絡按鈕在它右邊展開
+  stage.appendChild(chipTog); stage.appendChild(chipsEl); chipsEl.classList.add('chips-left');
+  if (chipEls.SI) { const br = document.createElement('i'); br.className = 'chip-br'; chipEls.SI.after(br); }   // 小腸之後換行：膀胱～督脈排第二列
+  // 下方的經絡名稱：點一下或兩下也進入資訊
+  selEl.addEventListener('click', () => { if (selectedId) openMeridian(selectedId); });
   let chipT = 0;
   function collapseChips() { stage.classList.remove('chips-open'); chipTog.setAttribute('aria-expanded', 'false'); }
   canvas.addEventListener('pointerdown', collapseChips);   // 點畫面其他地方也收合
@@ -599,7 +600,7 @@
     selectedId = id || null;
     Object.entries(chipEls).forEach(([k, b]) => b.classList.toggle('active', k === selectedId));
     if (selectedId && chipEls[selectedId]) {
-      chipEls[selectedId].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      // 經絡按鈕改在左上展開，不用捲動
     }
     const m = byId[selectedId];
     if (m) {

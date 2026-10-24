@@ -43,7 +43,7 @@
     const d = XUE && XUE[o.m.id + o.no];
     const ps = a => (a || []).map(t => `<p>${E(t)}</p>`).join('');
     card.innerHTML = `<button type="button" class="xue-x" aria-label="關閉">✕</button>
-      <header><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>
+      <header><button type="button" class="xue-mback" aria-label="回到${E(o.m.name)}" title="回到${E(o.m.name)}">«</button><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>
       ${d ? `<section><h4>部位</h4><div class="xue-pos">${ps(d.pos)}</div></section>${d.take && d.take.length ? `<section><h4>取穴法</h4>${ps(d.take)}</section>` : ''}`
         : `<p class="xue-none">${XUE ? '筆記裡沒有這個穴的部位資料' : '載入中…'}</p>`}`;
   }
@@ -58,30 +58,18 @@
   }
   function hide() { cur = null; hov = false; card.classList.remove('show'); }
   let hov = false, hovT = 0;
-  // 跟著穴點移動；穴點轉到背面就收起
+  // 小卡固定位置（電腦：左下角；手機：腳底），不再跟著穴點跑，也就不會蓋到人或抖動
+  // 手機上小卡佔掉下半部，畫面往上移小卡高度的一半，人仍在可見區域中間，一樣可以放大縮小
+  const PHONE = matchMedia('(max-aspect-ratio: 3/4), (max-width: 600px)');
+  let off = 0;
   function place() {
-    if (!cur) return;
-    const away = _w.subVectors(camera.position, cur.p).normalize().dot(cur.n) < (view.opaque > 0.5 ? 0.05 : -0.3);   // 轉到背面：先藏起來，轉回來再出現
-    card.classList.toggle('away', away); glow.material.opacity = away ? 0 : 1;
-    if (away) return;
-    const r = stage.getBoundingClientRect(), c = canvas.getBoundingClientRect();
-    _v.copy(cur.p).project(camera);
-    const x = c.left - r.left + (_v.x + 1) / 2 * c.width, y = c.top - r.top + (1 - _v.y) / 2 * c.height;
-    // 小卡不能蓋住穴點亮光和右邊的穴名：先試左右兩側，放不下（手機）就放在穴點上方或下方
-    const PAD = 8, TOP = 60, lblW = 14 * (cur.name.length + 1) + 20, gap = 26;
-    card.style.maxHeight = '';
-    const w = card.offsetWidth;
-    let h = card.offsetHeight, left, top;
-    if (x + lblW + w <= r.width - PAD) { left = x + lblW; top = y - h / 2; }
-    else if (x - gap - w >= PAD) { left = x - gap - w; top = y - h / 2; }
-    else {
-      left = Math.max(PAD, Math.min(x - w / 2, r.width - w - PAD));
-      const below = r.height - PAD - (y + gap), above = y - gap - TOP;
-      if (h <= below || (h > above && below >= above)) { top = y + gap; if (h > below) { card.style.maxHeight = Math.max(120, below) + 'px'; h = Math.max(120, below); } }
-      else { if (h > above) { card.style.maxHeight = Math.max(120, above) + 'px'; h = Math.max(120, above); } top = y - gap - h; }
-    }
-    if (left !== undefined && (x + lblW + w <= r.width - PAD || x - gap - w >= PAD)) top = Math.max(TOP, Math.min(top, r.height - h - PAD));
-    card.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    const away = !!cur && _w.subVectors(camera.position, cur.p).normalize().dot(cur.n) < (view.opaque > 0.5 ? 0.05 : -0.3);
+    glow.material.opacity = away ? 0 : 1;
+    stage.classList.toggle('xue-on', !!cur);
+    const want = cur && PHONE.matches ? card.offsetHeight / 2 : 0;
+    if (Math.abs(want - off) < 0.5) { if (off === want) return; off = want; } else off += (want - off) * 0.18;
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (off > 0.5 && w && h) camera.setViewOffset(w, h, 0, off, w, h); else { off = 0; camera.clearViewOffset(); }
   }
   // 亮點：選到的穴像一盞小燈（加法混色的光暈，會微微呼吸）
   const glowTex = (() => {
@@ -107,17 +95,21 @@
     const o = nearestPoint(x, y, type === 'touch' ? 22 : 12);
     if (!o) { if (performance.now() - shownAt > 600) hide(); return false; }   // 剛打開（例如查詢點兩下的第二下）不要馬上收起
     const now = performance.now();
-    if (last && last.o === o && now - last.t < 380) {   // 點兩下：打開經絡資訊
-      last = null; hide();
-      L.select(o.m.id); L.open(o.m.id);
-      return true;
-    }
+    if (last && last.o === o && now - last.t < 380) return true;   // 點兩下：一樣是這一穴的小卡
     last = { o, t: now };
     L.select(o.m.id);
     show(o);
     return true;
   });
-  card.addEventListener('click', e => { if (e.target.closest('.xue-x')) hide(); });
+  card.addEventListener('click', e => {
+    if (e.target.closest('.xue-x')) { hide(); return; }
+    if (e.target.closest('.xue-mback') && cur) {   // « 回到這一穴所在經絡的資訊頁
+      const id = cur.m.id; hide();
+      back.hidden = true; backId = null;
+      if (L.info && L.info.openId) L.info.close(false);
+      L.select(id); L.open(id);   // 回到這條經的資訊頁（經文＋五輸天干表＋銅人）
+    }
+  });
   // 滑鼠移到穴名上：顯示小卡；移開（且不在小卡上）就收起
   const labelsEl = L.labelsEl;
   if (labelsEl) {
@@ -135,7 +127,9 @@
   }
 
   /* ---------- 經絡資訊欄裡的穴名都可以點：點了收起資訊欄、飛到那一穴、顯示小卡；左上「« 返回」回到資訊欄 ---------- */
-  const NAMES = [...new Set(PT.map(o => o.name).filter(n => n && n.length >= 2))].sort((a, b) => b.length - a.length);
+  // 五輸表裡的簡寫／異體字：溪＝谿、陰陵＝陰陵泉…
+  const ALIAS = { 後溪: '後谿', 陽溪: '陽谿', 太溪: '太谿', 解溪: '解谿', 俠溪: '俠谿', 陰陵: '陰陵泉', 陽陵: '陽陵泉', 三里: '足三里', 竅陰: '足竅陰', 通谷: '足通谷', 臨泣: '足臨泣' };
+  const NAMES = [...new Set(PT.map(o => o.name).filter(n => n && n.length >= 2).concat(Object.keys(ALIAS)))].sort((a, b) => b.length - a.length);
   const NAME_RE = new RegExp(NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
   function findPt(name) {
     const mid = L.info && L.info.openId;
@@ -148,7 +142,7 @@
       const t = n.nodeValue; NAME_RE.lastIndex = 0;
       if (!NAME_RE.test(t)) return;
       const span = document.createElement('span');
-      span.innerHTML = E(t).replace(NAME_RE, m => `<span class="pt-link" data-pn="${m}" role="button" tabindex="0">${m}</span>`);
+      span.innerHTML = E(t).replace(NAME_RE, m => `<span class="pt-link" data-pn="${ALIAS[m] || m}" role="button" tabindex="0">${m}</span>`);
       n.replaceWith(...span.childNodes);
     });
   }

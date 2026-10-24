@@ -818,7 +818,7 @@ body { display: grid; place-items: center; }
 .wx-tb td.h { color: rgba(255,255,255,.88); }
 .wx-tb .wx-org td { font-size: 13px; }
 .wx-tb .st { font-weight: 700; }
-.wx-tb td.cur { color: #fff; background: linear-gradient(to top, rgba(255,255,255,.42), rgba(255,255,255,.12)); box-shadow: inset 0 -2px 0 rgba(255,255,255,.85); text-shadow: 0 0 8px rgba(255,255,255,.5); }
+.wx-tb td.cur { color: #fff3b0; background: rgba(255, 230, 80, .14); box-shadow: inset 0 -2px 0 rgba(255, 230, 80, .45); text-shadow: 0 0 8px rgba(255, 230, 80, .25); }
 .wx-tb td small { font-size: 9px; color: rgba(255,255,255,.55); margin-left: 1px; }
 .wx-tb.wx-hh td.l { text-align: left; padding-left: 6px; }
 .wx-r { color: #ff7b72; } .wx-b { color: #7fb2ff; } .wx-g { color: #7fd99a; } .wx-k { color: rgba(255,255,255,.42); }
@@ -966,3 +966,62 @@ body { display: grid; place-items: center; }
 .ip-play.on { border-color: #ffc27a; box-shadow: 0 0 12px rgba(255, 170, 90, .55); }
 .ip-play.on i { animation: ipPulse 1.2s ease-in-out infinite; }
 @keyframes ipPulse { 50% { transform: scale(1.35); box-shadow: 0 0 14px 4px rgba(255, 170, 90, .9); } }
+
+/* 穴位小卡：電腦固定在左下角，手機固定在腳底（不跟著穴點跑） */
+.xue { left: 18px; top: auto; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: none !important; width: min(340px, calc(100% - 36px)); max-height: 46%; }
+.has-player .xue { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+.xue header { margin-right: 30px; align-items: center; }
+.xue-mback { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(214,166,107,.45); background: rgba(255,255,255,.08);
+  color: #ffe3b8; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
+.xue-mback:hover { background: rgba(214,166,107,.25); }
+@media (max-aspect-ratio: 3/4), (max-width: 600px) {
+  .xue, .has-player .xue { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); max-height: 36%; }
+  .stage.xue-on .sel, .stage.xue-on .player, .stage.xue-on .pl-dot { opacity: 0 !important; pointer-events: none !important; }
+}
+
+/* 經絡列表鈕 « 在左上工具列 › 的正下方，經絡按鈕在它右邊展開 */
+.chip-tog { position: absolute; left: 18px; top: calc(124px + env(safe-area-inset-top, 0px)); z-index: 6; }
+.toolbar { top: calc(164px + env(safe-area-inset-top, 0px)); }
+.chips.chips-left { position: absolute; left: 58px; right: auto; bottom: auto; top: calc(124px + env(safe-area-inset-top, 0px)); z-index: 6;
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 0; overflow: visible; max-width: min(calc(100% - 76px), 760px);
+  opacity: 0; visibility: hidden; transform: translateX(-10px); transition: opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1), visibility 0s .25s; }
+.stage.chips-open .chips.chips-left { opacity: 1; visibility: visible; transform: none; transition: opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); }
+.chips.chips-left .chip { background: rgba(20, 15, 10, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.stage.chips-open .toolbar { opacity: 0 !important; pointer-events: none; }
+.stage.ip-on .chips.chips-left, .zz-on .chips.chips-left { display: none; }
+.sel.show { pointer-events: auto; cursor: pointer; }
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .chip-tog { left: 30px; top: 138px; }
+  .chips.chips-left { left: 70px; top: 138px; }
+  .toolbar { top: 178px; }
+}
+/* 循行經文：臟腑與部位用紅字 */
+.tr-red { color: #ff7a6b; }
+.tr-s.on .tr-red { color: #ff8f80; }
+.stage.chips-open .chip-tog { transform: none; background: rgba(214,166,107,.18); }
+.stage.chips-open .hint { opacity: 0 !important; }
+/* 循行紅字可點：右邊欄只顯示該臟腑／部位那一格 */
+.tr-red { cursor: pointer; text-decoration: underline dotted rgba(255,122,107,.6); text-underline-offset: 3px; }
+.tr-red:hover { color: #ffb0a6; }
+.pp-h { display: flex; align-items: flex-start; gap: 10px; }
+.pp-h .pp-back { margin-top: 2px; }
+.pp-tb { table-layout: auto; text-align: left; }
+.pp-tb th, .pp-tb td { padding: 7px 8px; font-size: 14px; line-height: 1.6; vertical-align: top; }
+.pp-tb td:first-child { width: 28%; white-space: nowrap; color: #bff3e6; }
+.pp-tb tr.me td { background: rgba(255,122,107,.10); }
+.pp-m.me { color: #ff8f80; font-weight: 600; }
+.pp-ear { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.pp-ear div { padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); font-size: 13px; line-height: 1.5; }
+.pp-ear b { display: block; color: #ff8f80; font-weight: 600; }
+.pp-note { font-size: 13px; color: #ffd9a8; }
+.stage.pp-on .ip-tr { display: none; }
+/* 經絡按鈕：小腸之後換到第二列 */
+.chips.chips-left { justify-content: flex-start; }
+.chips.chips-left .chip-br { flex-basis: 100%; height: 0; margin-top: -6px; }
+/* 手機：打開經絡資訊時，左上也留著 «，可以叫出經絡按鈕 */
+@media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .stage.ip-on .chip-tog { opacity: 1; pointer-events: auto; }
+  .stage.ip-on .chips.chips-left { display: flex; }
+  .stage.ip-on.chips-open .chips.chips-left { opacity: 1; pointer-events: auto; }
+  .stage.ip-on.chips-open .ip-tr { opacity: 0; visibility: hidden; pointer-events: none; }
+}
