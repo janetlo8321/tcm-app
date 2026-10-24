@@ -818,7 +818,7 @@ body { display: grid; place-items: center; }
 .wx-tb td.h { color: rgba(255,255,255,.88); }
 .wx-tb .wx-org td { font-size: 13px; }
 .wx-tb .st { font-weight: 700; }
-.wx-tb td.cur { color: #fff3b0; background: rgba(255, 230, 80, .28); box-shadow: inset 0 -2px 0 rgba(255, 230, 80, .7); text-shadow: 0 0 8px rgba(255, 230, 80, .35); }
+.wx-tb td.cur { color: #fff3b0; background: rgba(255, 230, 80, .14); box-shadow: inset 0 -2px 0 rgba(255, 230, 80, .45); text-shadow: 0 0 8px rgba(255, 230, 80, .25); }
 .wx-tb td small { font-size: 9px; color: rgba(255,255,255,.55); margin-left: 1px; }
 .wx-tb.wx-hh td.l { text-align: left; padding-left: 6px; }
 .wx-r { color: #ff7b72; } .wx-b { color: #7fb2ff; } .wx-g { color: #7fd99a; } .wx-k { color: rgba(255,255,255,.42); }

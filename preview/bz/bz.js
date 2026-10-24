@@ -367,7 +367,7 @@
     if (hit) {
       const mine = myFx().filter(x => x.tag === hit.key && !hit.list.some(y => y.v === x.n)).map(x => fxLeaf(x.n, '自訂'));
       const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
-      return [{ t: '＋新增', v: OTHER, cls: 'dir add' }, { sec: `符合「${hit.tag}」的方`, cls: 'hit' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]);
+      return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]);
     }
     const seen = new Set(), list = [];
     pats.forEach(p => p.fx.forEach(f => { if (!seen.has(f.name)) { seen.add(f.name); list.push({ ...fxLeaf(f.name), note: p.name }); } }));
@@ -1107,6 +1107,119 @@
     return head + bars(tally(recs, dashCat), recs.length);
   }
   gearInit();
+
+  /* ---------- 病證表的組成列：每一列都從主方欄開始（證型格往下延伸蓋住組成列）；只有一個方時不再重複方名 ---------- */
+  if (typeof nbTable === 'function' && typeof nbCompHtml === 'function') {
+    try {
+      const src = nbTable.toString(), old = 'const act = body.filter(x => x.r <= r && last(x) > r);';
+      if (src.includes(old)) window.nbTable = (0, eval)('(' + src.replace(old, "const act = body.filter(x => x.r <= r && (last(x) > r || (last(x) === r && span(x).every(p => roleAt(p) === 'k'))));") + ')');
+    } catch (e) {}
+    const _comp = nbCompHtml;
+    window.nbCompHtml = function () {
+      const h = _comp.apply(this, arguments);
+      return (h.match(/<span class="cmp-f">/g) || []).length === 1 ? h.replace(/<span class="cmp-f"><b>[^<]*<\/b>/, '<span class="cmp-f">') : h;
+    };
+  }
+
+  /* ---------- 藥物總表：分類改成三組（溫、寒涼、中性）；平常只顯示選的分類（粉紅）＋比較欄（橘），左上 ⊞ 進總表、總表左上 « 回來 ---------- */
+  const XG = [
+    ['or', '溫', [['辛溫解表', ['辛溫解表藥']], ['理氣', ['理氣藥', '行氣止痛']], ['芳香化濕', ['芳香化濕藥']], ['補氣', ['補氣藥']], ['補血', ['補血藥']],
+      ['活血化瘀', ['活血止痛藥', '活血調經藥', '活血療傷藥']], ['補陽', ['補陽藥']]]],
+    ['bl', '寒涼', [['辛涼解表', ['辛涼解表藥']], ['清熱瀉火', ['清熱瀉火藥']], ['清熱燥濕', ['清熱燥濕藥']], ['清熱涼血', ['清熱涼血藥']],
+      ['清熱解毒', ['清熱解毒藥', '喉頭疼痛', '熱毒痢疾', '其他']], ['清虛熱', ['清虛熱藥']], ['攻下潤下', ['攻下藥', '潤下藥', '峻下逐水藥']],
+      ['利尿利濕', ['利尿消腫', '利尿通淋', '利濕退黃']], ['平肝', ['平肝息風藥', '熄風止痙藥']], ['止血', ['涼血止血藥', '收斂止血藥', '化瘀止血藥', '溫經止血藥']], ['補陰', ['補陰藥']]]],
+    ['gy', '中性', [['祛風濕', ['祛風濕藥']], ['化痰', ['化痰']], ['止咳平喘', ['止咳平喘藥']], ['固澀', ['固表止汗', '固精縮尿止帶', '歛肺澀腸', '斂肺澀腸']],
+      ['安神', ['安神藥']], ['開竅', ['開竅藥']], ['消食', ['消食藥']], ['外用', ['外用藥']], ['驅蟲', ['驅蟲藥']], ['湧吐', ['湧吐藥']]]]
+  ];
+  const XGK = 'tcm-xlcmp-v1';
+  let xg = null;   // { key: { name, cls, ids, n } }
+  const xgSt = (() => { try { return JSON.parse(sessionStorage.getItem(XGK) || '{}') || {}; } catch (e) { return {}; } })();
+  const xgSave = () => { try { sessionStorage.setItem(XGK, JSON.stringify(xgSt)); } catch (e) {} };
+  function xgBuild() {
+    const cats = typeof sheetCats === 'function' ? sheetCats() : [];
+    xg = {};
+    XG.forEach(([cls, , list]) => list.forEach(([name, ts]) => {
+      const cs = cats.filter(c => ts.includes(c.t));
+      if (cs.length) xg[name] = { name, cls, ids: cs.flatMap(c => c.ids), n: cs.reduce((a, c) => a + c.n, 0) };
+    }));
+  }
+  // 從總表裡把某些分類（xlc-編號）那幾段複製出來：分類那一列到下一個分類之前
+  function xgRows(ids) {
+    const byTable = new Map();
+    ids.forEach(i => {
+      const td = document.getElementById('xlc-' + i); if (!td) return;
+      const tb = td.closest('table'), tr = td.closest('tr');
+      const rows = [tr]; let n = tr.nextElementSibling;
+      while (n && !n.querySelector('[id^="xlc-"]')) { rows.push(n); n = n.nextElementSibling; }
+      while (rows.length > 1 && rows[rows.length - 1].classList.contains('xl-blank')) rows.pop();
+      if (!byTable.has(tb)) byTable.set(tb, []);
+      byTable.get(tb).push(...rows);
+    });
+    return [...byTable].map(([tb, rows]) => {
+      const t = document.createElement('table'); t.className = 'xl';
+      const cg = tb.querySelector('colgroup'); if (cg) t.appendChild(cg.cloneNode(true));
+      const b = document.createElement('tbody'); rows.forEach(r => { const c = r.cloneNode(true); c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id')); c.querySelectorAll('.xl-hit').forEach(x => x.classList.remove('xl-hit')); b.appendChild(c); });
+      t.appendChild(b); return t.outerHTML;
+    }).join('');
+  }
+  function xgPane(side) {
+    const k = xgSt[side], g = k && xg[k];
+    if (side === 'p') return `<header class="xl-ph"><button type="button" class="xl-pb" data-xltotal title="藥物總表（可放大縮小）" aria-label="進入藥物總表">⊞</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>` : '<b class="xl-pt">選左邊的分類</b>'}</header><div class="xl-pbody">${g ? xgRows(g.ids) : ''}</div>`;
+    return `<header class="xl-ph"><button type="button" class="xl-pb" data-xlpick title="換一個分類來比較" aria-label="換比較的分類">＋</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small><button type="button" class="xl-px" data-xlclr aria-label="清除比較">✕</button>` : '<b class="xl-pt">比較</b>'}</header>` +
+      (g ? `<div class="xl-pbody">${xgRows(g.ids)}</div>` : '<div class="xl-pbody xl-pempty"><button type="button" class="xl-pplus" data-xlpick aria-label="選一個分類來比較">＋</button><p>按 ＋，再選左邊一個分類來比較</p></div>');
+  }
+  function xgRender(sp) {
+    sp = sp || document.querySelector('.xl-split[data-cmp]'); if (!sp) return;
+    const c = sp.querySelector('.xl-cmp');
+    c.querySelector('.xl-pane-p').innerHTML = xgPane('p');
+    c.querySelector('.xl-pane-o').innerHTML = xgPane('o');
+    sp.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
+  }
+  function xgMode(sp, total) {
+    sp.classList.toggle('xl-total', total); sp.classList.remove('xl-picking');
+    xgSt.total = total; xgSave();
+  }
+  function xgDecorate() {
+    const sp = document.querySelector('.xl-split:not([data-cmp])'); if (!sp) return;
+    const list = sp.querySelector('.xl-grps'); if (!list) return;
+    xgBuild(); if (!Object.keys(xg).length) return;
+    sp.dataset.cmp = '';
+    const btn = g => `<button type="button" data-xg="${E(g.name)}" class="${g.cls === 'gy' ? '' : g.cls}">${E(g.name)}<small>${g.n}</small></button>`;
+    list.innerHTML = XG.map(([cls, name, l]) => { const gs = l.map(x => xg[x[0]]).filter(Boolean); return `<div class="xl-grp xl-grp-${cls}"><p class="xl-gh">${name}<small>${gs.length} 類</small></p><div class="xl-gl">${gs.map(btn).join('')}</div></div>`; }).join('');
+    const tag = sp.querySelector('.xl-idx summary .tag'); if (tag) tag.textContent = Object.keys(xg).length + ' 類';
+    const zb = sp.querySelector('.xl-zoombar');
+    if (zb && !zb.querySelector('[data-xlback]')) zb.insertAdjacentHTML('afterbegin', '<button type="button" class="xl-back" data-xlback aria-label="回到分類比較">«</button>');
+    const main = sp.querySelector('.xl-main');
+    main.insertAdjacentHTML('beforebegin', '<div class="xl-cmp"><section class="xl-pane xl-pane-p"></section><section class="xl-pane xl-pane-o"></section></div>');
+    if (!xgSt.p || !xg[xgSt.p]) xgSt.p = Object.keys(xg)[0];
+    if (xgSt.o && !xg[xgSt.o]) xgSt.o = null;
+    xgRender(sp);
+    xgMode(sp, !!xgSt.total);
+  }
+  let xgT = 0;
+  new MutationObserver(() => { cancelAnimationFrame(xgT); xgT = requestAnimationFrame(xgDecorate); }).observe(document.body, { childList: true, subtree: true });
+  xgDecorate();
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('[data-xg], [data-xltotal], [data-xlback], [data-xlpick], [data-xlclr]');
+    if (!t) return;
+    const sp = t.closest('.xl-split'); if (!sp) return;
+    if (t.dataset.xltotal != null) return xgMode(sp, true);
+    if (t.dataset.xlback != null) return xgMode(sp, false);
+    if (t.dataset.xlpick != null) { sp.classList.toggle('xl-picking'); return; }
+    if (t.dataset.xlclr != null) { xgSt.o = null; xgSave(); return xgRender(sp); }
+    const g = xg[t.dataset.xg]; if (!g) return;
+    if (sp.classList.contains('xl-total')) {   // 總表：跳到那一類（左上角），框起來
+      const wrap = sp.querySelector('.xl-wrap'), el = document.getElementById('xlc-' + g.ids[0]); if (!wrap || !el) return;
+      const r = wrap.getBoundingClientRect(), c = el.getBoundingClientRect(), sh = wrap.querySelector('.xl-sheet');
+      sh.style.paddingRight = wrap.clientWidth + 'px'; sh.style.paddingBottom = wrap.clientHeight + 'px';
+      wrap.scrollTop += c.top - r.top; wrap.scrollLeft += c.left - r.left;
+      document.querySelectorAll('.xl-hit').forEach(x => x.classList.remove('xl-hit'));
+      g.ids.forEach(i => { const x = document.getElementById('xlc-' + i); if (x) x.classList.add('xl-hit'); });
+      xgSt.p = g.name;
+    } else if (sp.classList.contains('xl-picking')) { xgSt.o = g.name; sp.classList.remove('xl-picking'); }
+    else xgSt.p = g.name;
+    xgSave(); xgRender(sp);
+  });
 
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();
