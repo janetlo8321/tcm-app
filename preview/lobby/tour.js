@@ -542,5 +542,5 @@
   function syncBtn() { document.querySelectorAll('.ip-play').forEach(b => b.classList.toggle('on', playing && cur && cur.m.id === b.dataset.m)); }
   (function wait(n) { if (!infoHook() && n < 100) setTimeout(() => wait(n + 1), 200); })(0);
 
-  L.tour = { TOURS, show };
+  L.tour = { TOURS, show, play: () => { if (!cur) return; setOpen(true); setPlaying(true); } };
 })();

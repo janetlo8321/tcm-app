@@ -440,3 +440,9 @@ body.dash-on { overflow: hidden; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bz-mcol:first-child { width: 230px; }
 .bz-mcol button.dir.add { border-top: 0; border-bottom: .5px solid var(--m-line); border-radius: 8px 8px 0 0; margin: 0 0 4px; font-weight: 600; }
+
+/* 證型排成一列；處方、其他處方並排 */
+.bz-form .bz-bgs, #bz.bz-embed .bz-form .bz-bgs { display: flex; flex-wrap: nowrap; gap: 6px; }
+.bz-form .bz-bg2, #bz.bz-embed .bz-form .bz-bg2 { display: inline-flex; flex: 0 1 auto; }
+@media (max-width: 520px) { .bz-form .bz-bgs, #bz.bz-embed .bz-form .bz-bgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; } .bz-form .bz-bg2 { display: flex; } .bz-form .bz-bg2 button { flex: 1; min-width: 0; padding: 0 4px; } }
+.bz-msec.hit { color: #e0a43a; }

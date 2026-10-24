@@ -966,3 +966,15 @@ body { display: grid; place-items: center; }
 .ip-play.on { border-color: #ffc27a; box-shadow: 0 0 12px rgba(255, 170, 90, .55); }
 .ip-play.on i { animation: ipPulse 1.2s ease-in-out infinite; }
 @keyframes ipPulse { 50% { transform: scale(1.35); box-shadow: 0 0 14px 4px rgba(255, 170, 90, .9); } }
+
+/* 穴位小卡：電腦固定在左下角，手機固定在腳底（不跟著穴點跑） */
+.xue { left: 18px; top: auto; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: none !important; width: min(340px, calc(100% - 36px)); max-height: 46%; }
+.has-player .xue { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+.xue header { margin-right: 30px; align-items: center; }
+.xue-mback { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(214,166,107,.45); background: rgba(255,255,255,.08);
+  color: #ffe3b8; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 0 2px; }
+.xue-mback:hover { background: rgba(214,166,107,.25); }
+@media (max-aspect-ratio: 3/4), (max-width: 600px) {
+  .xue, .has-player .xue { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); max-height: 36%; }
+  .stage.xue-on .sel, .stage.xue-on .player, .stage.xue-on .pl-dot { opacity: 0 !important; pointer-events: none !important; }
+}

@@ -355,14 +355,25 @@
       const rest = (DB.formulas || []).map(f => f.name).filter(n => !used.has(n)).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
       if (rest.length) FX_SYS.push({ t: '其他方劑', kids: rest.map(n => fxLeaf(n)) });
     }
-    const out = [];
+    return fxOtherTree();
+  }
+  // 處方：選了八綱就是「符合的方」；沒選就是本病的方。第一列「＋新增」
+  function fxMainTree() {
+    fxTree();
     const hit = bgMatches();
     if (hit) {
-      // 符合的方 + 自己輸入過的方（同一病、同樣的虛實陰陽寒熱），前面加序號；最後一列可以自訂
       const mine = myFx().filter(x => x.tag === hit.key && !hit.list.some(y => y.v === x.n)).map(x => fxLeaf(x.n, '自訂'));
       const list = hit.list.concat(mine).map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` }));
-      out.push({ t: `符合「${hit.tag}」的方`, cls: 'hit', kids: [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]) });
+      return [{ t: '＋新增', v: OTHER, cls: 'dir add' }, { sec: `符合「${hit.tag}」的方`, cls: 'hit' }].concat(list.length ? list : [{ t: '本病沒有完全符合的證型', v: '', cls: 'none' }]);
     }
+    const seen = new Set(), list = [];
+    pats.forEach(p => p.fx.forEach(f => { if (!seen.has(f.name)) { seen.add(f.name); list.push({ ...fxLeaf(f.name), note: p.name }); } }));
+    myFx().forEach(x => { if (!seen.has(x.n)) { seen.add(x.n); list.push(fxLeaf(x.n, '自訂')); } });
+    return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? [{ sec: '本病的方', cls: 'hit' }] : [], list.map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` })));
+  }
+  // 其他處方：我輸入過的方、本病常用（依證型）、各系統的方
+  function fxOtherTree() {
+    const out = [];
     // 我輸入過的方：所有病證輸入過的都列出來，同名只留一個（本病的排前面）
     const allMine = uniqBy(myFx().concat(...Object.values(myFxAll())), x => x.n);
     if (allMine.length) out.push({ t: '我輸入過的方', cls: 'hit', kids: allMine.map((x, i) => ({ t: `${i + 1}. ${x.n}`, v: x.n })) });
@@ -464,7 +475,7 @@
   function pickCas(key, v) {
     const r = report;
     if (v == null || v === '') return;
-    if (key === 'fxq' || key === 'fxhit') key = 'fx';   // 查詢、符合的方選到的方
+    if (key === 'fxq' || key === 'fxhit' || key === 'fxo') key = 'fx';   // 查詢、符合的方選到的方
     if (key === 'herb') {
       if (v === OTHER) { r._t_herb = true; keep(draw); focusLater('[data-add="herb"]'); return; }
       r._t_herb = false;
@@ -514,13 +525,14 @@
           ${r.sx.length ? `<div class="bz-tags wide">${r.sx.map((v, i) => `<span class="bz-tag s">${E(v)}<button type="button" data-del="sx" data-i="${i}" aria-label="移除">×</button></span>`).join('')}</div>` : ''}
           <label>舌象${pickOrType('tongue', uniq('tongue'), r.tongue, '舌象')}</label>
           <label>脈象${pickOrType('pulse', uniq('pulse'), r.pulse, '脈象')}</label>
-          <div class="bz-fld"><span class="bz-lb">證型</span>
+          <div class="bz-fld wide"><span class="bz-lb">證型</span>
             <div class="bz-bgs">${AX.filter(a => a.k !== 'bl').map(a => `<span class="bz-bg2" data-ax="${a.k}">${[-1, 1].map(w => `<button type="button" data-w="${w}" class="${r.bg[a.k] === w ? 'on' : ''}">${w < 0 ? (a.k === 'bl' ? '表' : a.a) : (a.k === 'bl' ? '裡' : a.b)}</button>`).join('')}</span>`).join('')}</div>
 </div>
           <div class="bz-fld"><span class="bz-lb">處方</span>
-            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxTree(), r.fx)}
+            ${cascade('fx', fxTyped ? '⊕ 自定義處方' : (r.fx || '請選擇'), fxMainTree(), r.fx)}
             ${fxTyped ? `<input type="text" data-v="fxOther" value="${E(r.fxOther)}" placeholder="輸入處方名稱">` : ''}
             <label class="bz-q" data-cas="fxq"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input type="search" data-q placeholder="查詢" autocomplete="off" enterkeyhint="search" aria-label="查詢處方"></label></div>
+          <div class="bz-fld"><span class="bz-lb">其他處方</span>${cascade('fxo', '請選擇', fxTree(), r.fx)}</div>
           <div class="bz-fld wide"><span class="bz-lb">藥物${r.fx && !fxTyped ? `<small>${E(r.fx)} 的組成</small>` : ''}</span>
             <div class="bz-box">${r.herbs.length ? r.herbs.map((h, i) => herbTag(h, i, 'herbs')).join('') : `<i class="bz-tbd">${r.fx && !fxTyped ? '這個方的組成待補，可以自己加' : '選處方後會列出組成'}</i>`}</div>
             <div class="bz-addrow">${HT ? cascade('herb', '加一味藥…', HT, null)
@@ -589,9 +601,7 @@
       report.ax[k] = (report.bg[k] || 0) * 0.6;
       keep(draw);
       const fc = root.querySelector('[data-cas="fx"]');   // 處方那格自動跳出相符的方
-      // 只跳出「符合的方」那一欄，不帶出左邊整個分類選單
-      const hit = fc && Object.keys(report.bg).length && CAS.fx && CAS.fx.tree[0] && CAS.fx.tree[0].cls === 'hit' ? CAS.fx.tree[0] : null;
-      if (hit) { CAS.fxhit = { tree: hit.kids, val: report.fx }; openMenu(fc, [], 'fxhit'); }
+      if (fc && Object.keys(report.bg).length && bgMatches()) openMenu(fc);
     }
   });
   // 滑鼠：碰到選單鈕就展開；離開選單鈕和選單一下子就收起
