@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.7.0';
-  const UPDATED = '10/24 23:19';
+  const UPDATED = '10/24 23:26';
   const FIX_NO = 17;
 
   const $ = id => document.getElementById(id);
@@ -579,6 +579,7 @@
   const chipTog = $('chip-tog');
   // « 放在左上工具列 › 的正下方，經絡按鈕在它右邊展開
   stage.appendChild(chipTog); stage.appendChild(chipsEl); chipsEl.classList.add('chips-left');
+  if (chipEls.SI) { const br = document.createElement('i'); br.className = 'chip-br'; chipEls.SI.after(br); }   // 小腸之後換行：膀胱～督脈排第二列
   // 下方的經絡名稱：點一下或兩下也進入資訊
   selEl.addEventListener('click', () => { if (selectedId) openMeridian(selectedId); });
   let chipT = 0;

@@ -118,6 +118,9 @@
       xs: v(excess, defic),
       bl: half ? 0 : ext >= 2.5 ? Math.min(1, 0.35 + ext / 10) : -0.6
     };
+    // 證型名直接寫了虛／實、寒／熱的，以名稱為準（例：「虛證」那一列的清燥救肺湯，字面多「清」「燥」會被估成兩可）
+    const nm = p.name, pin = (k, a, b) => { const A = nm.includes(a), B = nm.includes(b); if (A && !B) ax[k] = Math.min(ax[k], -0.5); else if (B && !A) ax[k] = Math.max(ax[k], 0.5); };
+    pin('xs', '虛', '實'); pin('hr', '寒', '熱');
     ax.yy = Math.max(-1, Math.min(1, (1.2 * ax.hr + 0.7 * ax.xs + 0.5 * Math.sign(ax.bl)) / 2.4));   // 寒、虛、裡偏陰；熱、實、表偏陽
     return ax;
   }
@@ -378,7 +381,9 @@
     const allMine = uniqBy(myFx().concat(...Object.values(myFxAll())), x => x.n);
     if (allMine.length) out.push({ t: '我輸入過的方', cls: 'hit', kids: allMine.map((x, i) => ({ t: `${i + 1}. ${x.n}`, v: x.n })) });
     const local = uniqBy(pats, p => p.name).filter(p => p.fx.length);
-    if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: p.fx.map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => p.fx), f => f.name).length });
+    // 同名證型（例：失音有兩列「虛證」）的方要合在一起，不能只留第一列
+    const fxOf = n => uniqBy(pats.filter(p => p.name === n).flatMap(p => p.fx), f => f.name);
+    if (local.length) out.push({ t: '本病常用', kids: local.map(p => ({ t: p.name, kids: fxOf(p.name).map(f => fxLeaf(f.name)) })), n: uniqBy(local.flatMap(p => fxOf(p.name)), f => f.name).length });
     return out.concat(FX_SYS, [{ t: '⊕ 自定義處方', v: OTHER, cls: 'dir' }]);
   }
   // 虛實、陰陽、寒熱：選了之後，找本病裡八綱相符的證型，帶出它們的方

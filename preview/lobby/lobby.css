@@ -1015,3 +1015,13 @@ body { display: grid; place-items: center; }
 .pp-ear b { display: block; color: #ff8f80; font-weight: 600; }
 .pp-note { font-size: 13px; color: #ffd9a8; }
 .stage.pp-on .ip-tr { display: none; }
+/* 經絡按鈕：小腸之後換到第二列 */
+.chips.chips-left { justify-content: flex-start; }
+.chips.chips-left .chip-br { flex-basis: 100%; height: 0; margin-top: -6px; }
+/* 手機：打開經絡資訊時，左上也留著 «，可以叫出經絡按鈕 */
+@media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .stage.ip-on .chip-tog { opacity: 1; pointer-events: auto; }
+  .stage.ip-on .chips.chips-left { display: flex; }
+  .stage.ip-on.chips-open .chips.chips-left { opacity: 1; pointer-events: auto; }
+  .stage.ip-on.chips-open .ip-tr { opacity: 0; visibility: hidden; pointer-events: none; }
+}
