@@ -1000,3 +1000,18 @@ body { display: grid; place-items: center; }
 .tr-s.on .tr-red { color: #ff8f80; }
 .stage.chips-open .chip-tog { transform: none; background: rgba(214,166,107,.18); }
 .stage.chips-open .hint { opacity: 0 !important; }
+/* 循行紅字可點：右邊欄只顯示該臟腑／部位那一格 */
+.tr-red { cursor: pointer; text-decoration: underline dotted rgba(255,122,107,.6); text-underline-offset: 3px; }
+.tr-red:hover { color: #ffb0a6; }
+.pp-h { display: flex; align-items: flex-start; gap: 10px; }
+.pp-h .pp-back { margin-top: 2px; }
+.pp-tb { table-layout: auto; text-align: left; }
+.pp-tb th, .pp-tb td { padding: 7px 8px; font-size: 14px; line-height: 1.6; vertical-align: top; }
+.pp-tb td:first-child { white-space: nowrap; color: #bff3e6; }
+.pp-tb tr.me td { background: rgba(255,122,107,.10); }
+.pp-m.me { color: #ff8f80; font-weight: 600; }
+.pp-ear { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.pp-ear div { padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); font-size: 13px; line-height: 1.5; }
+.pp-ear b { display: block; color: #ff8f80; font-weight: 600; }
+.pp-note { font-size: 13px; color: #ffd9a8; }
+.stage.pp-on .ip-tr { display: none; }

@@ -31,7 +31,7 @@
   const ALIAS = { REN: '陰脈之海', DU: '陽脈之海' };
   // 十二經的經文與歌訣：model/jing.json（整理自使用者提供的《十二正經》講義：循行、病候、經筋、絡脈、經別、穴歌、五輸穴歌、原絡穴）
   let JING = {};
-  fetch('model/jing.json').then(r => r.json()).then(d => { JING = d; if (openId) body.innerHTML = content(byId[openId]); }).catch(() => {});
+  fetch('model/jing.json').then(r => r.json()).then(d => { JING = d; if (openId && !partFrom) body.innerHTML = content(byId[openId]); }).catch(() => {});
   const EXTRA = {};   // 之後再匯入的內容：{ LU: [{ h: '主治', list: [...] } 或 { h, p: '段落' }] }
   const YIN = ['井木', '滎火', '輸土', '經金', '合水'], YANG = ['井金', '滎水', '輸木', '經火', '合土'];
 
@@ -224,6 +224,7 @@
     if (!m) return;
     if (!openId) back = { tgt: controls.target.clone(), pos: camera.position.clone() };
     openId = id;
+    partFrom = null; stage.classList.remove('pp-on');
     controls.autoRotate = false;
     spin = true; lastUser = 0;
     const cu = closeUp(m);
@@ -243,6 +244,7 @@
   function close(fly) {
     if (!openId) return;
     openId = null;
+    partFrom = null; stage.classList.remove('pp-on');
     panel.classList.remove('show');
     wxPanel.classList.remove('show');
     stage.classList.remove('ip-on');
@@ -312,5 +314,91 @@
   L.hooks.select.push(id => { if (openId && id !== openId) close(id ? false : true); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
-  L.info = { open, close, EXTRA, flyToPoint: o => { spin = false; controls.autoRotate = false; flyToPoint(o); }, get openId() { return openId; } };
+
+  /* ---------- 循行紅字（臟腑／部位）：點一下，右邊玻璃欄只顯示那一格整理內容；左上 « 回原經絡 ---------- */
+  // 依使用者「十二經絡循行經過的臟腑」「十二經絡循行經過的部位」兩張整理表
+  const SHORT = { LU: '肺', LI: '大腸', ST: '胃', SP: '脾', HT: '心', SI: '小腸', BL: '膀胱', KI: '腎', PC: '心包', SJ: '三焦', GB: '膽', LR: '肝' };
+  const ORGAN = {
+    肺: ['肺', '大腸', '循胃口'], 大腸: ['大腸', '肺'], 胃: ['胃', '脾'], 脾: ['脾', '胃', '注心中'],
+    心: ['心', '小腸', '卻上肺'], 小腸: ['小腸', '心', '抵胃'], 膀胱: ['膀胱', '腎', '腦'], 腎: ['腎', '膀胱', '心', '肺', '肝'],
+    心包: ['心包', '三焦'], 三焦: ['三焦', '心包'], 膽: ['膽', '肝'], 肝: ['肝', '膽', '上注肺', '挾胃']
+  };
+  const PART = {
+    目: [['小腸、膀胱', '目內眥'], ['三焦、小腸、膽', '目銳（外）眥'], ['心、肝', '目系']],
+    耳: [['三焦、膀胱', '耳上'], ['三焦、膽、胃', '耳前'], ['三焦、膽、小腸', '耳中'], ['三焦、膽', '耳後']],
+    鼻: [['胃', '起於鼻之交頞中、下循鼻外'], ['大腸', '上挾鼻孔'], ['小腸', '抵鼻']],
+    客主人: [['三焦', '過客主人'], ['胃', '過客主人']],
+    䪼: [['小腸', '別頰上䪼'], ['三焦', '以屈下頰至䪼'], ['膽', '抵於䪼']],
+    頰: [['大腸', '貫頰'], ['小腸', '上頰'], ['三焦', '以屈下頰'], ['肝', '下頰裡']],
+    大迎: [['胃', '從大迎前下人迎'], ['膽', '下大迎']],
+    唇: [['胃', '環唇（唇外）'], ['肝', '環唇內']],
+    口: [['大腸', '還出挾口'], ['胃', '還出挾口']],
+    舌: [['脾', '連舌本，散舌下'], ['腎', '挾舌本']],
+    齒: [['胃', '上齒'], ['大腸', '下齒']],
+    頸: [['大腸', '從缺盆上頸'], ['小腸', '從缺盆循頸'], ['膽', '循頸行手少陽之前、下頸']],
+    項: [['膀胱', '還出別下項'], ['三焦', '上項系耳後']],
+    喉嚨: [['胃', '循喉嚨'], ['腎', '循喉嚨，挾舌本'], ['肝', '循喉嚨之後，上入頏顙']],
+    咽: [['脾', '屬脾，絡胃，上膈，挾咽'], ['心', '其支者，從心系，上挾咽，系目系'], ['小腸', '入缺盆，絡心，循咽']],
+    缺盆: [['大腸', '下入缺盆'], ['膽、胃、小腸', '入缺盆'], ['膽、胃、大腸、小腸', '從缺盆'], ['三焦', '下缺盆、出缺盆']],
+    膈: [['脾、肺', '上膈'], ['肝、腎', '貫膈'], ['心、心包、三焦、胃、小腸、大腸', '下膈']],
+    膕: [['膀胱', '入膕中、下合膕中'], ['肝', '上膕內廉'], ['腎', '出膕內廉']],
+    足跗: [['膽', '循足跗上'], ['胃', '下循脛外廉，下足跗'], ['肝', '上循足跗上廉']]
+  };
+  const PART_ALIAS = { 頔: '䪼', 顓: '䪼' };
+  const PART_TITLE = { 客主人: '客主人（上關）', 䪼: '䪼（頔）' };
+  const PART_NOTE = { 膈: '★ 膀胱經、膽經沒有經過膈' };
+  let partFrom = null;
+  const mer = (s, me) => s.split('、').map(x => `<span class="pp-m${x === me ? ' me' : ''}">${E(x)}</span>`).join('、');
+  function partHtml(term, fromId) {
+    const me = SHORT[fromId];
+    const t = PART_ALIAS[term] || term;
+    let h = '', sub = '';
+    if (PART[t]) {
+      sub = '十二經絡循行經過的部位';
+      h = `<table class="ip-tb pp-tb"><tr><th>經絡</th><th>循行</th></tr>${PART[t].map(([ms, x]) => `<tr${ms.split('、').includes(me) ? ' class="me"' : ''}><td>${mer(ms, me)}</td><td>${E(x)}</td></tr>`).join('')}</table>`;
+      if (t === '耳') h = `<div class="pp-ear">${PART.耳.map(([ms, x]) => `<div><b>${x}</b><span>${mer(ms, me)}</span></div>`).join('')}</div>` + h;
+      if (PART_NOTE[t]) h += `<p class="pp-note">${PART_NOTE[t]}</p>`;
+    } else if (ORGAN[t] || t === '腦') {
+      sub = '十二經絡循行經過的臟腑';
+      const has = x => x.includes(t) && !(t === '心' && x.includes('心包'));
+      const via = Object.keys(ORGAN).filter(k => ORGAN[k].some(has));
+      h = (ORGAN[t] ? `<table class="ip-tb pp-tb"><tr><th>經絡</th><th>循行經過的臟腑</th></tr><tr class="${t === me ? 'me' : ''}"><td>${mer(t, me)}</td><td>${ORGAN[t].map(E).join('、')}</td></tr></table>` : '') +
+        `<table class="ip-tb pp-tb"><tr><th colspan="2">${t === '腦' ? '經過腦的經絡' : `與${E(t)}有聯繫之經絡`}</th></tr>${via.map(k => `<tr${k === me ? ' class="me"' : ''}><td>${mer(k, me)}</td><td>${ORGAN[k].filter(has).map(E).join('、')}</td></tr>`).join('')}</table>`;
+    } else return '';
+    const m = byId[fromId];
+    return stagger([`<header class="ip-h pp-h"><button type="button" class="xue-mback pp-back" aria-label="回到${m ? E(m.name) : '經絡'}">«</button><div><small>${sub}${m ? `・從${E(m.name)}` : ''}</small><h2>${E(PART_TITLE[t] || t)}</h2></div></header>`, h]);
+  }
+  function openPart(term, fromId) {
+    fromId = fromId || openId;
+    const html = partHtml(term, fromId);
+    if (!html) return false;
+    if (!openId) {
+      back = { tgt: controls.target.clone(), pos: camera.position.clone() };
+      const cu = byId[fromId] && closeUp(byId[fromId]);
+      if (cu) flyTo(cu.tgt, cu.pos, 500);
+    }
+    openId = fromId || openId;
+    partFrom = fromId;
+    if (L.hooks.part) L.hooks.part.forEach(f => f(term));
+    body.innerHTML = html;
+    body.scrollTop = 0;
+    tr.innerHTML = '';
+    wxPanel.classList.remove('show');
+    panel.classList.remove('show'); void panel.offsetWidth; panel.classList.add('show');
+    stage.classList.add('ip-on', 'pp-on');
+    return true;
+  }
+  panel.addEventListener('click', e => { if (e.target.closest('.pp-back') && partFrom) { const id = partFrom; partFrom = null; stage.classList.remove('pp-on'); open(id); } });
+  // 紅字：capture 階段攔下，免得同一個字也是穴名（缺盆、大迎）時跳去小卡
+  document.addEventListener('click', e => {
+    const r = e.target.closest('.tr-red');
+    if (!r) return;
+    const s = r.closest('[data-m]');
+    const from = (s && s.dataset.m) || (r.closest('.tr-ip') && L.tour && L.tour.curId) || openId || null;
+    if (!from || !partHtml(r.textContent, from)) return;
+    e.stopPropagation(); e.preventDefault();
+    openPart(r.textContent, from);
+  }, true);
+
+  L.info = { open, close, openPart, EXTRA, flyToPoint: o => { spin = false; controls.autoRotate = false; flyToPoint(o); }, get openId() { return openId; } };
 })();

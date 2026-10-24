@@ -127,7 +127,9 @@
   }
 
   /* ---------- 經絡資訊欄裡的穴名都可以點：點了收起資訊欄、飛到那一穴、顯示小卡；左上「« 返回」回到資訊欄 ---------- */
-  const NAMES = [...new Set(PT.map(o => o.name).filter(n => n && n.length >= 2))].sort((a, b) => b.length - a.length);
+  // 五輸表裡的簡寫／異體字：溪＝谿、陰陵＝陰陵泉…
+  const ALIAS = { 後溪: '後谿', 陽溪: '陽谿', 太溪: '太谿', 解溪: '解谿', 俠溪: '俠谿', 陰陵: '陰陵泉', 陽陵: '陽陵泉', 三里: '足三里', 竅陰: '足竅陰', 通谷: '足通谷', 臨泣: '足臨泣' };
+  const NAMES = [...new Set(PT.map(o => o.name).filter(n => n && n.length >= 2).concat(Object.keys(ALIAS)))].sort((a, b) => b.length - a.length);
   const NAME_RE = new RegExp(NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
   function findPt(name) {
     const mid = L.info && L.info.openId;
@@ -140,7 +142,7 @@
       const t = n.nodeValue; NAME_RE.lastIndex = 0;
       if (!NAME_RE.test(t)) return;
       const span = document.createElement('span');
-      span.innerHTML = E(t).replace(NAME_RE, m => `<span class="pt-link" data-pn="${m}" role="button" tabindex="0">${m}</span>`);
+      span.innerHTML = E(t).replace(NAME_RE, m => `<span class="pt-link" data-pn="${ALIAS[m] || m}" role="button" tabindex="0">${m}</span>`);
       n.replaceWith(...span.childNodes);
     });
   }
