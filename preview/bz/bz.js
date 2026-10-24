@@ -1140,7 +1140,7 @@
     xg = {};
     XG.forEach(([cls, , list]) => list.forEach(([name, ts]) => {
       const cs = cats.filter(c => ts.includes(c.t));
-      if (cs.length) xg[name] = { name, cls, ids: cs.flatMap(c => c.ids), n: cs.reduce((a, c) => a + c.n, 0) };
+      if (cs.length) xg[name] = { name, cls, ids: cs.flatMap(c => c.ids), n: cs.reduce((a, c) => a + c.n, 0), hs: cs.flatMap(c => c.hs || []) };
     }));
   }
   // 從總表裡把某些分類（xlc-編號）那幾段複製出來：分類那一列到下一個分類之前
@@ -1281,6 +1281,28 @@
   }
   new MutationObserver(() => requestAnimationFrame(herbDecorate)).observe(document.getElementById('entry') || document.body, { childList: true });
   herbDecorate();
+
+
+  // 藥材頁左邊的分類檢索：也用 28 類分組（溫、寒涼、中性）；點分類看同類藥，點「藥物總表 →」到比較頁
+  let hcSel = null, hcFor = null;
+  if (typeof herbCatsHtml === 'function') window.herbCatsHtml = function (h) {
+    if (!xg || !Object.keys(xg).length) xgBuild();
+    const gs = Object.values(xg); if (!gs.length || !h) return '';
+    const mine = gs.filter(g => g.hs.some(x => x.g === h.id));
+    if (hcFor !== h.id) { hcFor = h.id; if (!hcSel || !mine.some(g => g.name === hcSel)) hcSel = mine.length ? mine[0].name : gs[0].name; }
+    const sel = xg[hcSel] || gs[0];
+    const btn = g => `<button type="button" data-bzhc="${E(g.name)}" class="${g.name === sel.name ? 'on ' : ''}${mine.includes(g) ? 'mine' : ''}">${E(g.name)}<small>${g.n}</small></button>`;
+    return `<p class="hc-head">分類檢索<span class="tag">${gs.length} 類</span></p><div class="bz-hcg">` +
+      XG.map(([cls, name, l]) => { const gg = l.map(x => xg[x[0]]).filter(Boolean); return `<div class="bz-hcg-g bz-hcg-${cls}"><p class="bz-hcg-h">${name}<small>${gg.length} 類</small></p><div class="bz-hcg-l">${gg.map(btn).join('')}</div></div>`; }).join('') +
+      `</div><div class="hc-box"><p class="hc-title">${E(sel.name)}<a href="#sheet" data-bzhcsheet="${E(sel.name)}">藥物總表 →</a></p>
+      <p class="hc-herbs">${sel.hs.map(x => `<a href="#${x.g}" data-go="${x.g}" class="xl-${x.f}${x.g === h.id ? ' cur' : ''}">${typeof stripTags === 'function' ? stripTags(x.h) : E(x.h)}</a>`).join('')}</p></div>`;
+  };
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-bzhc], [data-bzhcsheet]'); if (!b) return;
+    if (b.dataset.bzhc) { hcSel = b.dataset.bzhc; const box = document.getElementById('herbCats'); if (box && typeof by !== 'undefined' && typeof state !== 'undefined') box.innerHTML = window.herbCatsHtml(by[state.cur]); return; }
+    e.preventDefault(); xgSt.p = b.dataset.bzhcsheet; xgSt.total = false; xgSave();
+    if (typeof go === 'function') go('sheet');
+  });
 
   window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
 })();

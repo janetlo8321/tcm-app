@@ -525,3 +525,18 @@ header.top { position: relative; }
   .bar button { font-size: .55rem !important; padding: 2px 0 !important; }
 }
 .bz-hero + section.sec.tb { margin-top: 6px !important; padding-top: 0 !important; }
+
+/* 藥材頁左邊分類檢索：28 類分三組 */
+.bz-hcg { margin-top: 6px; font-size: 13px; }
+.bz-hcg-g + .bz-hcg-g { margin-top: .7em; padding-top: .6em; border-top: 1px solid var(--line-soft, #e5e5e5); }
+.bz-hcg-h { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: .95em; font-weight: 700; color: var(--muted, #888); }
+.bz-hcg-h::before { content: ""; width: .8em; height: .8em; border-radius: 3px; background: rgba(120,120,120,.45); }
+.bz-hcg-or .bz-hcg-h::before { background: #F0AD5A; } .bz-hcg-bl .bz-hcg-h::before { background: #79C2E2; }
+.bz-hcg-h small { font-weight: 400; font-size: .9em; }
+.bz-hcg-l { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; }
+.bz-hcg-l button { display: flex; justify-content: space-between; align-items: baseline; font: inherit; font-size: 1em; line-height: 1.35; text-align: left; padding: .12em .45em; border: 0; border-left: 3px solid rgba(120,120,120,.5); border-radius: 0; background: rgba(120,120,120,.12); color: #1b1b1b; cursor: pointer; }
+.bz-hcg-or button { background: #FFE8C7; border-left-color: #F0AD5A; }
+.bz-hcg-bl button { background: #DDF1FA; border-left-color: #79C2E2; }
+.bz-hcg-l button small { margin-left: 5px; color: var(--muted, #888); font-size: .85em; }
+.bz-hcg-l button.mine { font-weight: 700; }
+.bz-hcg-l button.on { outline: 2px solid #e0302a; outline-offset: -2px; }
