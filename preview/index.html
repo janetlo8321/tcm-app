@@ -156,13 +156,17 @@ setTimeout(loadData, 20000);
 async function loadData() {
   if (dataStarted) return;
   dataStarted = true;
-  try {
-    const r = await fetch('data.enc', { cache: 'no-cache' });   // 每次都問伺服器有沒有更新，沒變就不重抓
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    blob = new Uint8Array(await r.arrayBuffer());
-    if (String.fromCharCode.apply(null, blob.slice(0, 4)) !== 'TCM1') throw new Error('檔案格式不對');
-  } catch (e) {
-    say(navigator.onLine === false ? '現在沒有網路，而這台裝置還沒有開啟過。請先連上網路開一次。' : '載入失敗：' + e.message, true);
+  // 手機網路不穩時，13 MB 的資料庫可能下載到一半斷掉：自動重試 3 次，還是不行就用這台裝置上次存的那一份
+  const get = async r => { if (!r || !r.ok) throw new Error('HTTP ' + (r ? r.status : '?')); const b = new Uint8Array(await r.arrayBuffer()); if (String.fromCharCode.apply(null, b.slice(0, 4)) !== 'TCM1') throw new Error('檔案格式不對'); return b; };
+  let err = null;
+  for (let k = 0; k < 4 && !blob; k++) {
+    if (k) { say(`網路不穩，重新下載資料庫（第 ${k} 次）…`); await new Promise(f => setTimeout(f, 1500 * k)); }
+    try { blob = await get(await fetch('data.enc', { cache: k ? 'reload' : 'no-cache' })); } catch (e) { err = e; }   // 每次都問伺服器有沒有更新，沒變就不重抓
+  }
+  if (!blob && 'caches' in window) { try { blob = await get(await caches.match('data.enc', { ignoreSearch: true })); } catch (e) {} }
+  if (!blob) {
+    say(navigator.onLine === false ? '現在沒有網路，而這台裝置還沒有開啟過。請先連上網路開一次。' : '載入失敗（網路中斷），請下拉重新整理或稍後再開一次。（' + (err && err.message) + '）', true);
+    dataStarted = false;
     return;
   }
   let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}

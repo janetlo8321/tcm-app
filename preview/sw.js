@@ -12,6 +12,6 @@ self.addEventListener('fetch', e => {
     fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => {
       if (r.ok && r.status === 200) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(url.origin + url.pathname, copy)); }   // 不含 ?v=…，同一個檔只存一份
       return r;
-    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./')))
+    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./')).then(r => r || new Response('', { status: 504, statusText: 'offline' })))   // 沒網路也沒存檔：回 504，讓頁面自己重試，不會變成「respondWith 錯誤」
   );
 });
