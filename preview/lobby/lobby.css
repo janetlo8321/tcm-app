@@ -818,7 +818,7 @@ body { display: grid; place-items: center; }
 .wx-tb td.h { color: rgba(255,255,255,.88); }
 .wx-tb .wx-org td { font-size: 13px; }
 .wx-tb .st { font-weight: 700; }
-.wx-tb td.cur { color: #fff; background: linear-gradient(to top, rgba(255,255,255,.42), rgba(255,255,255,.12)); box-shadow: inset 0 -2px 0 rgba(255,255,255,.85); text-shadow: 0 0 8px rgba(255,255,255,.5); }
+.wx-tb td.cur { color: #fff3b0; background: rgba(255, 230, 80, .28); box-shadow: inset 0 -2px 0 rgba(255, 230, 80, .7); text-shadow: 0 0 8px rgba(255, 230, 80, .35); }
 .wx-tb td small { font-size: 9px; color: rgba(255,255,255,.55); margin-left: 1px; }
 .wx-tb.wx-hh td.l { text-align: left; padding-left: 6px; }
 .wx-r { color: #ff7b72; } .wx-b { color: #7fb2ff; } .wx-g { color: #7fd99a; } .wx-k { color: rgba(255,255,255,.42); }
@@ -1007,7 +1007,7 @@ body { display: grid; place-items: center; }
 .pp-h .pp-back { margin-top: 2px; }
 .pp-tb { table-layout: auto; text-align: left; }
 .pp-tb th, .pp-tb td { padding: 7px 8px; font-size: 14px; line-height: 1.6; vertical-align: top; }
-.pp-tb td:first-child { white-space: nowrap; color: #bff3e6; }
+.pp-tb td:first-child { width: 28%; white-space: nowrap; color: #bff3e6; }
 .pp-tb tr.me td { background: rgba(255,122,107,.10); }
 .pp-m.me { color: #ff8f80; font-weight: 600; }
 .pp-ear { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
