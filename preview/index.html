@@ -143,7 +143,7 @@ function showApp(html) {
   b.textContent = '銅人';
   b.title = '回到大廳';
   b.setAttribute('aria-label', '回到大廳（經絡銅人）');
-  b.style.cssText = 'position:fixed;right:12px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:2147483645;width:44px;height:44px;border-radius:50%;border:1px solid rgba(214,166,107,.55);background:rgba(28,20,12,.82);color:#ffe3b8;font:500 12px/1 "Noto Serif TC","Songti TC",serif;letter-spacing:.05em;box-shadow:0 2px 12px rgba(0,0,0,.3);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
+  b.style.cssText = 'position:fixed;right:12px;top:calc(56px + env(safe-area-inset-top,0px));z-index:2147483645;width:44px;height:44px;border-radius:50%;border:1px solid rgba(214,166,107,.55);background:rgba(28,20,12,.82);color:#ffe3b8;font:500 12px/1 "Noto Serif TC","Songti TC",serif;letter-spacing:.05em;box-shadow:0 2px 12px rgba(0,0,0,.3);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)';
   b.addEventListener('click', openLobby);
   const add = () => document.body && document.body.appendChild(b);
   if (document.body) add(); else document.addEventListener('DOMContentLoaded', add);

@@ -43,7 +43,7 @@
     const d = XUE && XUE[o.m.id + o.no];
     const ps = a => (a || []).map(t => `<p>${E(t)}</p>`).join('');
     card.innerHTML = `<button type="button" class="xue-x" aria-label="關閉">✕</button>
-      <header><button type="button" class="xue-mback" aria-label="回到${E(o.m.name)}循行" title="回到${E(o.m.name)}循行">«</button><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>
+      <header><button type="button" class="xue-mback" aria-label="回到${E(o.m.name)}" title="回到${E(o.m.name)}">«</button><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>
       ${d ? `<section><h4>部位</h4><div class="xue-pos">${ps(d.pos)}</div></section>${d.take && d.take.length ? `<section><h4>取穴法</h4>${ps(d.take)}</section>` : ''}`
         : `<p class="xue-none">${XUE ? '筆記裡沒有這個穴的部位資料' : '載入中…'}</p>`}`;
   }
@@ -107,12 +107,11 @@
   });
   card.addEventListener('click', e => {
     if (e.target.closest('.xue-x')) { hide(); return; }
-    if (e.target.closest('.xue-mback') && cur) {   // « 回到這一穴所在經絡的循行（銅人全身、經絡亮起、循行播放）
+    if (e.target.closest('.xue-mback') && cur) {   // « 回到這一穴所在經絡的資訊頁
       const id = cur.m.id; hide();
       back.hidden = true; backId = null;
       if (L.info && L.info.openId) L.info.close(false);
-      L.reset(); L.select(id);
-      if (L.tour && L.tour.play) L.tour.play();
+      L.select(id); L.open(id);   // 回到這條經的資訊頁（經文＋五輸天干表＋銅人）
     }
   });
   // 滑鼠移到穴名上：顯示小卡；移開（且不在小卡上）就收起

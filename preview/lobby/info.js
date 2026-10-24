@@ -86,9 +86,9 @@
     return `<p class="wx-top"><span class="wx-hl">先本經</span>(原穴→單一五行穴性)－遇瓶頸找<span class="wx-hl">同名經</span>－遇瓶頸再找<span class="wx-hl">上下接經＋合化</span><small>(x 表裡經會是相同狀況)</small></p>
       <p class="wx-top">肝'肺大胃脾心小腸　膀腎心包三焦　膽肝　<span class="wx-r">膽證_肺</span></p>
       ${tbl(WX[0])}
+      ${tbl(WX[1])}
       <table class="wx-tb wx-hh"><colgroup><col><col><col><col><col><col class="l"></colgroup><thead><tr><th colspan="6">五門十變合化（善治四肢病）</th></tr><tr><th></th><th>＋</th><th>－</th><th colspan="2"></th><th>辨證合化症狀</th></tr></thead><tbody>
         ${HEHUA.map(r => `<tr><td>${tx(r[0])}</td><td>${r[1]}<small>${r[2]}</small></td><td>${r[3]}<small>${r[4]}</small></td><td>${r[2]}</td><td>${r[4]}</td><td class="l"><span class="wx-r">${r[5]}</span>(<span class="wx-r">${r[6]}</span>)</td></tr>`).join('')}</tbody></table>
-      ${tbl(WX[1])}
       <table class="wx-tb wx-hh"><tbody>
         <tr><td colspan="2">陽明厥陰為合</td><td></td></tr><tr><td colspan="2">太陰太陽為開</td><td>＝臟腑通治</td></tr>
         <tr><td>井主心下滿</td><td>病在臟</td><td></td></tr><tr><td>滎主身熱</td><td>變於色</td><td>滎治外經</td></tr>

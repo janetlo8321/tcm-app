@@ -978,3 +978,15 @@ body { display: grid; place-items: center; }
   .xue, .has-player .xue { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); max-height: 36%; }
   .stage.xue-on .sel, .stage.xue-on .player, .stage.xue-on .pl-dot { opacity: 0 !important; pointer-events: none !important; }
 }
+
+/* 經絡列表鈕移到左上（工具列 › 的下面） */
+.chip-tog { position: fixed; left: 18px; top: calc(128px + env(safe-area-inset-top, 0px)); z-index: 6; }
+.toolbar { top: calc(166px + env(safe-area-inset-top, 0px)); }
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .chip-tog { left: 30px; top: 142px; }
+  .toolbar { top: 182px; }
+}
+/* 循行經文：臟腑與部位用紅字 */
+.tr-red { color: #ff7a6b; }
+.tr-s.on .tr-red { color: #ff8f80; }
+.stage.chips-open .chip-tog { transform: none; background: rgba(214,166,107,.18); }
