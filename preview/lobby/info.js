@@ -350,6 +350,22 @@
   const PART_ALIAS = { 頔: '䪼', 顓: '䪼' };
   const PART_TITLE = { 客主人: '客主人（上關）', 䪼: '䪼（頔）' };
   const PART_NOTE = { 膈: '★ 膀胱經、膽經沒有經過膈' };
+  // 依使用者「眼部經絡治療－諸經皆上注於目」整理表（正＝經脈、別＝經別、筋＝經筋、絡＝絡脈）
+  const PART_MORE = {
+    目: { title: '眼部經絡治療', sub: '諸經皆上注於目', cols: ['部位', '經絡', '作用'], rows: [
+      ['目系', [['心（正）（絡）', '化赤為血'], ['肝（正）', '藏血'], ['胃（別）', ''], ['膽（筋）', '']]],
+      ['目內眥', [['心（別）', ''], ['小腸（正）', ''], ['膀胱（正）', '']]],
+      ['目外眥', [['小腸（正）（筋）', ''], ['膽（正）（筋）（別）', '']]],
+      ['目上綱', [['膀胱（筋）', '']]],
+      ['目下綱', [['陽明', '']]]
+    ] }
+  };
+  const moreHit = (x, me) => !!me && (x.split('（')[0] === me || (x === '陽明' && (me === '胃' || me === '大腸')));
+  const moreHtml = (t, me) => {
+    const d = PART_MORE[t];
+    if (!d) return '';
+    return `<table class="ip-tb pp-tb pp-more"><tr><th colspan="3" class="pp-more-h">${E(d.title)}<small>－${E(d.sub)}</small></th></tr><tr>${d.cols.map(c => `<th>${E(c)}</th>`).join('')}</tr>${d.rows.map(([pt, list]) => list.map(([x, y], i) => `<tr${moreHit(x, me) ? ' class="me"' : ''}>${i ? '' : `<td rowspan="${list.length}" class="pp-more-pt">${E(pt)}</td>`}<td>${moreHit(x, me) ? `<span class="pp-m me">${E(x)}</span>` : E(x)}</td><td>${E(y)}</td></tr>`).join('')).join('')}</table>`;
+  };
   let partFrom = null;
   const mer = (s, me) => s.split('、').map(x => `<span class="pp-m${x === me ? ' me' : ''}">${E(x)}</span>`).join('、');
   function partHtml(term, fromId) {
@@ -361,6 +377,7 @@
       h = `<table class="ip-tb pp-tb"><tr><th>經絡</th><th>循行</th></tr>${PART[t].map(([ms, x]) => `<tr${ms.split('、').includes(me) ? ' class="me"' : ''}><td>${mer(ms, me)}</td><td>${E(x)}</td></tr>`).join('')}</table>`;
       if (t === '耳') h = `<div class="pp-ear">${PART.耳.map(([ms, x]) => `<div><b>${x}</b><span>${mer(ms, me)}</span></div>`).join('')}</div>` + h;
       if (PART_NOTE[t]) h += `<p class="pp-note">${PART_NOTE[t]}</p>`;
+      h += moreHtml(t, me);
     } else if (ORGAN[t] || t === '腦') {
       sub = '十二經絡循行經過的臟腑';
       const has = x => x.includes(t) && !(t === '心' && x.includes('心包'));

@@ -1049,3 +1049,10 @@ body { display: grid; place-items: center; }
 }
 .wx-body > .wx-top:first-child { padding-right: 38px; }
 .stage.ip-on .xue { z-index: 31; }   /* 資訊欄開著時，選穴的小卡浮在上面 */
+.pp-more { margin-top: 14px; }
+.pp-more th.pp-more-h { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: .04em; }
+.pp-more th.pp-more-h small { margin-left: 2px; font-size: 12px; font-weight: 500; color: rgba(244,239,230,.7); }
+.pp-more td:first-child { width: auto; color: inherit; white-space: normal; }
+.pp-more td.pp-more-pt { width: 22%; white-space: nowrap; color: #bff3e6; background: none !important; }
+.pp-more td + td { white-space: nowrap; }
+.pp-more td:last-child { white-space: normal; }
