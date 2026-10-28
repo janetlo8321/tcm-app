@@ -43,12 +43,11 @@
   };
 
   /* ---------- 畫出筆記 ---------- */
-  // 打上去的筆記一直顯示（有筆記的那一段自動留出行間），空白鍵／長按只是把其他段落也撐開好寫新的
+  // 空白鍵／長按展開才顯示；收起時全部藏起來，打過的字都還存著，下次展開出現在原位
   function render() {
     const root = rootEl();
     document.querySelectorAll('.an-note').forEach(n => { if (n !== document.activeElement) n.remove(); });
-    if (!root) return;
-    root.querySelectorAll('p.an-has').forEach(p => p.classList.remove('an-has'));
+    if (!root || !stage.classList.contains('an-on')) return;   // 收起：全部藏起來，筆記資料不動
     const key = keyOf(root); if (!key) return;
     const ts = texts(root), full = ts.map(x => x.n.data).join('');
     const spots = [];
@@ -61,7 +60,6 @@
         if (best < 0) return; s = best;
       }
       const t = ts.find(x => s >= x.s && s < x.s + x.n.data.length); if (!t) return;
-      const para = inPara(t.n); if (para) para.classList.add('an-has');
       spots.push({ a, t, off: s - t.s });
     });
     const rr = root.getBoundingClientRect();   // 先撐開行距再量位置
