@@ -592,6 +592,5 @@ header.top { position: relative; }
 .bz-dh-rs { position: absolute; top: 0; right: -6px; width: 12px; height: 100%; cursor: col-resize; z-index: 2; touch-action: none; }
 .bz-dh-rs::after { content: ''; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: transparent; }
 .bz-dh-rs:hover::after, .bz-dh-rs.on::after { background: var(--accent, #007aff); }
-.bz-dh-tb td:first-child { padding-bottom: 0; }
-.bz-dh-add { position: absolute; left: 2px; bottom: 2px; width: 22px; height: 22px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 15px; line-height: 20px; cursor: pointer; }
-.bz-dh-tb tr:last-child td:first-child .bz-dh-c { padding-bottom: 26px; }
+.bz-dh-tb tfoot td { height: 34px; vertical-align: middle; }
+.bz-dh-add { display: block; margin: 4px 6px; width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 16px; line-height: 24px; cursor: pointer; }

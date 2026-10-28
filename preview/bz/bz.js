@@ -1451,14 +1451,15 @@
   const DHK = 'tcm-dzherb-v1', DH_URL = GH_URL.replace('myfx.json', 'dzherb.json'), DH_COLS = ['藥物', '作用', '補充'], DH_W = [24, 46, 30];
   const dhAll = () => { try { const a = JSON.parse(localStorage.getItem(DHK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const dhStore = a => { try { localStorage.setItem(DHK, JSON.stringify(a)); } catch (e) {} };
-  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', ''], ['', '', ''], ['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
+  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
   function dhHtml(id) {
     const { rows, w } = dhOf(id);
-    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div></td>`;
     return `<h3>相關藥物作用</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      <tbody>${rows.map((r, i) => `<tr>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr><td><button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button></td><td></td><td></td></tr></tfoot></table></div>`;
   }
   function dhRefresh(force) {
     const ent = document.getElementById('entry');
