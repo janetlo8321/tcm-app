@@ -262,12 +262,12 @@
     const m = byId[openId], no = +sel.value;
     const o = PT.find(q => q.m === m && q.no === no && q.side > 0) || PT.find(q => q.m === m && q.no === no);
     if (!o) return;
-    const dist = 7, tgt = o.p.clone();
+    const dist = 16, tgt = o.p.clone();   // 選穴：看到上半身（大約肩到腰），要放大縮小再自己調
     if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
     flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
     spin = false; controls.autoRotate = false;
-    if (L.xue && L.xue.light) L.xue.light(o);   // 選到的穴在銅人身上亮起
-    L.toast(`${m.name}・${o.name}`, 1600);
+    if (L.xue) { L.xue.show(o); if (L.xue.light) L.xue.light(o); }   // 選到的穴：跳出穴位小卡＋銅人身上亮起
+    else L.toast(`${m.name}・${o.name}`, 1600);
   };
   body.addEventListener('change', onPick);
   tr.addEventListener('change', onPick);
