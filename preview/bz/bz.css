@@ -612,3 +612,5 @@ header.top { position: relative; }
 #entry tr.cmp td .cmp-f, #entry tr.cmp td .cmp-f a { color: #e8231a !important; font-weight: 600; }
 #entry tr.cmp td .cmp-f b { color: var(--ink, #1c1c1e) !important; }
 #entry tr.cmp td .cmp-f i { color: var(--muted, #8a8a8e) !important; font-weight: 400; }
+/* 方劑頁等「組成」藥名小卡：藥名亮紅色 */
+#entry .chips .herb { color: #e8231a !important; }
