@@ -1838,5 +1838,69 @@
   }
   hlSync(false);
 
+  /* ---------- 藥材頁功效清單：最後一行 ＋ 自己補充；補上的那幾行輕點可以修改，清空就刪掉 ----------
+   * 存在這台裝置（tcm-hgx-v1，依藥材 id），有設定 GitHub 同步時合併到 tcm-notes sync/hgx.json */
+  const GXK = 'tcm-hgx-v1', GX_URL = GH_URL.replace('myfx.json', 'hgx.json');
+  const gxAll = () => { try { const a = JSON.parse(localStorage.getItem(GXK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const gxStore = a => { try { localStorage.setItem(GXK, JSON.stringify(a)); } catch (e) {} };
+  const gxOf = id => ((gxAll()[id] || {}).list || []).slice();
+  function gxSave(id, list) { const a = gxAll(); a[id] = { list, t: Date.now() }; gxStore(a); clearTimeout(gxSync.t); gxSync.t = setTimeout(() => gxSync(true), 1200); }
+  function gxDecorate() {
+    const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur]; if (!o || o.kind !== 'h') return;
+    const sec = ent.querySelector('section.sec.tb');
+    const gx = sec && [...sec.querySelectorAll(':scope > h3')].find(h => h.textContent.trim() === '功效'), ul = gx && gx.nextElementSibling;
+    if (!ul || !ul.matches('ul')) return;
+    if (ul.dataset.gx === o.id) return;
+    ul.dataset.gx = o.id;
+    ul.querySelectorAll('.bz-gxu, .bz-gxadd').forEach(li => li.remove());
+    gxOf(o.id).forEach((t, i) => ul.insertAdjacentHTML('beforeend', `<li class="bz-gxu"><span class="bz-gxu-t" data-gxi="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</span></li>`));
+    ul.insertAdjacentHTML('beforeend', '<li class="bz-gxadd"><button type="button" data-gxadd title="補充功效">＋</button></li>');
+  }
+  const gxEdit = t => { t.contentEditable = 'true'; t.focus(); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
+  document.addEventListener('click', e => {
+    const add = e.target.closest && e.target.closest('[data-gxadd]');
+    if (add) { const li = add.closest('li'); li.insertAdjacentHTML('beforebegin', '<li class="bz-gxu"><span class="bz-gxu-t" data-gxi="new"></span></li>'); gxEdit(li.previousElementSibling.firstChild); return; }
+    const t = e.target.closest && e.target.closest('.bz-gxu-t');
+    if (t && !t.isContentEditable) gxEdit(t);
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-gxu-t') || e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); t.blur(); }
+  });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-gxu-t')) return;
+    t.contentEditable = 'false';
+    const ul = t.closest('ul'), id = ul && ul.dataset.gx; if (!id) return;
+    const v = t.textContent.replace(/\s+/g, ' ').trim(), list = gxOf(id), i = t.dataset.gxi;
+    if (i === 'new') { if (v) list.push(v); }
+    else if (!v) { if (!confirm('清空就會刪掉這一行補充，確定？')) { t.textContent = list[+i] || ''; return; } list.splice(+i, 1); }
+    else if (list[+i] === v) return;
+    else list[+i] = v;
+    if (i === 'new' && !v) { t.closest('li').remove(); return; }
+    gxSave(id, list);
+    ul.dataset.gx = ''; gxDecorate();
+  });
+  async function gxSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(GX_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = gxAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      gxStore(all);
+      if (changed) { const ul = document.querySelector('#entry ul[data-gx]'); if (ul && !ul.contains(document.activeElement)) { ul.dataset.gx = ''; gxDecorate(); } }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(GX_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步藥材功效補充', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  { const ent = document.getElementById('entry'); if (ent) new MutationObserver(() => setTimeout(gxDecorate, 0)).observe(ent, { childList: true }); gxDecorate(); }
+  gxSync(false);
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();

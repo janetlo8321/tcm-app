@@ -659,3 +659,8 @@ mark.bz-hl { background: #ffe86b; color: inherit; border-radius: 2px; padding: 0
 #entry, #ybBody { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .bz-hl-ok { position: fixed; z-index: 2147483646; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: #34c759; color: #fff; font-size: 17px; font-weight: 700; line-height: 30px; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer; -webkit-user-select: none; user-select: none; }
 .bz-hl-ok.del::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #ffe86b; }
+/* 藥材功效：自己補充的行（輕點可改）和最後一行 ＋ */
+.bz-gxu-t { color: var(--ink, #1c1c1e); border-bottom: 1px dashed rgba(0,0,0,.22); cursor: text; outline: none; min-width: 2em; display: inline-block; }
+.bz-gxu-t[contenteditable="true"] { background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 8em; }
+.bz-gxadd { list-style: none; }
+.bz-gxadd button { width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 16px; line-height: 24px; cursor: pointer; }
