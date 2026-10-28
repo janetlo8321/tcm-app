@@ -659,3 +659,22 @@ mark.bz-hl { background: #ffe86b; color: inherit; border-radius: 2px; padding: 0
 #entry, #ybBody { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 .bz-hl-ok { position: fixed; z-index: 2147483646; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: #34c759; color: #fff; font-size: 17px; font-weight: 700; line-height: 30px; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer; -webkit-user-select: none; user-select: none; }
 .bz-hl-ok.del::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #ffe86b; }
+/* 藥材功效：自己補充的行（輕點可改）和最後一行 ＋ */
+.bz-gxu-t { color: var(--ink, #1c1c1e); border-bottom: 1px dashed rgba(0,0,0,.22); cursor: text; outline: none; min-width: 2em; display: inline-block; }
+.bz-gxu-t[contenteditable="true"] { background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 8em; }
+.bz-gxadd { list-style: none; }
+.bz-gxadd button { width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 16px; line-height: 24px; cursor: pointer; }
+/* 藥材頁歸經：補充（灰字，輕點可改）與 ＋ */
+dd.jings .bz-gj { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85em; font-weight: 400; align-self: center; outline: none; cursor: text; border-bottom: 1px dashed rgba(0,0,0,.18); min-width: 1.5em; }
+dd.jings .bz-gj[contenteditable="true"] { color: var(--ink, #1c1c1e); background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 5em; }
+dd.jings .bz-gjadd { margin-left: 6px; align-self: center; width: 24px; height: 24px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 15px; line-height: 22px; cursor: pointer; }
+/* 藥物總表分類標題旁的自訂註記：兩列並排，最後一個 ＋ */
+.xl-notes { display: inline-grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column; grid-auto-columns: max-content; gap: 2px 8px; align-items: center; margin-left: 4px; min-width: 0; }
+.xl-note { font-size: 12px; line-height: 1.35; color: var(--ink, #1c1c1e); padding: 0 4px; border-radius: 4px; background: rgba(0,0,0,.04); border-bottom: 1px dashed rgba(0,0,0,.2); cursor: text; outline: none; min-width: 1.5em; white-space: nowrap; }
+.xl-note[contenteditable="true"] { background: rgba(0,122,255,.08); border-bottom: 1px solid var(--accent, #007aff); min-width: 4em; }
+.xl-nadd { grid-row: span 2; width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 17px; line-height: 24px; cursor: pointer; }
+.xl-ph { flex-wrap: wrap; }
+@media (max-width: 820px) { .xl-ph { flex-wrap: wrap; } }
+section.zz-sys h2.group { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+section.zz-sys h2.group .xl-notes { font-weight: 400; }
+td.xl-j .bz-gjx { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85em; white-space: nowrap; }
