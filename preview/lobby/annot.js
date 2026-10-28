@@ -74,8 +74,12 @@
   }
 
   /* ---------- 點在字下面的空行：在那裡開一個筆記 ---------- */
-  document.addEventListener('mousedown', e => {
-    if (!stage.classList.contains('an-on') || e.button !== 0) return;
+  let lastPT = 'mouse';
+  document.addEventListener('pointerdown', e => { lastPT = e.pointerType || 'mouse'; }, true);
+  document.addEventListener('mousedown', e => { if (lastPT === 'mouse' && e.button === 0) startNote(e, false); }, true);
+  document.addEventListener('click', e => { if (lastPT !== 'mouse') startNote(e, true); }, true);   // 手機：輕點字下面的空行
+  function startNote(e, touch) {
+    if (!stage.classList.contains('an-on')) return;
     const root = rootEl(); if (!root || !root.contains(e.target) || e.target.closest('.an-note') || !inPara(e.target)) return;
     let hit = null;
     for (const dy of [0, -1]) {   // 先看這個點對到的那一列，對到下一列的話往上一列找
@@ -87,15 +91,15 @@
       if (e.clientY >= rc.bottom) { hit = { node: c.node, off, rc }; break; }
     }
     if (!hit) return;   // 點在字上：照舊（可以用螢光筆選字）
-    e.preventDefault();
+    e.preventDefault(); if (touch) e.stopPropagation();
     const ts = texts(root), t = ts.find(x => x.n === hit.node); if (!t) return;
     const full = ts.map(x => x.n.data).join(''), s = t.s + hit.off;
     const rr = root.getBoundingClientRect();
     const id = 'a' + Date.now().toString(36);
     const n = put(root, id, hit.rc.left - rr.left + root.scrollLeft, hit.rc.bottom - rr.top + root.scrollTop, '');
     n.dataset.s = s; n.dataset.pre = full.slice(Math.max(0, s - 6), s); n.dataset.post = full.slice(s, s + 6); n.dataset.fresh = '1';
-    setTimeout(() => n.focus(), 0);
-  }, true);
+    if (touch) n.focus(); else setTimeout(() => n.focus(), 0);   // 手機要在點的當下 focus 才會跳出鍵盤
+  }
 
   const noteSave = n => {
     const root = rootEl(), key = keyOf(root); if (!key) return;
@@ -125,11 +129,30 @@
     if (e.isComposing || (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable))) return;
     if (!rootEl() || !rootEl().closest('.ip.show')) return;
     e.preventDefault();
-    const root = rootEl(), top = root.scrollTop / Math.max(1, root.scrollHeight);
+    toggle();
+  });
+  function toggle() {
+    const root = rootEl(); if (!root || !root.closest('.ip.show')) return false;
+    const top = root.scrollTop / Math.max(1, root.scrollHeight);
     stage.classList.toggle('an-on');
     render();
     root.scrollTop = top * root.scrollHeight;   // 行距變了，捲到差不多同一段
-  });
+    return true;
+  }
+  /* ---------- 手機：在框框以外的地方（人、背景）長按，打開／收起 ---------- */
+  {
+    let lp = null;
+    const cancel = () => { if (lp) { clearTimeout(lp.t); lp = null; } };
+    document.addEventListener('pointerdown', e => {
+      cancel();
+      if (e.pointerType !== 'touch' || !e.isPrimary) return;
+      if (e.target.closest('.ip, .xue, button, a, input, select, textarea, label, [contenteditable], .pt-q, .chips, .toolbar, .player, .sel')) return;
+      lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { lp = null; if (toggle() && navigator.vibrate) try { navigator.vibrate(15); } catch (er) {} }, 650) };
+    }, true);
+    document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) cancel(); }, true);
+    ['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, cancel, true));
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1) cancel(); }, { capture: true, passive: true });   // 兩指縮放不算
+  }
 
   // 內容換掉、視窗改大小：重新放
   let q = 0;
