@@ -139,11 +139,18 @@
     (EXTRA[m.id] || []).forEach(x => out.push(`<section><h3>${E(x.h)}</h3>${x.list ? `<ul class="ip-ul">${x.list.map(v => `<li>${E(v)}</li>`).join('')}</ul>` : `<p class="ip-p">${E(x.p)}</p>`}</section>`));
     return out;
   };
+  // 五輸穴＋特定穴（募、背俞、原、絡、郄、下合）小表：電腦放在資訊欄上方，手機放在五輸天干表那一頁最下面
+  const shuTable = j => {
+    const yang = !!j.te[5], kinds = yang ? YANG : YIN;
+    const te = ['募', '背俞', '原', '絡', '郄'].concat(yang ? ['下合'] : []);
+    return `<table class="ip-tb"><tr>${kinds.map(k => `<th>${k}</th>`).join('')}${yang ? '<th></th>' : ''}</tr><tr>${j.shu.map(n => `<td>${E(n)}</td>`).join('')}${yang ? '<td></td>' : ''}</tr>` +
+      `<tr>${te.map(k => `<th>${k}</th>`).join('')}</tr><tr>${j.te.map(n => `<td>${E(n)}</td>`).join('')}</tr></table>`;
+  };
   const stagger = items => items.map((h, i) => `<div class="ip-it" style="animation-delay:${(0.15 + i * 0.3).toFixed(2)}s">${h}</div>`).join('');
   // 手機：資訊欄只放經文（循行、病候…），和五輸天干表用右上的小點切換；穴位下拉也在右上
   function phoneContent(m) {
     const pts = m.ptNames || [];
-    return `<div class="ip-page on" data-page="0">${stagger(secs(m, JING[m.id], pts))}</div><div class="ip-page" data-page="1">${stagger([wuxing(m.id)])}</div>`;
+    return `<div class="ip-page on" data-page="0">${stagger(secs(m, JING[m.id], pts))}</div><div class="ip-page" data-page="1">${stagger([wuxing(m.id)].concat(JING[m.id] ? [`<div class="ip-shu-m">${shuTable(JING[m.id])}</div>`] : []))}</div>`;
   }
   function content(m) {
     if (!WIDE.matches) return phoneContent(m);
@@ -151,12 +158,7 @@
     const j = JING[m.id];
     const items = [];
     items.push(`<header class="ip-h"><small>${m.bilateral ? '十二正經' : '奇經八脈'}</small><h2>${E(m.name)}<span class="ip-n">${pts.length}穴</span>${TIME[m.id] ? `<span class="ip-n">${TIME[m.id]}</span>` : ''}</h2>${ALIAS[m.id] ? `<p class="ip-alias">${ALIAS[m.id]}</p>` : ''}</header>`);
-    if (j) {
-      const yang = !!j.te[5], kinds = yang ? YANG : YIN;
-      const te = ['募', '背俞', '原', '絡', '郄'].concat(yang ? ['下合'] : []);
-      items.push(`<table class="ip-tb"><tr>${kinds.map(k => `<th>${k}</th>`).join('')}${yang ? '<th></th>' : ''}</tr><tr>${j.shu.map(n => `<td>${E(n)}</td>`).join('')}${yang ? '<td></td>' : ''}</tr>` +
-        `<tr>${te.map(k => `<th>${k}</th>`).join('')}</tr><tr>${j.te.map(n => `<td>${E(n)}</td>`).join('')}</tr></table>`);
-    }
+    if (j) items.push(shuTable(j));
     if (pts.length) items.push(`<section><h3>穴位</h3><label class="ip-pick">${ptSelect(m, pts)}</label></section>`);
     return stagger(items.concat(secs(m, j, pts)));
   }

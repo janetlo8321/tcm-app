@@ -139,14 +139,25 @@
   });
 
   /* ---------- 空白鍵：打開／收起 ---------- */
-  document.addEventListener('keydown', e => {
+  const onSpace = e => {
     if (e.code !== 'Space' && e.key !== ' ') return;
-    const t = e.target;
-    if (e.isComposing || (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable))) return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input,textarea,[contenteditable="true"]') || t.isContentEditable)) return;   // 正在打字：空白鍵照常打空格
     if (!rootEl() || !rootEl().closest('.ip.show')) return;
     e.preventDefault();
+    if (t && t.closest('select,button') && t.blur) t.blur();   // 剛選過穴位或按過鈕，焦點停在上面也照樣開關
     toggle();
-  });
+  };
+  document.addEventListener('keydown', onSpace, true);
+  // 外層 App 殼（同網域）：焦點停在外層時按空白鍵也要能開關，只在銅人頁看得到時才接
+  try {
+    const fe = window.frameElement;
+    if (fe && parent.document) parent.document.addEventListener('keydown', e => {
+      if (!fe.isConnected || !fe.offsetParent || fe.closest('[hidden]') || getComputedStyle(fe).visibility === 'hidden') return;
+      onSpace(e);
+    }, true);
+  } catch (er) {}
   function toggle() {
     const root = rootEl(); if (!root || !root.closest('.ip.show')) return false;
     const top = root.scrollTop / Math.max(1, root.scrollHeight);
