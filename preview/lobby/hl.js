@@ -7,7 +7,7 @@
   'use strict';
   const HLK = 'tcm-hl-v1', GH_KEY = 'tcm-gh-token-v1';
   const HL_URL = 'https://api.github.com/repos/janetlo8321/tcm-notes/contents/sync/hl.json';
-  const SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style';
+  const SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,[contenteditable]';
   const all = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const store = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const token = () => { try { return localStorage.getItem(GH_KEY) || ''; } catch (e) { return ''; } };
