@@ -1628,5 +1628,78 @@
     if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 醫砭方劑內容：紅字藥名旁邊加灰色括號（預設是藥的分類），輕點可以自己改；依「方名｜藥名」存 ----------
+   * 存在這台裝置（tcm-hnote-v1），有設定 GitHub 同步時合併到 tcm-notes sync/hnote.json */
+  const HNK = 'tcm-hnote-v1', HN_URL = GH_URL.replace('myfx.json', 'hnote.json');
+  const hnAll = () => { try { const a = JSON.parse(localStorage.getItem(HNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const hnStore = a => { try { localStorage.setItem(HNK, JSON.stringify(a)); } catch (e) {} };
+  let hnCat = null;
+  function hnDefault(hid) {
+    if (!hnCat) {
+      hnCat = {};
+      try {
+        const cats = typeof sheetCats === 'function' ? sheetCats() : [];
+        cats.forEach(c => { const g = XG.flatMap(x => x[2]).find(x => x[1].includes(c.t)); (c.hs || []).forEach(h => { if (h.g && !hnCat[h.g]) hnCat[h.g] = g ? g[0] : c.t.replace(/藥$/, ''); }); });
+      } catch (e) {}
+    }
+    return hnCat[hid] || '';
+  }
+  function hnDecorate(root) {
+    if (!root || !root.querySelectorAll) return;
+    const doc = (root.closest && root.closest('.yb-doc')) || root, h2 = doc.querySelector('h2');
+    const fx = (h2 ? h2.textContent : (typeof state !== 'undefined' ? state.cur : '')).trim();
+    const all = hnAll();
+    root.querySelectorAll('b.has[data-herb]').forEach(b => {
+      if (b.nextElementSibling && b.nextElementSibling.classList.contains('bz-hn')) return;
+      const key = fx + '|' + b.dataset.herb, own = all[key];
+      const v = own ? own.v : hnDefault(b.dataset.go);
+      const sp = document.createElement('span');
+      sp.className = 'bz-hn'; sp.dataset.hn = key; sp.title = '輕點可以修改';
+      sp.innerHTML = `(<span class="bz-hn-t">${E(v)}</span>)`;
+      b.after(sp);
+    });
+  }
+  if (typeof ybWire === 'function') { const _w = ybWire; window.ybWire = function (root) { const r = _w.apply(this, arguments); try { hnDecorate(root); } catch (e) {} return r; }; }
+  document.querySelectorAll('.yb-doc').forEach(hnDecorate);
+  document.addEventListener('click', e => {
+    const sp = e.target.closest && e.target.closest('.bz-hn'); if (!sp) return;
+    e.preventDefault(); e.stopPropagation();
+    const t = sp.querySelector('.bz-hn-t');
+    if (t.isContentEditable) return;
+    t.contentEditable = 'true'; t.focus();
+    const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  }, true);
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-hn-t') || e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); t.blur(); }
+  });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-hn-t')) return;
+    t.contentEditable = 'false';
+    const key = t.parentNode.dataset.hn, v = t.textContent.replace(/\s+/g, ' ').trim(), a = hnAll();
+    if (a[key] && a[key].v === v) return;
+    if (!a[key] && v === hnDefault((t.parentNode.previousElementSibling || {}).dataset ? t.parentNode.previousElementSibling.dataset.go : '')) return;
+    a[key] = { v, t: Date.now() }; hnStore(a);
+    document.querySelectorAll('.bz-hn').forEach(s => { if (s.dataset.hn === key && s !== t.parentNode) s.querySelector('.bz-hn-t').textContent = v; });
+    clearTimeout(hnSync.t); hnSync.t = setTimeout(() => hnSync(true), 1200);
+  });
+  async function hnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(HN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = hnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      hnStore(all);
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(HN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步方義藥名註記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  hnSync(false);
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
