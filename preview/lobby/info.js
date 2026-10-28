@@ -99,7 +99,7 @@
   const wxPanel = document.createElement('aside');
   wxPanel.className = 'ip ip-left';
   wxPanel.setAttribute('aria-label', '五輸穴天干表');
-  wxPanel.innerHTML = '<div class="ip-glass"></div><div class="ip-body wx-body"></div>';
+  wxPanel.innerHTML = '<div class="ip-glass"></div><button type="button" class="ip-x" aria-label="關閉">✕</button><div class="ip-body wx-body"></div>';
   stage.appendChild(wxPanel);
   const wxBody = wxPanel.querySelector('.wx-body');
 
@@ -253,6 +253,7 @@
     back = null;
   }
   panel.querySelector('.ip-x').addEventListener('click', () => close());
+  wxPanel.querySelector('.ip-x').addEventListener('click', () => wxPanel.classList.remove('show'));
   // 穴位下拉：鏡頭拉到那一穴（人的左側那一個），名字閃一下
   const onPick = e => {
     const sel = e.target.closest('[data-pt]');

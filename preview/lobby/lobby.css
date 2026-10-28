@@ -1047,3 +1047,4 @@ body { display: grid; place-items: center; }
 @media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) {
   .stage.ip-on .chip-tog.lb-jump { opacity: 0; pointer-events: none; }
 }
+.wx-body > .wx-top:first-child { padding-right: 38px; }
