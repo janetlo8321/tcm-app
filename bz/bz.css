@@ -583,7 +583,7 @@ header.top { position: relative; }
 /* 病證頁「相關藥物作用」表格 */
 .bz-dh { margin: 10px 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--surface, #fff); border: 1px solid var(--line-soft, #e5e5ea); }
 .bz-dh h3 { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--ink, #1c1c1e); }
-.bz-dh-wrap { overflow: hidden; }
+.bz-dh-wrap { overflow: visible; }
 .bz-dh-tb { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 15px; }
 .bz-dh-tb th, .bz-dh-tb td { position: relative; border: 1px solid #b8b8bd; padding: 0; vertical-align: top; text-align: left; }
 .bz-dh-tb th { padding: 2px 6px; font-size: 11px; line-height: 1.4; font-weight: 700; color: var(--ink, #1c1c1e); }
@@ -635,3 +635,16 @@ section.zz-sys .nb-grid li > a > b { font-size: 14px; }
   .bz-fab button:hover { background: rgba(60,44,26,.9); }
   .bz-fab button.on { box-shadow: 0 0 0 3px rgba(255,214,120,.75), 0 2px 12px rgba(0,0,0,.3); }
 }
+
+/* 相關藥物作用：整列空白時，表格左邊外側出現 －，按了刪掉那一列 */
+.bz-dh-rm { display: none; position: absolute; left: -19px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 4px; background: var(--surface, #fff); color: #d70015; font-size: 11px; line-height: 13px; cursor: pointer; }
+.bz-dh-tb tr.empty .bz-dh-rm { display: block; }
+.bz-dh { padding-left: 22px; }
+/* 本病常用方：自訂的方名可以直接改 */
+.bz-fxl-ed { outline: none; border-bottom: 1px dashed rgba(0,0,0,.25); cursor: text; min-width: 1em; }
+.bz-fxl-ed:focus { border-bottom-color: var(--accent, #007aff); background: rgba(0,122,255,.06); }
+/* 醫砭方劑內容（經方抽屜）：有連結的藥名由綠改亮紅 */
+.yb-doc b.has { color: #e8231a !important; text-decoration-color: rgba(232,35,26,.5) !important; }
+.yb-doc b.has:hover { background: rgba(232,35,26,.08) !important; }
+/* 搜尋下拉：項目多時在框內捲動 */
+.qsug { max-height: min(60vh, 520px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }

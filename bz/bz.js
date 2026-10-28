@@ -399,18 +399,32 @@
   }
   // 自己輸入的方：存在這台裝置，依病名分開；記下輸入當時選的虛實陰陽寒熱
   const MYFX = 'tcm-bz-myfx-v1';
-  function myFxAll() { try { return JSON.parse(localStorage.getItem(MYFX) || '{}') || {}; } catch (e) { return {}; } }
+  function myFxRaw() { try { return JSON.parse(localStorage.getItem(MYFX) || '{}') || {}; } catch (e) { return {}; } }
+  function myFxAll() { const a = myFxRaw(), o = {}; Object.keys(a).forEach(k => { o[k] = (a[k] || []).filter(x => x && !x.del); }); return o; }   // 刪掉的（del）只留著給同步用
   function myFx() { return (cur && myFxAll()[cur.id]) || []; }
   function bgTag() { const want = AX.filter(a => report.bg[a.k]); return report.bgAuto || !want.length ? '' : want.map(a => report.bg[a.k] < 0 ? a.a : a.b).join('・'); }
   function saveMyFx(name) { if (cur) saveFxFor(cur.id, name, bgTag()); }
+  function renameFxFor(id, from, to) {   // 自訂的方改名；改成空白就是刪掉
+    to = String(to || '').trim();
+    if (!id || !from || to === from) return;
+    const all = myFxRaw(), list = all[id] || [], now = Date.now();
+    const i = list.findIndex(x => x.n === from && !x.del); if (i < 0) return;
+    const tag = list[i].tag || '';
+    list[i] = { n: from, tag, t: now, del: 1 };
+    if (to) { const j = list.findIndex(x => x.n === to); if (j >= 0) list.splice(j, 1); list.push({ n: to, tag, t: now + 1 }); }
+    all[id] = list;
+    try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
+    fxlRefresh();
+    syncFx(true);
+  }
   function saveFxFor(id, name, tag) {
     name = String(name || '').trim();
     if (!name || !id) return;
-    const all = myFxAll(), list = all[id] || [];
-    if (list.some(x => x.n === name && x.tag === tag)) return;
+    const all = myFxRaw(), list = all[id] || [];
+    if (list.some(x => x.n === name && x.tag === tag && !x.del)) return;
     const i = list.findIndex(x => x.n === name);   // 同一病同名的方只留一筆（記最後一次的虛實陰陽寒熱）
     if (i >= 0) list.splice(i, 1);
-    list.push({ n: name, tag });
+    list.push({ n: name, tag, t: Date.now() });
     all[id] = list;
     try { localStorage.setItem(MYFX, JSON.stringify(all)); } catch (e) {}
     fxlRefresh();
@@ -424,8 +438,13 @@
   function mergeFx(a, b) {
     const out = {};
     [a, b].forEach(src => Object.entries(src || {}).forEach(([id, l]) => {
-      const dst = out[id] = out[id] || [];
-      (l || []).forEach(x => { if (x && x.n && !dst.some(y => y.n === x.n && y.tag === x.tag)) dst.push({ n: x.n, tag: x.tag || '' }); });
+      const dst = out[id] = out[id] || [];   // 同名的方取比較新的那筆（t）；刪掉／改名的會留一筆 del，別台裝置才不會又加回來
+      (l || []).forEach(x => {
+        if (!x || !x.n) return;
+        const y = { n: x.n, tag: x.tag || '' }; if (x.t) y.t = x.t; if (x.del) y.del = 1;
+        const i = dst.findIndex(z => z.n === x.n);
+        if (i < 0) dst.push(y); else if ((y.t || 0) > (dst[i].t || 0)) dst[i] = y;
+      });
     }));
     return out;
   }
@@ -440,7 +459,7 @@
       let remote = {}, sha;
       if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
       else if (r.status !== 404) throw new Error(r.status === 401 ? '金鑰無效或過期' : r.status === 403 || r.status === 404 ? '金鑰沒有 tcm-notes 的權限' : 'HTTP ' + r.status);
-      const merged = mergeFx(remote, myFxAll());
+      const merged = mergeFx(remote, myFxRaw());
       try { localStorage.setItem(MYFX, JSON.stringify(merged)); } catch (e) {}
       if (JSON.stringify(merged) !== JSON.stringify(remote) && (push || !sha)) {
         const w = await fetch(GH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
@@ -797,7 +816,7 @@
     const mine = uniqBy(myFxAll()[o.id] || [], x => x.n).filter(x => !own.has(x.n));
     const fid = n => { const f = (DB.formulas || []).find(x => x.name === n); return f ? f.id : null; };
     const ck = fxCkOf(o.id);
-    const item = (n, i, tag) => { const id = fid(n), on = ck.includes(n); return `<li${on ? ' class="on"' : ''}><input type="checkbox" class="bz-fxl-ck" data-fxck="${E(n)}"${on ? ' checked' : ''}><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
+    const item = (n, i, tag) => { const id = fid(n), on = ck.includes(n); return `<li${on ? ' class="on"' : ''}><input type="checkbox" class="bz-fxl-ck" data-fxck="${E(n)}"${on ? ' checked' : ''}><span class="bz-fxl-no">${i}.</span>${tag ? `<span class="bz-fxl-ed" contenteditable="true" spellcheck="false" data-fxl-ed="${E(n)}" title="可以直接改；清空就刪掉">${E(n)}</span>` : id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <ol>${names.map((n, i) => item(n, i + 1)).join('')}${mine.map((x, i) => item(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <li class="bz-fxl-add"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></li></ol>`;
@@ -827,6 +846,17 @@
     const box = t.closest('.bz-fxl');
     saveFxFor(box.dataset.id, t.value, '');
     fxlRefresh();
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-fxl-ed]') || e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); t.blur(); }
+    if (e.key === 'Escape') { t.textContent = t.dataset.fxlEd; t.blur(); }
+  });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-fxl-ed]')) return;
+    const to = t.textContent.replace(/\s+/g, ' ').trim();
+    if (!to && !confirm('清空就會刪掉「' + t.dataset.fxlEd + '」，確定？')) { t.textContent = t.dataset.fxlEd; return; }
+    renameFxFor(t.closest('.bz-fxl').dataset.id, t.dataset.fxlEd, to);
   });
   const entObs = document.getElementById('entry');
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
@@ -1155,6 +1185,17 @@
       const h = _comp.apply(this, arguments);
       return (h.match(/<span class="cmp-f">/g) || []).length === 1 ? h.replace(/<span class="cmp-f"><b>[^<]*<\/b>/, '<span class="cmp-f">') : h;
     };
+  }
+
+  /* ---------- 搜尋框下拉：不再只列 10 個，所有開頭相同和含有這個字的方／藥都列出來（醫砭的方也算），太多就在框裡往下捲 ---------- */
+  if (typeof drawSug === 'function') {
+    try {
+      let src = drawSug.toString();
+      const reps = [['const top = out.slice(0, 10);', 'const top = out;'],
+        ['if (out.length < 8) {', '{'],
+        ["if (y.name.startsWith(q) && !fByName[y.name]) add({ name: y.name, yb: y.vs[0][0] }, '方', 900);", "if (y.name.includes(q) && !fByName[y.name]) add({ name: y.name, yb: y.vs[0][0] }, '方', y.name.startsWith(q) ? 900 : 0);"]];
+      if (reps.every(([o]) => src.includes(o))) { reps.forEach(([o, n]) => { src = src.replace(o, n); }); window.drawSug = (0, eval)('(' + src + ')'); }
+    } catch (e) {}
   }
 
   /* ---------- 藥物總表：分類改成三組（溫、寒涼、中性）；平常只顯示選的分類（粉紅）＋比較欄（橘），左上 ⊞ 進總表、總表左上 « 回來 ---------- */
@@ -1490,11 +1531,11 @@
   const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
   function dhHtml(id) {
     const { rows, w } = dhOf(id);
-    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' + (rows.length > 1 ? '<button type="button" class="bz-dh-add bz-dh-del" data-dh-del title="刪掉最後一列">－</button>' : '') : ''}</td>`;
+    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
     return `<h3>相關藥物作用</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function dhRefresh(force) {
     const ent = document.getElementById('entry');
@@ -1535,7 +1576,8 @@
   }
   document.addEventListener('input', e => {
     const c = e.target.closest && e.target.closest('.bz-dh-c'); if (!c) return;
-    const box = c.closest('.bz-dh'); dhSave(box.dataset.id, { rows: dhRead(box) });
+    const box = c.closest('.bz-dh'), rows = dhRead(box); dhSave(box.dataset.id, { rows });
+    box.querySelectorAll('tbody tr').forEach((tr, i) => tr.classList.toggle('empty', rows.length > 1 && !rows[i].some(x => x.trim())));
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-dh-add]'); if (!b) return;
@@ -1546,12 +1588,10 @@
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
   });
   document.addEventListener('click', e => {   // －：刪掉最後一列（至少留一列）
-    const b = e.target.closest('[data-dh-del]'); if (!b) return;
-    const box = b.closest('.bz-dh'), rows = dhRead(box);
+    const b = e.target.closest('[data-dh-rm]'); if (!b) return;
+    const box = b.closest('.bz-dh'), rows = dhRead(box), tr = b.closest('tr');
     if (rows.length <= 1) return;
-    const last = rows[rows.length - 1];
-    if (last.some(x => x.trim()) && !confirm('最後一列有內容，確定刪掉？')) return;
-    rows.pop();
+    rows.splice([...tr.parentNode.children].indexOf(tr), 1);
     dhSave(box.dataset.id, { rows });
     dhRefresh(true);
   });
