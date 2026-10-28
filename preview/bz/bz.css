@@ -617,3 +617,11 @@ header.top { position: relative; }
 /* 方劑頁等「組成」藥名小卡：藥名亮紅色 */
 #entry .chips .herb { color: #e8231a !important; }
 #entry tr.cmp td .cmp-l { display: none; }
+
+/* 病證清單：系的標題和病名卡片的字，跟上面彩色分系按鈕一樣大 */
+section.zz-sys h2.group { font-size: 14px; }
+section.zz-sys h2.group .tag { font-size: 12px; }
+section.zz-sys .nb-grid li > a > b { font-size: 14px; }
+@media (max-width: 820px) {
+  section.zz-sys h2.group, section.zz-sys .nb-grid li > a > b { font-size: 15px; }
+}
