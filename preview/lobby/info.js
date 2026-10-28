@@ -248,6 +248,7 @@
     panel.classList.remove('show');
     wxPanel.classList.remove('show');
     stage.classList.remove('ip-on');
+    if (L.xue && L.xue.light) L.xue.light(null);
     spin = false; controls.autoRotate = false;
     if (fly !== false && back) flyTo(back.tgt, back.pos, 500);
     back = null;
@@ -265,6 +266,7 @@
     if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
     flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
     spin = false; controls.autoRotate = false;
+    if (L.xue && L.xue.light) L.xue.light(o);   // 選到的穴在銅人身上亮起
     L.toast(`${m.name}・${o.name}`, 1600);
   };
   body.addEventListener('change', onPick);
