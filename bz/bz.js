@@ -756,13 +756,48 @@
   if (entryEl) { new MutationObserver(addEntry).observe(entryEl, { childList: true }); addEntry(); }
 
   /* ---------- 資料庫的病證頁：放大縮小那一列上方，依序列出本病提到的方＋自己輸入過的方，最後一列可自訂 ---------- */
+  // 本病常用方前面的小方框：勾選的方淡黃底，存在這台裝置（tcm-fxchk-v1，依病的 id），有設定 GitHub 同步時合併到 sync/fxchk.json
+  const FCK = 'tcm-fxchk-v1', FCK_URL = GH_URL.replace('myfx.json', 'fxchk.json');
+  const fckAll = () => { try { const a = JSON.parse(localStorage.getItem(FCK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const fckStore = a => { try { localStorage.setItem(FCK, JSON.stringify(a)); } catch (e) {} };
+  function fxCkOf(id) { const x = fckAll()[id]; return x && Array.isArray(x.on) ? x.on : []; }
+  function fxCkSet(id, name, on) {
+    const a = fckAll(), l = fxCkOf(id).filter(n => n !== name);
+    if (on) l.push(name);
+    a[id] = { on: l, t: Date.now() }; fckStore(a);
+    clearTimeout(fxCkSet.t); fxCkSet.t = setTimeout(() => fckSync(true), 1200);
+  }
+  async function fckSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(FCK_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = fckAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      fckStore(all);
+      if (changed) fxlRefresh();
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(FCK_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步本病常用方勾選', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('change', e => {
+    const c = e.target.closest && e.target.closest('[data-fxck]'); if (!c) return;
+    const box = c.closest('.bz-fxl'); fxCkSet(box.dataset.id, c.dataset.fxck, c.checked);
+    c.closest('li').classList.toggle('on', c.checked);
+  });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
     names.forEach(n => own.add(n));
     const mine = uniqBy(myFxAll()[o.id] || [], x => x.n).filter(x => !own.has(x.n));
     const fid = n => { const f = (DB.formulas || []).find(x => x.name === n); return f ? f.id : null; };
-    const item = (n, i, tag) => { const id = fid(n); return `<li><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
+    const ck = fxCkOf(o.id);
+    const item = (n, i, tag) => { const id = fid(n), on = ck.includes(n); return `<li${on ? ' class="on"' : ''}><input type="checkbox" class="bz-fxl-ck" data-fxck="${E(n)}"${on ? ' checked' : ''}><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <ol>${names.map((n, i) => item(n, i + 1)).join('')}${mine.map((x, i) => item(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <li class="bz-fxl-add"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></li></ol>`;
@@ -796,6 +831,7 @@
   const entObs = document.getElementById('entry');
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
   fxlRefresh();
+  fckSync(false);
 
   /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
    * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
@@ -1451,10 +1487,10 @@
   const DHK = 'tcm-dzherb-v1', DH_URL = GH_URL.replace('myfx.json', 'dzherb.json'), DH_COLS = ['藥物', '作用', '補充'], DH_W = [24, 46, 30];
   const dhAll = () => { try { const a = JSON.parse(localStorage.getItem(DHK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const dhStore = a => { try { localStorage.setItem(DHK, JSON.stringify(a)); } catch (e) {} };
-  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', ''], ['', '', ''], ['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
+  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
   function dhHtml(id) {
     const { rows, w } = dhOf(id);
-    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' + (rows.length > 1 ? '<button type="button" class="bz-dh-add bz-dh-del" data-dh-del title="刪掉最後一列">－</button>' : '') : ''}</td>`;
     return `<h3>相關藥物作用</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
@@ -1509,6 +1545,16 @@
     dhRefresh(true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
   });
+  document.addEventListener('click', e => {   // －：刪掉最後一列（至少留一列）
+    const b = e.target.closest('[data-dh-del]'); if (!b) return;
+    const box = b.closest('.bz-dh'), rows = dhRead(box);
+    if (rows.length <= 1) return;
+    const last = rows[rows.length - 1];
+    if (last.some(x => x.trim()) && !confirm('最後一列有內容，確定刪掉？')) return;
+    rows.pop();
+    dhSave(box.dataset.id, { rows });
+    dhRefresh(true);
+  });
   document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度
     const h = e.target.closest('[data-dh-rs]'); if (!h) return;
     e.preventDefault();
@@ -1528,6 +1574,19 @@
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); }; }
   dhRefresh();
   dhSync(false);
+
+  /* ---------- 電腦版：左邊「總・藥」「證・病證」移到右上角銅人下面，變成圓鈕 🌿 / 👩🏻‍⚕️ ---------- */
+  {
+    const fab = document.createElement('div');
+    fab.className = 'bz-fab';
+    fab.innerHTML = '<button type="button" data-fab="sheet" title="藥物總表" aria-label="藥物總表">🌿</button><button type="button" data-fab="zz" title="全部病證" aria-label="全部病證">👩🏻‍⚕️</button>';
+    fab.addEventListener('click', e => { const b = e.target.closest('[data-fab]'); if (b && typeof go === 'function') go(b.dataset.fab); });
+    const mark = () => fab.querySelectorAll('[data-fab]').forEach(b => b.classList.toggle('on', typeof state !== 'undefined' && state.cur === b.dataset.fab));
+    const put = () => { if (document.body && !fab.isConnected) document.body.appendChild(fab); mark(); };
+    if (document.body) put(); else document.addEventListener('DOMContentLoaded', put);
+    addEventListener('hashchange', () => setTimeout(mark, 0));
+    if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
+  }
 
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();

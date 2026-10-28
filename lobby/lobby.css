@@ -1029,3 +1029,21 @@ body { display: grid; place-items: center; }
 .zz-dz.mine { border-color: rgba(217, 119, 6, .55); }
 .zz-dzadd { text-align: center; font-size: 18px; color: var(--bronze, #d6a66b); border-style: dashed; }
 .zz-dzin { font: 13px var(--font); color: var(--text); background: rgba(255,255,255,.08); border: 1px solid var(--bronze-soft, #d6a66b); border-radius: 8px; padding: 8px 10px; outline: none; min-width: 0; }
+/* 左上最上面：🌿 藥物總表、👩🏻‍⚕️ 全部病證（直接進資料庫那一頁），下面才是 › 工具列、« 經絡 */
+.chip-tog.lb-jump { font-size: 15px; padding: 0; }
+.chip-tog.lb-jump0 { top: calc(84px + env(safe-area-inset-top, 0px)); }
+.chip-tog.lb-jump1 { top: calc(124px + env(safe-area-inset-top, 0px)); }
+.tb-tog { top: calc(164px + env(safe-area-inset-top, 0px)); }
+.chip-tog:not(.lb-jump), .chips.chips-left { top: calc(204px + env(safe-area-inset-top, 0px)); }
+.toolbar { top: calc(244px + env(safe-area-inset-top, 0px)); }
+.stage.chips-open .chip-tog.lb-jump { opacity: 0; pointer-events: none; }
+@media (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .chip-tog.lb-jump0 { top: 98px; }
+  .chip-tog.lb-jump1 { top: 138px; }
+  .tb-tog { top: 178px; }
+  .chip-tog:not(.lb-jump), .chips.chips-left { top: 218px; }
+  .toolbar { top: 258px; }
+}
+@media not all and (min-aspect-ratio: 1/1) and (min-width: 900px) {
+  .stage.ip-on .chip-tog.lb-jump { opacity: 0; pointer-events: none; }
+}
