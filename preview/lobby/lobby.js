@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.17.0';
-  const UPDATED = '10/29 00:44';
+  const UPDATED = '10/29 00:47';
   const FIX_NO = 29;
 
   const $ = id => document.getElementById(id);
