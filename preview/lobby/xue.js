@@ -199,7 +199,7 @@
     return PT.find(o => o.name === name && o.m.id === mid && o.side > 0) || PT.find(o => o.name === name && o.side > 0) || PT.find(o => o.name === name);
   }
   function linkify(root) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('select, option, button, .pt-link, h2, small') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('select, option, button, .pt-link, h2, small, .an-note, [contenteditable]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(n => {
       const t = n.nodeValue; NAME_RE.lastIndex = 0;
