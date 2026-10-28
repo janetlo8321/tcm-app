@@ -1446,5 +1446,88 @@
   if (dzEnt) new MutationObserver(() => { dzListDecorate(); dzPage(); }).observe(dzEnt, { childList: true });
   dzListDecorate(); dzPage();
 
+  /* ---------- 病證頁「相關藥物作用」：本病常用方下面的表格（藥物／作用／補充），欄線可拖、左下＋加一列 ----------
+   * 存在這台裝置（tcm-dzherb-v1，依病的 id），有設定 GitHub 同步時合併到 tcm-notes sync/dzherb.json */
+  const DHK = 'tcm-dzherb-v1', DH_URL = GH_URL.replace('myfx.json', 'dzherb.json'), DH_COLS = ['藥物', '作用', '補充'], DH_W = [24, 46, 30];
+  const dhAll = () => { try { const a = JSON.parse(localStorage.getItem(DHK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const dhStore = a => { try { localStorage.setItem(DHK, JSON.stringify(a)); } catch (e) {} };
+  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', ''], ['', '', ''], ['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
+  function dhHtml(id) {
+    const { rows, w } = dhOf(id);
+    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    return `<h3>相關藥物作用</h3>
+      <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
+      <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r, i) => `<tr>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  function dhRefresh(force) {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
+    if (!o || o.kind !== 'zd' || !fxl) return;
+    let box = ent.querySelector('.bz-dh');
+    if (box && box.dataset.id === o.id && !force) { if (box.previousElementSibling !== fxl) fxl.after(box); return; }
+    if (!box) { box = document.createElement('div'); box.className = 'bz-dh'; }
+    fxl.after(box);
+    box.dataset.id = o.id;
+    box.innerHTML = dhHtml(o.id);
+  }
+  function dhSave(id, patch) {
+    const a = dhAll(), x = Object.assign(dhOf(id), a[id] || {}, patch, { t: Date.now() });
+    a[id] = x; dhStore(a);
+    clearTimeout(dhSave.t); dhSave.t = setTimeout(() => dhSync(true), 1500);
+  }
+  const dhRead = box => [...box.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('.bz-dh-c')].map(d => d.innerText.replace(/\n+$/, '')));
+  async function dhSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DH_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = dhAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      dhStore(all);
+      const box = document.querySelector('#entry .bz-dh');
+      if (changed && box && !box.contains(document.activeElement)) dhRefresh(true);
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步相關藥物作用', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('input', e => {
+    const c = e.target.closest && e.target.closest('.bz-dh-c'); if (!c) return;
+    const box = c.closest('.bz-dh'); dhSave(box.dataset.id, { rows: dhRead(box) });
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-dh-add]'); if (!b) return;
+    const box = b.closest('.bz-dh'), rows = dhRead(box);
+    rows.push(['', '', '']);
+    dhSave(box.dataset.id, { rows });
+    dhRefresh(true);
+    const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
+  });
+  document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度
+    const h = e.target.closest('[data-dh-rs]'); if (!h) return;
+    e.preventDefault();
+    const box = h.closest('.bz-dh'), tb = box.querySelector('table'), cols = [...tb.querySelectorAll('col')], i = +h.dataset.dhRs;
+    const W = tb.getBoundingClientRect().width, w0 = dhOf(box.dataset.id).w.slice(), x0 = e.clientX, pair = w0[i] + w0[i + 1];
+    let w = w0;
+    h.classList.add('on');
+    const mv = ev => {
+      const d = (ev.clientX - x0) / W * 100, a = Math.max(12, Math.min(pair - 12, w0[i] + d));
+      w = w0.slice(); w[i] = +a.toFixed(1); w[i + 1] = +(pair - a).toFixed(1);
+      cols.forEach((c, k) => { c.style.width = w[k] + '%'; });
+    };
+    const up = () => { h.classList.remove('on'); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); dhSave(box.dataset.id, { w }); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
+  if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
+  { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); }; }
+  dhRefresh();
+  dhSync(false);
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
