@@ -43,15 +43,17 @@
   };
 
   /* ---------- 畫出筆記 ---------- */
+  // 打上去的筆記一直顯示（有筆記的那一段自動留出行間），空白鍵／長按只是把其他段落也撐開好寫新的
   function render() {
     const root = rootEl();
     document.querySelectorAll('.an-note').forEach(n => { if (n !== document.activeElement) n.remove(); });
-    if (!root || !stage.classList.contains('an-on')) return;
+    if (!root) return;
+    root.querySelectorAll('p.an-has').forEach(p => p.classList.remove('an-has'));
     const key = keyOf(root); if (!key) return;
     const ts = texts(root), full = ts.map(x => x.n.data).join('');
-    const rr = root.getBoundingClientRect();
+    const spots = [];
     listOf(key).forEach(a => {
-      if (root.querySelector(`.an-note[data-an="${a.id}"]`)) return;
+      if (!String(a.text || '').trim()) return;
       let s = a.s;
       if (full.slice(s - (a.pre || '').length, s + (a.post || '').length) !== (a.pre || '') + (a.post || '')) {   // 內容有變：用前後文找最近的位置
         const ctx = (a.pre || '') + (a.post || ''); let best = -1, i = ctx ? full.indexOf(ctx) : -1;
@@ -59,7 +61,13 @@
         if (best < 0) return; s = best;
       }
       const t = ts.find(x => s >= x.s && s < x.s + x.n.data.length); if (!t) return;
-      const rc = charRect(t.n, s - t.s); if (!rc) return;
+      const para = inPara(t.n); if (para) para.classList.add('an-has');
+      spots.push({ a, t, off: s - t.s });
+    });
+    const rr = root.getBoundingClientRect();   // 先撐開行距再量位置
+    spots.forEach(({ a, t, off }) => {
+      if (root.querySelector(`.an-note[data-an="${a.id}"]`)) return;
+      const rc = charRect(t.n, off); if (!rc) return;
       put(root, a.id, rc.left - rr.left + root.scrollLeft, rc.bottom - rr.top + root.scrollTop, a.text);
     });
   }
@@ -116,6 +124,7 @@
     const n = e.target.closest && e.target.closest('.an-note'); if (!n) return;
     noteSave(n);
     if (!n.innerText.trim()) n.remove();
+    setTimeout(() => { if (!document.activeElement || !document.activeElement.closest('.an-note')) render(); }, 0);
   });
   document.addEventListener('paste', e => {   // 貼上只留純文字
     const n = e.target.closest && e.target.closest('.an-note'); if (!n || !e.clipboardData) return;
@@ -156,7 +165,8 @@
 
   // 內容換掉、視窗改大小：重新放
   let q = 0;
-  const later = () => { clearTimeout(q); q = setTimeout(render, 120); };
+  let q2 = 0;
+  const later = () => { clearTimeout(q); clearTimeout(q2); q = setTimeout(render, 120); q2 = setTimeout(render, 1000); };   // 進場動畫跑完再對一次位置
   const r0 = rootEl();
   if (r0) new MutationObserver(muts => { if (muts.some(m => [...m.addedNodes, ...m.removedNodes].some(x => !(x.classList && x.classList.contains('an-note'))))) later(); }).observe(r0, { childList: true });
   addEventListener('resize', later);
