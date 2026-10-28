@@ -1568,98 +1568,107 @@
   if (dzEnt) new MutationObserver(() => { dzListDecorate(); dzPage(); }).observe(dzEnt, { childList: true });
   dzListDecorate(); dzPage();
 
-  /* ---------- 病證頁「相關藥物作用」：本病常用方下面的表格（藥物／作用／補充），欄線可拖、左下＋加一列 ----------
-   * 存在這台裝置（tcm-dzherb-v1，依病的 id），有設定 GitHub 同步時合併到 tcm-notes sync/dzherb.json */
-  const DHK = 'tcm-dzherb-v1', DH_URL = GH_URL.replace('myfx.json', 'dzherb.json'), DH_COLS = ['藥物', '作用', '補充'], DH_W = [24, 46, 30];
-  const dhAll = () => { try { const a = JSON.parse(localStorage.getItem(DHK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
-  const dhStore = a => { try { localStorage.setItem(DHK, JSON.stringify(a)); } catch (e) {} };
-  const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
-  function dhHtml(id) {
-    const { rows, w } = dhOf(id);
+  /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
+   * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
+   * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
+   * 都依病的 id 存在這台裝置，有設定 GitHub 同步時合併到 tcm-notes */
+  const TBS = {
+    dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
+    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false }
+  };
+  const tbAll = k => { try { const a = JSON.parse(localStorage.getItem(TBS[k].key) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const tbStore = (k, a) => { try { localStorage.setItem(TBS[k].key, JSON.stringify(a)); } catch (e) {} };
+  const tbOf = (k, id) => { const x = tbAll(k)[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : TBS[k].w; return { rows, w }; };
+  const dhAll = () => tbAll('dh'), dhOf = id => tbOf('dh', id);
+  function tbHtml(k, id) {
+    const { rows, w } = tbOf(k, id);
     const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
-    return `<h3>相關藥物作用</h3>
+    return `<h3>${E(TBS[k].title)}</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
-      <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
+      <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
-  function dhRefresh(force) {
+  function tbRefresh(k, force) {
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
     if (!o || o.kind !== 'zd' || !fxl) return;
-    let box = ent.querySelector('.bz-dh');
-    if (box && box.dataset.id === o.id && !force) { if (box.previousElementSibling !== fxl) fxl.after(box); return; }
-    if (!box) { box = document.createElement('div'); box.className = 'bz-dh'; }
-    fxl.after(box);
+    let box = ent.querySelector(`.bz-dh[data-tb="${k}"]`);
+    const put = b => { if (TBS[k].after) { const dd = fxl; if (b.previousElementSibling !== dd) dd.after(b); } else if (b.nextElementSibling !== fxl) fxl.before(b); };
+    if (box && box.dataset.id === o.id && !force) { put(box); return; }
+    if (!box) { box = document.createElement('div'); box.className = 'bz-dh bz-tb-' + k; box.dataset.tb = k; }
+    put(box);
     box.dataset.id = o.id;
-    box.innerHTML = dhHtml(o.id);
+    box.innerHTML = tbHtml(k, o.id);
+    if (k === 'dd') ent.classList.add('bz-has-dd');
     try { hlLater(); } catch (e) {}
   }
-  function dhSave(id, patch) {
-    const a = dhAll(), x = Object.assign(dhOf(id), a[id] || {}, patch, { t: Date.now() });
-    a[id] = x; dhStore(a);
-    clearTimeout(dhSave.t); dhSave.t = setTimeout(() => dhSync(true), 1500);
+  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('dh', force); }
+  function tbSave(k, id, patch) {
+    const a = tbAll(k), x = Object.assign(tbOf(k, id), a[id] || {}, patch, { t: Date.now() });
+    a[id] = x; tbStore(k, a);
+    clearTimeout(TBS[k].st); TBS[k].st = setTimeout(() => tbSync(k, true), 1500);
   }
   const dhRead = box => [...box.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('.bz-dh-c')].map(d => d.innerText.replace(/\n+$/, '')));
-  async function dhSync(push) {
+  async function tbSync(k, push) {
     const tok = ghToken(); if (!tok) return false;
     try {
       const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
-      const r = await fetch(DH_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      const r = await fetch(TBS[k].url + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
       let remote = {}, sha;
       if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
-      const all = { ...remote }, mine = dhAll();
-      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const all = { ...remote }, mine = tbAll(k);
+      Object.keys(mine).forEach(i => { if (!all[i] || (mine[i].t || 0) > (all[i].t || 0)) all[i] = mine[i]; });
       const changed = JSON.stringify(all) !== JSON.stringify(mine);
-      dhStore(all);
-      const box = document.querySelector('#entry .bz-dh');
-      if (changed && box && !box.contains(document.activeElement)) dhRefresh(true);
+      tbStore(k, all);
+      const box = document.querySelector(`#entry .bz-dh[data-tb="${k}"]`);
+      if (changed && box && !box.contains(document.activeElement)) tbRefresh(k, true);
       if (push && JSON.stringify(all) !== JSON.stringify(remote))
-        await fetch(DH_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: '同步相關藥物作用', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+        await fetch(TBS[k].url, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: TBS[k].msg, content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
       return true;
     } catch (e) { return false; }
   }
   document.addEventListener('input', e => {
     const c = e.target.closest && e.target.closest('.bz-dh-c'); if (!c) return;
-    const box = c.closest('.bz-dh'), rows = dhRead(box); dhSave(box.dataset.id, { rows });
+    const box = c.closest('.bz-dh'), rows = dhRead(box); tbSave(box.dataset.tb, box.dataset.id, { rows });
     box.querySelectorAll('tbody tr').forEach((tr, i) => tr.classList.toggle('empty', rows.length > 1 && !rows[i].some(x => x.trim())));
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-dh-add]'); if (!b) return;
-    const box = b.closest('.bz-dh'), rows = dhRead(box);
+    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box);
     rows.push(['', '', '']);
-    dhSave(box.dataset.id, { rows });
-    dhRefresh(true);
+    tbSave(k, box.dataset.id, { rows });
+    tbRefresh(k, true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
   });
-  document.addEventListener('click', e => {   // －：刪掉最後一列（至少留一列）
+  document.addEventListener('click', e => {   // －：刪掉整列空白的那一列（至少留一列）
     const b = e.target.closest('[data-dh-rm]'); if (!b) return;
-    const box = b.closest('.bz-dh'), rows = dhRead(box), tr = b.closest('tr');
+    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr');
     if (rows.length <= 1) return;
     rows.splice([...tr.parentNode.children].indexOf(tr), 1);
-    dhSave(box.dataset.id, { rows });
-    dhRefresh(true);
+    tbSave(k, box.dataset.id, { rows });
+    tbRefresh(k, true);
   });
   document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度
     const h = e.target.closest('[data-dh-rs]'); if (!h) return;
     e.preventDefault();
-    const box = h.closest('.bz-dh'), tb = box.querySelector('table'), cols = [...tb.querySelectorAll('col')], i = +h.dataset.dhRs;
-    const W = tb.getBoundingClientRect().width, w0 = dhOf(box.dataset.id).w.slice(), x0 = e.clientX, pair = w0[i] + w0[i + 1];
+    const box = h.closest('.bz-dh'), k = box.dataset.tb, tb = box.querySelector('table'), cols = [...tb.querySelectorAll('col')], i = +h.dataset.dhRs;
+    const W = tb.getBoundingClientRect().width, w0 = tbOf(k, box.dataset.id).w.slice(), x0 = e.clientX, pair = w0[i] + w0[i + 1];
     let w = w0;
     h.classList.add('on');
     const mv = ev => {
       const d = (ev.clientX - x0) / W * 100, a = Math.max(12, Math.min(pair - 12, w0[i] + d));
       w = w0.slice(); w[i] = +a.toFixed(1); w[i + 1] = +(pair - a).toFixed(1);
-      cols.forEach((c, k) => { c.style.width = w[k] + '%'; });
+      cols.forEach((c, j) => { c.style.width = w[j] + '%'; });
     };
-    const up = () => { h.classList.remove('on'); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); dhSave(box.dataset.id, { w }); };
+    const up = () => { h.classList.remove('on'); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); tbSave(k, box.dataset.id, { w }); };
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   });
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  dhSync(false);
+  tbSync('dh', false); tbSync('dd', false);
 
   /* ---------- 電腦版：左邊「總・藥」「證・病證」移到右上角銅人下面，變成圓鈕 🌿 / 👩🏻‍⚕️ ---------- */
   {
