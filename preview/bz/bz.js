@@ -1701,5 +1701,142 @@
   }
   hnSync(false);
 
+  /* ---------- 螢光筆：長按選字（可拖拉調整範圍），停下來右上出現綠色 ✓，按了變黃底；在黃底上再長按，✓ 確認後去掉 ----------
+   * 每一頁分開存（資料庫條目用 state.cur，醫砭面板用 yb:編號），存在這台裝置（tcm-hl-v1），有設定 GitHub 同步時合併到 sync/hl.json
+   * 位置用「略過自己加的框（本病常用方、相關藥物作用、括號註記）」之後的文字位置＋原文記下，內容變動時用原文找回來 */
+  const HLK = 'tcm-hl-v1', HL_URL = GH_URL.replace('myfx.json', 'hl.json');
+  const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
+  const HL_SKIP = '.bz-fxl,.bz-dh,.bz-hn,.bz-dzed,input,textarea,select,button,[contenteditable="true"],.bz-hl-ok,script,style';
+  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody')].filter(r => r && !r.closest('[hidden]'));
+  function hlKey(root) {
+    if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
+    return typeof state !== 'undefined' && state.cur ? String(state.cur) : '';
+  }
+  function hlTexts(root) {   // 這一頁可以畫的文字節點，和每個節點在全文裡的起點
+    const out = [], w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement && n.parentElement.closest(HL_SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    let pos = 0, n;
+    while ((n = w.nextNode())) { out.push({ n, s: pos }); pos += n.data.length; }
+    return out;
+  }
+  function hlUnwrap(root) {
+    root.querySelectorAll('mark.bz-hl').forEach(m => { const p = m.parentNode; while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); p.normalize(); });
+  }
+  let hlBusy = false;
+  function hlApply(root) {
+    const key = hlKey(root); if (!key) return;
+    hlBusy = true;
+    try {
+      hlUnwrap(root);
+      const list = ((hlAll()[key] || {}).list || []);
+      if (!list.length) return;
+      let ts = hlTexts(root);
+      const full = ts.map(x => x.n.data).join('');
+      list.forEach(h => {
+        let s = h.s;
+        if (full.slice(s, s + h.x.length) !== h.x) {   // 內容有變：找最接近原位置的同一段字
+          let best = -1, i = full.indexOf(h.x);
+          while (i >= 0) { if (best < 0 || Math.abs(i - h.s) < Math.abs(best - h.s)) best = i; i = full.indexOf(h.x, i + 1); }
+          if (best < 0) return; s = best;
+        }
+        hlWrap(ts, s, s + h.x.length, h.id);
+        ts = hlTexts(root);
+      });
+    } finally { hlBusy = false; }
+  }
+  function hlWrap(ts, s, e, id) {
+    ts.forEach(({ n, s: ns }) => {
+      const ne = ns + n.data.length;
+      if (ne <= s || ns >= e || !n.data.trim()) return;
+      let t = n;
+      if (s > ns) t = t.splitText(s - ns);
+      if (e < ne) t.splitText(e - Math.max(s, ns));
+      const m = document.createElement('mark'); m.className = 'bz-hl'; m.dataset.hl = id;
+      t.parentNode.insertBefore(m, t); m.appendChild(t);
+    });
+  }
+  function hlOffset(root, node, off) {   // 選取的端點 → 全文位置
+    const ts = hlTexts(root);
+    if (node.nodeType !== 3) { const r = document.createRange(); r.setStart(node, off); const t = ts.find(x => r.comparePoint(x.n, 0) >= 0); return t ? t.s : (ts.length ? ts[ts.length - 1].s + ts[ts.length - 1].n.data.length : 0); }
+    const t = ts.find(x => x.n === node); return t ? t.s + off : -1;
+  }
+  const hlOk = document.createElement('button');
+  hlOk.type = 'button'; hlOk.className = 'bz-hl-ok'; hlOk.textContent = '✓'; hlOk.hidden = true;
+  let hlPend = null, hlT = 0;
+  const hlPut = () => { if (document.body && !hlOk.isConnected) document.body.appendChild(hlOk); };
+  if (document.body) hlPut(); else document.addEventListener('DOMContentLoaded', hlPut);
+  function hlShow(rect, pend) {
+    hlPend = pend; hlPut();
+    const x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
+    hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
+    hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
+    hlOk.hidden = false;
+  }
+  const hlHide = () => { hlOk.hidden = true; hlPend = null; };
+  document.addEventListener('selectionchange', () => {
+    clearTimeout(hlT);
+    hlT = setTimeout(() => {
+      const sel = getSelection();
+      if (!sel || !sel.rangeCount || sel.isCollapsed) { if (!hlOk.matches(':hover')) hlHide(); return; }
+      const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
+      if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
+      const key = hlKey(root); if (!key) return;
+      const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && startEl.closest('mark.bz-hl');
+      const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
+      if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
+        const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
+        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl });
+        return;
+      }
+      const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
+      if (s < 0 || e <= s) { hlHide(); return; }
+      const x = hlTexts(root).map(t => t.n.data).join('').slice(s, e);
+      if (!x.trim()) { hlHide(); return; }
+      const rs = r.getClientRects(), rc = rs.length ? rs[rs.length - 1] : r.getBoundingClientRect(), r0 = rs.length ? rs[0] : rc;
+      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x });
+    }, 450);
+  });
+  ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlOk.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
+  hlOk.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    const p = hlPend; if (!p) return;
+    const a = hlAll(), pg = a[p.key] || { list: [] };
+    pg.list = pg.list || [];
+    if (p.act === 'add') pg.list.push({ id: 'h' + Date.now().toString(36), s: p.s, e: p.e, x: p.x });
+    else pg.list = pg.list.filter(h => h.id !== p.id);
+    pg.t = Date.now(); a[p.key] = pg; hlStore(a);
+    try { getSelection().removeAllRanges(); } catch (er) {}
+    hlHide(); hlApply(p.root);
+    clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
+  });
+  addEventListener('scroll', () => { if (!hlOk.hidden) hlHide(); }, true);
+  async function hlSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(HL_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = hlAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      hlStore(all);
+      if (changed) hlRoots().forEach(hlApply);
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(HL_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步螢光筆', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  {   // 換頁、打開醫砭面板後重新畫上
+    let q = 0;
+    const later = root => { clearTimeout(q); q = setTimeout(() => { if (!hlBusy) hlApply(root); }, 60); };
+    const ent = document.getElementById('entry'), yb = document.getElementById('ybBody');
+    if (ent) new MutationObserver(() => later(ent)).observe(ent, { childList: true });
+    if (yb) new MutationObserver(() => { if (!hlBusy) setTimeout(() => hlApply(yb), 60); }).observe(yb, { childList: true });
+    hlRoots().forEach(hlApply);
+  }
+  hlSync(false);
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
