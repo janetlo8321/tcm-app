@@ -1704,8 +1704,36 @@
       b.after(sp);
     });
   }
-  if (typeof ybWire === 'function') { const _w = ybWire; window.ybWire = function (root) { const r = _w.apply(this, arguments); try { hnDecorate(root); } catch (e) {} return r; }; }
+  if (typeof ybWire === 'function') { const _w = ybWire; window.ybWire = function (root) { const r = _w.apply(this, arguments); try { hnDecorate(root); } catch (e) {} try { fgDecorate(root); } catch (e) {} return r; }; }
   document.querySelectorAll('.yb-doc').forEach(hnDecorate);
+  // 醫砭方劑「功效」那一段最後：＋ 自己補充（灰字，輕點可改，清空刪掉）；依方名存（和藥物總表註記同一份 tcm-xgnote-v1，鍵是「功效:方名」）
+  function fgHtml(k) { return `<div class="bz-fg" data-fg="${E(k)}">${xnOf(k).map((t, i) => `<p class="bz-fg-t" data-fgi="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</p>`).join('')}<button type="button" class="bz-fg-add" data-fgadd title="補充功效">＋</button></div>`; }
+  function fgDecorate(root) {
+    if (!root || !root.querySelector) return;
+    const h2 = root.querySelector('h2'), h3 = [...root.querySelectorAll('h3')].find(h => h.textContent.trim() === '功效');
+    if (!h2 || !h3 || root.querySelector('.bz-fg')) return;
+    let last = h3; while (last.nextElementSibling && last.nextElementSibling.tagName !== 'H3') last = last.nextElementSibling;
+    last.insertAdjacentHTML('afterend', fgHtml('功效:' + h2.textContent.trim()));
+  }
+  document.querySelectorAll('.yb-doc').forEach(fgDecorate);
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-fgadd]');
+    if (b) { e.stopPropagation(); b.insertAdjacentHTML('beforebegin', '<p class="bz-fg-t" data-fgi="new"></p>'); xnEdit(b.previousElementSibling); return; }
+    const t = e.target.closest && e.target.closest('.bz-fg-t');
+    if (t && !t.isContentEditable) { e.stopPropagation(); xnEdit(t); }
+  }, true);
+  document.addEventListener('keydown', e => { const t = e.target; if (t.classList && t.classList.contains('bz-fg-t') && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); t.blur(); } });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-fg-t')) return;
+    t.contentEditable = 'false';
+    const box = t.closest('[data-fg]'), k = box.dataset.fg, list = xnOf(k), i = t.dataset.fgi, v = t.textContent.replace(/\s+/g, ' ').trim();
+    if (i === 'new') { if (!v) { t.remove(); return; } list.push(v); }
+    else if (!v) { if (!confirm('清空就會刪掉這一行補充，確定？')) { t.textContent = list[+i] || ''; return; } list.splice(+i, 1); }
+    else if (list[+i] === v) return;
+    else list[+i] = v;
+    xnSave(k, list);
+    box.outerHTML = fgHtml(k);
+  });
   document.addEventListener('click', e => {
     const sp = e.target.closest && e.target.closest('.bz-hn'); if (!sp) return;
     e.preventDefault(); e.stopPropagation();
@@ -1752,7 +1780,7 @@
   const HLK = 'tcm-hl-v1', HL_URL = GH_URL.replace('myfx.json', 'hl.json');
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
-  const HL_SKIP = '.bz-fxl,.bz-dh,.bz-hn,.bz-dzed,input,textarea,select,button,[contenteditable="true"],.bz-hl-ok,script,style';
+  const HL_SKIP = '.bz-fxl,.bz-dh,.bz-hn,.bz-fg,.bz-gxu,.bz-gxadd,.bz-gj,.bz-gjadd,.bz-gjx,.xl-notes,.bz-dzed,input,textarea,select,button,[contenteditable="true"],.bz-hl-ok,script,style';
   const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody')].filter(r => r && !r.closest('[hidden]'));
   function hlKey(root) {
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }

@@ -678,3 +678,8 @@ dd.jings .bz-gjadd { margin-left: 6px; align-self: center; width: 24px; height: 
 section.zz-sys h2.group { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
 section.zz-sys h2.group .xl-notes { font-weight: 400; }
 td.xl-j .bz-gjx { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85em; white-space: nowrap; }
+/* 醫砭功效：自己補充（灰字）與 ＋ */
+.yb-doc .bz-fg { margin: -2px 0 10px; }
+.yb-doc .bz-fg-t { margin: 0 0 4px; color: var(--muted, #8a8a8e); font-size: .9em; line-height: 1.6; min-height: 1.6em; outline: none; cursor: text; border-bottom: 1px dashed rgba(0,0,0,.15); width: fit-content; min-width: 3em; }
+.yb-doc .bz-fg-t[contenteditable="true"] { color: var(--ink, #1c1c1e); background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 10em; }
+.yb-doc .bz-fg-add { width: 24px; height: 24px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 15px; line-height: 22px; cursor: pointer; }
