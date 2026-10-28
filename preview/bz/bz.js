@@ -1502,6 +1502,8 @@
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined' || state.cur !== 'zz') return;
     ent.querySelectorAll('section.zz-sys').forEach(sec => {
+      const h2 = sec.querySelector('h2.group');   // 系的標題旁：跟藥物總表一樣的 ＋ 註記
+      if (h2 && !h2.querySelector('.xl-notes')) h2.insertAdjacentHTML('beforeend', xnHtml('系:' + h2.firstChild.textContent.trim()));
       const ul = sec.querySelector('ul.nb-grid'); if (!ul || ul.querySelector('.bz-dzadd')) return;
       const i = +sec.id.replace('zz-', '');
       ul.insertAdjacentHTML('beforeend', `<li class="bz-dzadd"><button type="button" data-dzadd="${i}" aria-label="在${E(ZZ.systems[i] ? ZZ.systems[i].name : '')}新增一個病">＋</button><input type="text" data-dzin="${i}" placeholder="輸入病名後按 Enter" hidden></li>`);

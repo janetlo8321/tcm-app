@@ -675,3 +675,5 @@ dd.jings .bz-gjadd { margin-left: 6px; align-self: center; width: 24px; height: 
 .xl-nadd { grid-row: span 2; width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 17px; line-height: 24px; cursor: pointer; }
 .xl-ph { flex-wrap: wrap; }
 @media (max-width: 820px) { .xl-ph { flex-wrap: wrap; } }
+section.zz-sys h2.group { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+section.zz-sys h2.group .xl-notes { font-weight: 400; }
