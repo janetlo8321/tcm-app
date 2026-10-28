@@ -1574,7 +1574,8 @@
    * 都依病的 id 存在這台裝置，有設定 GitHub 同步時合併到 tcm-notes */
   const TBS = {
     dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
-    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false }
+    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false },
+    ot: { key: 'tcm-dzot-v1', url: GH_URL.replace('myfx.json', 'dzot.json'), cols: ['方式', '重點', '補充'], title: '其他治療方式', w: [24, 46, 30], msg: '同步其他治療方式', after: 'dh' }
   };
   const tbAll = k => { try { const a = JSON.parse(localStorage.getItem(TBS[k].key) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const tbStore = (k, a) => { try { localStorage.setItem(TBS[k].key, JSON.stringify(a)); } catch (e) {} };
@@ -1594,7 +1595,7 @@
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
     if (!o || o.kind !== 'zd' || !fxl) return;
     let box = ent.querySelector(`.bz-dh[data-tb="${k}"]`);
-    const put = b => { if (TBS[k].after) { const dd = fxl; if (b.previousElementSibling !== dd) dd.after(b); } else if (b.nextElementSibling !== fxl) fxl.before(b); };
+    const put = b => { if (TBS[k].after) { const dd = TBS[k].after === true ? fxl : (ent.querySelector(`.bz-dh[data-tb="${TBS[k].after}"]`) || fxl); if (b.previousElementSibling !== dd) dd.after(b); } else if (b.nextElementSibling !== fxl) fxl.before(b); };
     if (box && box.dataset.id === o.id && !force) { put(box); return; }
     if (!box) { box = document.createElement('div'); box.className = 'bz-dh bz-tb-' + k; box.dataset.tb = k; }
     put(box);
@@ -1603,7 +1604,7 @@
     if (k === 'dd') ent.classList.add('bz-has-dd');
     try { hlLater(); } catch (e) {}
   }
-  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('dh', force); }
+  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('dh', force); tbRefresh('ot', force); }
   function tbSave(k, id, patch) {
     const a = tbAll(k), x = Object.assign(tbOf(k, id), a[id] || {}, patch, { t: Date.now() });
     a[id] = x; tbStore(k, a);
@@ -1668,7 +1669,19 @@
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  tbSync('dh', false); tbSync('dd', false);
+  tbSync('dh', false); tbSync('dd', false); tbSync('ot', false);
+  // 貼上時只保留純文字，字型跟頁面一致
+  document.addEventListener('paste', e => {
+    const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
+    if (!t || !t.isContentEditable || !e.clipboardData) return;
+    const txt = e.clipboardData.getData('text/plain');
+    e.preventDefault();
+    if (!document.execCommand('insertText', false, txt)) {
+      const sel = getSelection(); if (!sel.rangeCount) return;
+      const r = sel.getRangeAt(0); r.deleteContents(); const n = document.createTextNode(txt); r.insertNode(n); r.setStartAfter(n); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, true);
 
   /* ---------- 電腦版：左邊「總・藥」「證・病證」移到右上角銅人下面，變成圓鈕 🌿 / 👩🏻‍⚕️ ---------- */
   {
