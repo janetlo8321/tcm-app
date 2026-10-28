@@ -1072,13 +1072,12 @@ body { display: grid; place-items: center; }
 .xue::-webkit-scrollbar { width: 8px; }
 .xue::-webkit-scrollbar-thumb { background: rgba(255,255,255,.35); border-radius: 3px; }
 /* 行間筆記：按空白鍵，每一列字下面空出一行可以打字（灰字），再按一次收起 */
-.an-on .ip:not(.tr-ip):not(.ip-left) .ip-body p { line-height: 3.6; }
+.an-on .ip:not(.tr-ip):not(.ip-left) .ip-body p:not(.wx-top) { line-height: 3.6; }
 .an-note { display: none; position: absolute; z-index: 3; min-width: 1.5em; min-height: 1.35em; margin: 0; padding: 0 2px; font-size: 14px; line-height: 1.35;
   color: rgba(214,214,214,.6); white-space: pre-wrap; word-break: break-all; outline: none; border-radius: 3px; cursor: text; -webkit-user-select: text; user-select: text; }
 .an-on .an-note { display: block; }   /* 收起時筆記一起藏起來（資料還在），展開又出現 */
 .an-note:focus { background: rgba(255,255,255,.07); color: rgba(235,235,235,.85); }
 .an-on .ip:not(.tr-ip):not(.ip-left) .ip-body p { cursor: text; }
 /* 行間筆記也用在表格（五輸天干表、五門十變…）：每一列下面空出一行 */
-.an-on .ip-body .wx-hh td { padding-bottom: 1.55em !important; vertical-align: top; }   /* 只有五門十變合化表撐開 */
-.an-on .ip-left .wx-body .wx-top { line-height: 3.2; }
+.an-on .ip-body .wx-hh:has(thead) td { padding-bottom: 1.55em !important; vertical-align: top; }   /* 只有五門十變合化表撐開 */
 .ip-shu-m { margin-top: 14px; }
