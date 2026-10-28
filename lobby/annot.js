@@ -17,6 +17,9 @@
   const b64e = t => btoa(unescape(encodeURIComponent(t))), b64d = t => decodeURIComponent(escape(atob(t.replace(/\s/g, ''))));
 
   const rootEl = () => document.querySelector('.ip:not(.tr-ip):not(.ip-left) .ip-body');
+  const ROOTS = '.ip:not(.tr-ip):not(.ip-left) .ip-body, .ip-left .wx-body';   // 經絡資訊欄＋左邊五輸天干表
+  const roots = () => [...document.querySelectorAll(ROOTS)];
+  const rootOf = el => el && el.closest && el.closest('.ip-body');
   const keyOf = root => root && root.dataset.hlk ? 'lb:' + root.dataset.hlk : '';
   const listOf = key => ((all()[key] || {}).list || []).slice();
   function save(key, list) {
@@ -29,7 +32,7 @@
     while ((n = w.nextNode())) { out.push({ n, s: pos }); pos += n.data.length; }
     return out;
   }
-  const inPara = n => { const el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest('.ip-body p') && !el.closest(SKIP) ? el.closest('.ip-body p') : null; };
+  const inPara = n => { const el = n.nodeType === 1 ? n : n.parentElement; const p = el && el.closest('.ip-body p, .ip-body td, .ip-body th'); return p && !el.closest(SKIP) ? p : null; };
   function charRect(node, off) {
     if (!node || node.nodeType !== 3 || !node.data.length) return null;
     const o = Math.max(0, Math.min(off, node.data.length - 1)), r = document.createRange();
@@ -45,9 +48,11 @@
   /* ---------- 畫出筆記 ---------- */
   // 空白鍵／長按展開才顯示；收起時全部藏起來，打過的字都還存著，下次展開出現在原位
   function render() {
-    const root = rootEl();
     document.querySelectorAll('.an-note').forEach(n => { if (n !== document.activeElement) n.remove(); });
-    if (!root || !stage.classList.contains('an-on')) return;   // 收起：全部藏起來，筆記資料不動
+    if (!stage.classList.contains('an-on')) return;   // 收起：全部藏起來，筆記資料不動
+    roots().forEach(renderIn);
+  }
+  function renderIn(root) {
     const key = keyOf(root); if (!key) return;
     const ts = texts(root), full = ts.map(x => x.n.data).join('');
     const spots = [];
@@ -66,13 +71,14 @@
     spots.forEach(({ a, t, off }) => {
       if (root.querySelector(`.an-note[data-an="${a.id}"]`)) return;
       const rc = charRect(t.n, off); if (!rc) return;
-      put(root, a.id, rc.left - rr.left + root.scrollLeft, rc.bottom - rr.top + root.scrollTop, a.text);
+      put(root, a.id, rc.left - rr.left + root.scrollLeft, rc.bottom - rr.top + root.scrollTop, a.text, inPara(t.n));
     });
   }
-  function put(root, id, x, y, text) {
+  function put(root, id, x, y, text, at) {
     const n = document.createElement('div');
     n.className = 'an-note'; n.dataset.an = id; n.contentEditable = 'true'; n.spellcheck = false;
     n.style.left = Math.max(0, x) + 'px'; n.style.top = (y + 3) + 'px';
+    if (at) n.style.fontSize = getComputedStyle(at).fontSize;   // 跟上面那個字一樣大
     n.style.maxWidth = Math.max(60, root.clientWidth - x - 12) + 'px';
     n.textContent = text || '';
     root.appendChild(n);
@@ -86,15 +92,18 @@
   document.addEventListener('click', e => { if (lastPT !== 'mouse') startNote(e, true); }, true);   // 手機：輕點字下面的空行
   function startNote(e, touch) {
     if (!stage.classList.contains('an-on')) return;
-    const root = rootEl(); if (!root || !root.contains(e.target) || e.target.closest('.an-note') || !inPara(e.target)) return;
+    const root = rootOf(e.target); if (!root || !roots().includes(root) || e.target.closest('.an-note') || !inPara(e.target)) return;
     let hit = null;
-    for (const dy of [0, -1]) {   // 先看這個點對到的那一列，對到下一列的話往上一列找
-      const lh = parseFloat(getComputedStyle(inPara(e.target)).lineHeight) || 40;
-      const c = caretAt(e.clientX, e.clientY + dy * lh * 0.75);
-      if (!c || !inPara(c.node) || c.node.nodeType !== 3) continue;
-      const off = c.off >= c.node.data.length ? c.node.data.length - 1 : c.off;
-      const rc = charRect(c.node, off); if (!rc) continue;
-      if (e.clientY >= rc.bottom) { hit = { node: c.node, off, rc }; break; }
+    // 從點的位置往上找：第一個「正上方、而且在這個點上面」的字，就是要寫在它下面的那個字
+    for (let k = 0; k <= 14 && !hit; k++) {
+      const c = caretAt(e.clientX, e.clientY - k * 4);
+      if (!c || !inPara(c.node) || c.node.nodeType !== 3 || !c.node.data.length) continue;
+      for (const off of [c.off, c.off - 1]) {
+        if (off < 0 || off >= c.node.data.length) continue;
+        const rc = charRect(c.node, off);
+        if (rc && e.clientY >= rc.bottom && e.clientX >= rc.left - 2 && e.clientX <= rc.right + 2) { hit = { node: c.node, off, rc }; break; }
+      }
+      if (k === 0 && !hit) { const rc = charRect(c.node, Math.min(c.off, c.node.data.length - 1)); if (rc && e.clientY < rc.bottom && e.clientY >= rc.top) break; }   // 點在字上：不開筆記
     }
     if (!hit) return;   // 點在字上：照舊（可以用螢光筆選字）
     e.preventDefault(); if (touch) e.stopPropagation();
@@ -102,13 +111,13 @@
     const full = ts.map(x => x.n.data).join(''), s = t.s + hit.off;
     const rr = root.getBoundingClientRect();
     const id = 'a' + Date.now().toString(36);
-    const n = put(root, id, hit.rc.left - rr.left + root.scrollLeft, hit.rc.bottom - rr.top + root.scrollTop, '');
+    const n = put(root, id, hit.rc.left - rr.left + root.scrollLeft, hit.rc.bottom - rr.top + root.scrollTop, '', inPara(hit.node));
     n.dataset.s = s; n.dataset.pre = full.slice(Math.max(0, s - 6), s); n.dataset.post = full.slice(s, s + 6); n.dataset.fresh = '1';
     if (touch) n.focus(); else setTimeout(() => n.focus(), 0);   // 手機要在點的當下 focus 才會跳出鍵盤
   }
 
   const noteSave = n => {
-    const root = rootEl(), key = keyOf(root); if (!key) return;
+    const root = rootOf(n), key = keyOf(root); if (!key) return;
     const text = n.innerText.replace(/\n+$/, '');
     let list = listOf(key);
     const i = list.findIndex(a => a.id === n.dataset.an);
@@ -164,9 +173,8 @@
   // 內容換掉、視窗改大小：重新放
   let q = 0;
   let q2 = 0;
-  const later = () => { clearTimeout(q); clearTimeout(q2); q = setTimeout(render, 120); q2 = setTimeout(render, 1000); };   // 進場動畫跑完再對一次位置
-  const r0 = rootEl();
-  if (r0) new MutationObserver(muts => { if (muts.some(m => [...m.addedNodes, ...m.removedNodes].some(x => !(x.classList && x.classList.contains('an-note'))))) later(); }).observe(r0, { childList: true });
+  const later = () => { clearTimeout(q); clearTimeout(q2); q = setTimeout(render, 120); q2 = setTimeout(render, 1700); };   // 進場動畫跑完再對一次位置
+  roots().forEach(r0 => new MutationObserver(muts => { if (muts.some(m => [...m.addedNodes, ...m.removedNodes].some(x => !(x.classList && x.classList.contains('an-note'))))) later(); }).observe(r0, { childList: true }));
   addEventListener('resize', later);
 
   async function sync(push) {
