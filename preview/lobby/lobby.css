@@ -1061,7 +1061,7 @@ body { display: grid; place-items: center; }
 .ip mark.bz-hl, .xue mark.bz-hl { background: #ffe86b; color: #1d1608; }
 .ip mark.bz-hl *, .xue mark.bz-hl * { color: #1d1608 !important; }
 /* 穴位小卡：電腦版放在人的左邊中間（手機照舊在腳底） */
-@media (min-aspect-ratio: 3/4) and (min-width: 601px) { .xue, .has-player .xue { left: 14%; top: 36%; bottom: auto; } }
+@media (min-aspect-ratio: 3/4) and (min-width: 601px) { .xue, .has-player .xue { left: 14%; top: 36%; bottom: auto; max-height: calc(64% - 22px); } }
 /* 小卡最下面 ＋ 自己補充 */
 .xue-my { margin-top: 8px; }
 .xue-my-t { margin: 0; min-height: 1.7em; color: rgba(244,239,230,.62) !important; outline: none; border-radius: 4px; cursor: text; -webkit-user-select: text; user-select: text; }
