@@ -134,7 +134,7 @@
   root.id = 'bz';
   root.hidden = true;
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', '八綱辨證');
+  root.setAttribute('aria-label', '辨證');
   document.body.appendChild(root);
 
   let cur = null, pats = [], report = null;
@@ -514,7 +514,7 @@
     root.innerHTML = `
       <div class="bz-top">
         <button type="button" class="bz-back" data-bz="close" aria-label="返回">‹ 返回</button>
-        <div class="bz-title"><small>八綱辨證・${E(o.sys)}</small><b>${E(o.name)}</b></div>
+        <div class="bz-title"><small>辨證・${E(o.sys)}</small><b>${E(o.name)}</b></div>
         <button type="button" class="bz-tbl" data-bzgo="${o.id}">原表格</button>
       </div>
       <div class="bz-body">
@@ -748,7 +748,7 @@
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'bz-entry';
-    b.textContent = '八綱辨證 ›';
+    b.textContent = '辨證 ›';
     b.addEventListener('click', () => open(o.id));
     h.insertAdjacentElement('afterend', b);
   }
