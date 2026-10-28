@@ -99,7 +99,7 @@
   const wxPanel = document.createElement('aside');
   wxPanel.className = 'ip ip-left';
   wxPanel.setAttribute('aria-label', '五輸穴天干表');
-  wxPanel.innerHTML = '<div class="ip-glass"></div><div class="ip-body wx-body"></div>';
+  wxPanel.innerHTML = '<div class="ip-glass"></div><button type="button" class="ip-x" aria-label="關閉">✕</button><div class="ip-body wx-body"></div>';
   stage.appendChild(wxPanel);
   const wxBody = wxPanel.querySelector('.wx-body');
 
@@ -248,11 +248,13 @@
     panel.classList.remove('show');
     wxPanel.classList.remove('show');
     stage.classList.remove('ip-on');
+    if (L.xue && L.xue.light) L.xue.light(null);
     spin = false; controls.autoRotate = false;
     if (fly !== false && back) flyTo(back.tgt, back.pos, 500);
     back = null;
   }
   panel.querySelector('.ip-x').addEventListener('click', () => close());
+  wxPanel.querySelector('.ip-x').addEventListener('click', () => wxPanel.classList.remove('show'));
   // 穴位下拉：鏡頭拉到那一穴（人的左側那一個），名字閃一下
   const onPick = e => {
     const sel = e.target.closest('[data-pt]');
@@ -260,11 +262,12 @@
     const m = byId[openId], no = +sel.value;
     const o = PT.find(q => q.m === m && q.no === no && q.side > 0) || PT.find(q => q.m === m && q.no === no);
     if (!o) return;
-    const dist = 7, tgt = o.p.clone();
+    const dist = 16, tgt = o.p.clone();   // 選穴：看到上半身（大約肩到腰），要放大縮小再自己調
     if (!WIDE.matches) tgt.y -= Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist * 0.54;
     flyTo(tgt, o.p.clone().addScaledVector(o.n, dist).add(V3(0, dist * 0.04, 0)).add(tgt).sub(o.p), 500);
     spin = false; controls.autoRotate = false;
-    L.toast(`${m.name}・${o.name}`, 1600);
+    if (L.xue) { L.xue.show(o); if (L.xue.light) L.xue.light(o); }   // 選到的穴：跳出穴位小卡＋銅人身上亮起
+    else L.toast(`${m.name}・${o.name}`, 1600);
   };
   body.addEventListener('change', onPick);
   tr.addEventListener('change', onPick);

@@ -38,7 +38,7 @@
     return best;
   }
 
-  let cur = null, last = null;
+  let cur = null, last = null, lit = null;   // lit：資訊欄下拉選的穴，只亮燈不跳小卡
   function fill(o) {
     const d = XUE && XUE[o.m.id + o.no];
     const ps = a => (a || []).map(t => `<p>${E(t)}</p>`).join('');
@@ -49,7 +49,7 @@
   }
   let shownAt = 0;
   function show(o) {
-    cur = o; shownAt = performance.now();
+    cur = o; lit = null; shownAt = performance.now();
     fill(o);
     card.classList.remove('show');
     void card.offsetWidth;
@@ -63,7 +63,8 @@
   const PHONE = matchMedia('(max-aspect-ratio: 3/4), (max-width: 600px)');
   let off = 0;
   function place() {
-    const away = !!cur && _w.subVectors(camera.position, cur.p).normalize().dot(cur.n) < (view.opaque > 0.5 ? 0.05 : -0.3);
+    const g = cur || lit;
+    const away = !!g && _w.subVectors(camera.position, g.p).normalize().dot(g.n) < (view.opaque > 0.5 ? 0.05 : -0.3);
     glow.material.opacity = away ? 0 : 1;
     stage.classList.toggle('xue-on', !!cur);
     const want = cur && PHONE.matches ? card.offsetHeight / 2 : 0;
@@ -84,10 +85,11 @@
   L.scene.add(glow);
   L.hooks.frame.push(() => {
     place();
-    glow.visible = !!cur;
-    if (!cur) return;
-    glow.position.copy(cur.p).addScaledVector(cur.n, 0.04);
-    const d = camera.position.distanceTo(cur.p), k = 1 + 0.18 * Math.sin(performance.now() / 260);
+    const g = cur || lit;
+    glow.visible = !!g;
+    if (!g) return;
+    glow.position.copy(g.p).addScaledVector(g.n, 0.04);
+    const d = camera.position.distanceTo(g.p), k = 1 + 0.18 * Math.sin(performance.now() / 260);
     glow.scale.setScalar(Math.max(0.35, d * 0.045) * k);
   });
 
@@ -168,7 +170,7 @@
     if (id) { L.select(id); L.open(id); }
   });
   L.hooks.open.push(() => { back.hidden = true; backId = null; });
-  L.xue = { show: o => { show(o); hov = false; }, linkify };
+  L.xue = { show: o => { show(o); hov = false; }, light: o => { lit = o || null; }, linkify };
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
-  L.hooks.select.push(id => { if (cur && id !== cur.m.id) hide(); });
+  L.hooks.select.push(id => { if (cur && id !== cur.m.id) hide(); if (lit && id !== lit.m.id) lit = null; });
 })();
