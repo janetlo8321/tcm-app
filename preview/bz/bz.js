@@ -1670,6 +1670,18 @@
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
   tbSync('dh', false); tbSync('dd', false); tbSync('ot', false);
+  // 貼上時只保留純文字，字型跟頁面一致
+  document.addEventListener('paste', e => {
+    const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
+    if (!t || !t.isContentEditable || !e.clipboardData) return;
+    const txt = e.clipboardData.getData('text/plain');
+    e.preventDefault();
+    if (!document.execCommand('insertText', false, txt)) {
+      const sel = getSelection(); if (!sel.rangeCount) return;
+      const r = sel.getRangeAt(0); r.deleteContents(); const n = document.createTextNode(txt); r.insertNode(n); r.setStartAfter(n); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, true);
 
   /* ---------- 電腦版：左邊「總・藥」「證・病證」移到右上角銅人下面，變成圓鈕 🌿 / 👩🏻‍⚕️ ---------- */
   {
