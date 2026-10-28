@@ -646,3 +646,5 @@ section.zz-sys .nb-grid li > a > b { font-size: 14px; }
 /* 醫砭方劑內容（經方抽屜）：有連結的藥名由綠改亮紅 */
 .yb-doc b.has { color: #e8231a !important; text-decoration-color: rgba(232,35,26,.5) !important; }
 .yb-doc b.has:hover { background: rgba(232,35,26,.08) !important; }
+/* 搜尋下拉：項目多時在框內捲動 */
+.qsug { max-height: min(60vh, 520px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }

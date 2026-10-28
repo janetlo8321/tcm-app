@@ -1187,6 +1187,17 @@
     };
   }
 
+  /* ---------- 搜尋框下拉：不再只列 10 個，所有開頭相同和含有這個字的方／藥都列出來（醫砭的方也算），太多就在框裡往下捲 ---------- */
+  if (typeof drawSug === 'function') {
+    try {
+      let src = drawSug.toString();
+      const reps = [['const top = out.slice(0, 10);', 'const top = out;'],
+        ['if (out.length < 8) {', '{'],
+        ["if (y.name.startsWith(q) && !fByName[y.name]) add({ name: y.name, yb: y.vs[0][0] }, '方', 900);", "if (y.name.includes(q) && !fByName[y.name]) add({ name: y.name, yb: y.vs[0][0] }, '方', y.name.startsWith(q) ? 900 : 0);"]];
+      if (reps.every(([o]) => src.includes(o))) { reps.forEach(([o, n]) => { src = src.replace(o, n); }); window.drawSug = (0, eval)('(' + src + ')'); }
+    } catch (e) {}
+  }
+
   /* ---------- 藥物總表：分類改成三組（溫、寒涼、中性）；平常只顯示選的分類（粉紅）＋比較欄（橘），左上 ⊞ 進總表、總表左上 « 回來 ---------- */
   const XG = [
     ['or', '溫', [['辛溫解表', ['辛溫解表藥']], ['理氣', ['理氣藥', '行氣止痛']], ['芳香化濕', ['芳香化濕藥']], ['補氣', ['補氣藥']], ['補血', ['補血藥']],
