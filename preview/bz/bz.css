@@ -664,3 +664,7 @@ mark.bz-hl { background: #ffe86b; color: inherit; border-radius: 2px; padding: 0
 .bz-gxu-t[contenteditable="true"] { background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 8em; }
 .bz-gxadd { list-style: none; }
 .bz-gxadd button { width: 26px; height: 26px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 16px; line-height: 24px; cursor: pointer; }
+/* 藥材頁歸經：補充（灰字，輕點可改）與 ＋ */
+dd.jings .bz-gj { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85em; font-weight: 400; align-self: center; outline: none; cursor: text; border-bottom: 1px dashed rgba(0,0,0,.18); min-width: 1.5em; }
+dd.jings .bz-gj[contenteditable="true"] { color: var(--ink, #1c1c1e); background: rgba(0,122,255,.06); border-bottom: 1px solid var(--accent, #007aff); min-width: 5em; }
+dd.jings .bz-gjadd { margin-left: 6px; align-self: center; width: 24px; height: 24px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 6px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 15px; line-height: 22px; cursor: pointer; }

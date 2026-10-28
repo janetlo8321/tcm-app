@@ -1844,12 +1844,13 @@
   const gxAll = () => { try { const a = JSON.parse(localStorage.getItem(GXK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const gxStore = a => { try { localStorage.setItem(GXK, JSON.stringify(a)); } catch (e) {} };
   const gxOf = id => ((gxAll()[id] || {}).list || []).slice();
-  function gxSave(id, list) { const a = gxAll(); a[id] = { list, t: Date.now() }; gxStore(a); clearTimeout(gxSync.t); gxSync.t = setTimeout(() => gxSync(true), 1200); }
+  function gxSave(id, list) { const a = gxAll(); a[id] = Object.assign({}, a[id], { list, t: Date.now() }); gxStore(a); clearTimeout(gxSync.t); gxSync.t = setTimeout(() => gxSync(true), 1200); }
   function gxDecorate() {
     const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur]; if (!o || o.kind !== 'h') return;
     const sec = ent.querySelector('section.sec.tb');
     const gx = sec && [...sec.querySelectorAll(':scope > h3')].find(h => h.textContent.trim() === '功效'), ul = gx && gx.nextElementSibling;
+    gjDecorate(o.id);
     if (!ul || !ul.matches('ul')) return;
     if (ul.dataset.gx === o.id) return;
     ul.dataset.gx = o.id;
@@ -1857,6 +1858,33 @@
     gxOf(o.id).forEach((t, i) => ul.insertAdjacentHTML('beforeend', `<li class="bz-gxu"><span class="bz-gxu-t" data-gxi="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</span></li>`));
     ul.insertAdjacentHTML('beforeend', '<li class="bz-gxadd"><button type="button" data-gxadd title="補充功效">＋</button></li>');
   }
+  // 歸經那一格：經絡色塊後面一個 ＋，補充的字是灰色，輕點可以改
+  function gjDecorate(id) {
+    const v = (gxAll()[id] || {}).gj || '';
+    document.querySelectorAll('#entry dd.jings').forEach(dd => {
+      if (dd.dataset.gj === id + '|' + v && dd.querySelector('.bz-gj')) return;
+      dd.dataset.gj = id + '|' + v;
+      dd.querySelectorAll('.bz-gj, .bz-gjadd').forEach(x => x.remove());
+      dd.insertAdjacentHTML('beforeend', v ? `<span class="bz-gj" data-gjid="${E(id)}" title="輕點可以修改；清空就刪掉">${E(v)}</span>` : `<button type="button" class="bz-gjadd" data-gjadd="${E(id)}" title="補充歸經">＋</button>`);
+    });
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-gjadd]');
+    if (b) { const sp = document.createElement('span'); sp.className = 'bz-gj'; sp.dataset.gjid = b.dataset.gjadd; b.replaceWith(sp); gxEdit(sp); return; }
+    const t = e.target.closest && e.target.closest('.bz-gj');
+    if (t && !t.isContentEditable) gxEdit(t);
+  });
+  document.addEventListener('keydown', e => { const t = e.target; if (t.classList && t.classList.contains('bz-gj') && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); t.blur(); } });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('bz-gj')) return;
+    t.contentEditable = 'false';
+    const id = t.dataset.gjid, a = gxAll(), old = (a[id] || {}).gj || '', v = t.textContent.replace(/\s+/g, ' ').trim();
+    if (v === old) { gjDecorate(id); return; }
+    if (!v && old && !confirm('清空就會刪掉這段歸經補充，確定？')) { t.textContent = old; return; }
+    a[id] = Object.assign({ list: [] }, a[id], { gj: v, t: Date.now() }); gxStore(a);
+    clearTimeout(gxSync.t); gxSync.t = setTimeout(() => gxSync(true), 1200);
+    document.querySelectorAll('#entry dd.jings').forEach(dd => { dd.dataset.gj = ''; }); gjDecorate(id);
+  });
   const gxEdit = t => { t.contentEditable = 'true'; t.focus(); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
   document.addEventListener('click', e => {
     const add = e.target.closest && e.target.closest('[data-gxadd]');
@@ -1892,7 +1920,7 @@
       Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
       const changed = JSON.stringify(all) !== JSON.stringify(mine);
       gxStore(all);
-      if (changed) { const ul = document.querySelector('#entry ul[data-gx]'); if (ul && !ul.contains(document.activeElement)) { ul.dataset.gx = ''; gxDecorate(); } }
+      if (changed) { const ul = document.querySelector('#entry ul[data-gx]'); if (ul && !ul.contains(document.activeElement)) { ul.dataset.gx = ''; gxDecorate(); } else gxDecorate(); }
       if (push && JSON.stringify(all) !== JSON.stringify(remote))
         await fetch(GX_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: '同步藥材功效補充', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
