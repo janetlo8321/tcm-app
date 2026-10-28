@@ -35,6 +35,11 @@
   };
 
   let DATA = null;
+  // 自建的病（資料庫病證頁「＋」或這裡的「＋」新增，存在這台裝置；資料庫那邊負責同步到 GitHub）
+  const DZK = 'tcm-mydz-v1';
+  const myDz = () => { try { const a = JSON.parse(localStorage.getItem(DZK) || '[]'); return Array.isArray(a) ? a.filter(x => x && x.id && x.name && !x.del) : []; } catch (e) { return []; } };
+  const dzOf = sys => myDz().filter(x => x.sys === sys);
+  const nDz = s => s.diseases.length + dzOf(s.name).length;
   fetch('model/zz.json').then(r => r.json()).then(d => { DATA = d; drawSystems(); }).catch(() => {});
 
   /* ---------- 小人按鈕 ---------- */
@@ -121,13 +126,14 @@
     const order = local.filter(n => all.includes(n)).concat(all.filter(n => !local.includes(n)));
     order.forEach(name => {
       const s = DATA.systems.find(x => x.name === name);
-      if (!s || !s.diseases.length) return;
+      if (!s || !nDz(s)) return;
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'zz-chip' + (REGION[name] ? '' : ' whole');
       b.dataset.sys = name;
+      if (name === cur) b.classList.add('active');
       b.style.setProperty('--c', COLOR[name] || '#d6a66b');
-      b.innerHTML = `${name}<small>${s.diseases.length}</small>`;
+      b.innerHTML = `${name}<small>${nDz(s)}</small>`;
       b.addEventListener('click', () => pick(name));
       sysEl.appendChild(b);
     });
@@ -147,9 +153,9 @@
     const s = DATA.systems.find(x => x.name === cur);
     const h = document.createElement('h3');
     h.style.setProperty('--c', COLOR[cur]);
-    h.innerHTML = `${cur}<small>${s.diseases.length} 個病證・點病名開始辨證</small>`;
+    h.innerHTML = `${cur}<small>${nDz(s)} 個病證・點病名開始辨證</small>`;
     listEl.appendChild(h);
-    s.diseases.forEach(d => {
+    s.diseases.concat(dzOf(cur).map(x => ({ id: x.id, name: x.name, mine: true }))).forEach(d => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'zz-dz';
@@ -157,9 +163,31 @@
       b.textContent = d.name;
       b.dataset.id = d.id;
       if (d.id === repId) b.classList.add('active');
+      if (d.mine) b.classList.add('mine');
       b.addEventListener('click', () => openDisease(d.id));
       listEl.appendChild(b);
     });
+    // 最後一格「＋」：輸入病名 → 進資料庫，直接是「本病的方」和可以填的辨證分型表
+    const add = document.createElement('button');
+    add.type = 'button'; add.className = 'zz-dz zz-dzadd'; add.textContent = '＋'; add.setAttribute('aria-label', `在${cur}新增一個病`);
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'zz-dzin'; inp.placeholder = '輸入病名後按 Enter'; inp.hidden = true;
+    add.addEventListener('click', () => { add.hidden = true; inp.hidden = false; inp.focus(); });
+    inp.addEventListener('keydown', e => {
+      if (e.isComposing) return;
+      if (e.key === 'Escape') { inp.hidden = true; add.hidden = false; return; }
+      if (e.key !== 'Enter') return;
+      const name = inp.value.trim(); if (!name) return;
+      const id = 'zu' + Date.now().toString(36), a = (() => { try { return JSON.parse(localStorage.getItem(DZK) || '[]'); } catch (e) { return []; } })();
+      a.push({ id, name, sys: cur, rows: [['', '', '', '', '', '']], t: Date.now() });
+      try { localStorage.setItem(DZK, JSON.stringify(a)); localStorage.setItem('tcm-mydz-edit', id); } catch (e) {}
+      const A = app(); if (A && A.reg) A.reg();
+      drawSystems();
+      if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go: id, bz: false }, '*');
+      else location.href = '../#' + encodeURIComponent(id);
+    });
+    inp.addEventListener('blur', () => { if (!inp.value.trim()) { inp.hidden = true; add.hidden = false; } });
+    listEl.append(add, inp);
     listEl.scrollTop = 0;
   }
   /* ---------- 右側報告單 ---------- */
@@ -184,7 +212,8 @@
   const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function nameOf(id) {
     for (const sy of (DATA ? DATA.systems : [])) { const d = sy.diseases.find(x => x.id === id); if (d) return d.name; }
-    return '';
+    const m = myDz().find(x => x.id === id);
+    return m ? m.name : '';
   }
   function template(id) {   // 資料庫還沒好（這台裝置沒解鎖過）：同樣的報告單，每一欄自己打字
     const f = (lb, ph, v, cls) => `<label class="bz-fld${cls ? ' ' + cls : ''}"><span class="bz-lb">${lb}</span><input type="text" value="${esc(v)}" placeholder="${ph}"></label>`;
