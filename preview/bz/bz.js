@@ -756,13 +756,48 @@
   if (entryEl) { new MutationObserver(addEntry).observe(entryEl, { childList: true }); addEntry(); }
 
   /* ---------- 資料庫的病證頁：放大縮小那一列上方，依序列出本病提到的方＋自己輸入過的方，最後一列可自訂 ---------- */
+  // 本病常用方前面的小方框：勾選的方淡黃底，存在這台裝置（tcm-fxchk-v1，依病的 id），有設定 GitHub 同步時合併到 sync/fxchk.json
+  const FCK = 'tcm-fxchk-v1', FCK_URL = GH_URL.replace('myfx.json', 'fxchk.json');
+  const fckAll = () => { try { const a = JSON.parse(localStorage.getItem(FCK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const fckStore = a => { try { localStorage.setItem(FCK, JSON.stringify(a)); } catch (e) {} };
+  function fxCkOf(id) { const x = fckAll()[id]; return x && Array.isArray(x.on) ? x.on : []; }
+  function fxCkSet(id, name, on) {
+    const a = fckAll(), l = fxCkOf(id).filter(n => n !== name);
+    if (on) l.push(name);
+    a[id] = { on: l, t: Date.now() }; fckStore(a);
+    clearTimeout(fxCkSet.t); fxCkSet.t = setTimeout(() => fckSync(true), 1200);
+  }
+  async function fckSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(FCK_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = fckAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      fckStore(all);
+      if (changed) fxlRefresh();
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(FCK_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步本病常用方勾選', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('change', e => {
+    const c = e.target.closest && e.target.closest('[data-fxck]'); if (!c) return;
+    const box = c.closest('.bz-fxl'); fxCkSet(box.dataset.id, c.dataset.fxck, c.checked);
+    c.closest('li').classList.toggle('on', c.checked);
+  });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
     names.forEach(n => own.add(n));
     const mine = uniqBy(myFxAll()[o.id] || [], x => x.n).filter(x => !own.has(x.n));
     const fid = n => { const f = (DB.formulas || []).find(x => x.name === n); return f ? f.id : null; };
-    const item = (n, i, tag) => { const id = fid(n); return `<li><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
+    const ck = fxCkOf(o.id);
+    const item = (n, i, tag) => { const id = fid(n), on = ck.includes(n); return `<li${on ? ' class="on"' : ''}><input type="checkbox" class="bz-fxl-ck" data-fxck="${E(n)}"${on ? ' checked' : ''}><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <ol>${names.map((n, i) => item(n, i + 1)).join('')}${mine.map((x, i) => item(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <li class="bz-fxl-add"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></li></ol>`;
@@ -796,6 +831,7 @@
   const entObs = document.getElementById('entry');
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
   fxlRefresh();
+  fckSync(false);
 
   /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
    * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
