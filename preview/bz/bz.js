@@ -1239,10 +1239,53 @@
       t.appendChild(b); return t.outerHTML;
     }).join('');
   }
+  // 分類標題旁：自己補充的小註記（兩列並排，輕點可改，清空刪掉），最後一個 ＋ 再加
+  const XNK = 'tcm-xgnote-v1', XN_URL = GH_URL.replace('myfx.json', 'xgnote.json');
+  const xnAll = () => { try { const a = JSON.parse(localStorage.getItem(XNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const xnOf = k => ((xnAll()[k] || {}).list || []).slice();
+  function xnSave(k, list) { const a = xnAll(); a[k] = { list, t: Date.now() }; try { localStorage.setItem(XNK, JSON.stringify(a)); } catch (e) {} clearTimeout(xnSync.t); xnSync.t = setTimeout(() => xnSync(true), 1200); }
+  function xnHtml(k) { return `<span class="xl-notes" data-xn="${E(k)}">${xnOf(k).map((t, i) => `<span class="xl-note" data-xni="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</span>`).join('')}<button type="button" class="xl-nadd" data-xnadd title="補充">＋</button></span>`; }
+  const xnEdit = t => { t.contentEditable = 'true'; t.focus(); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-xnadd]');
+    if (b) { e.stopPropagation(); b.insertAdjacentHTML('beforebegin', '<span class="xl-note" data-xni="new"></span>'); xnEdit(b.previousElementSibling); return; }
+    const t = e.target.closest && e.target.closest('.xl-note');
+    if (t) { e.stopPropagation(); if (!t.isContentEditable) xnEdit(t); }
+  }, true);
+  document.addEventListener('keydown', e => { const t = e.target; if (t.classList && t.classList.contains('xl-note') && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); t.blur(); } });
+  document.addEventListener('focusout', e => {
+    const t = e.target; if (!t.classList || !t.classList.contains('xl-note')) return;
+    t.contentEditable = 'false';
+    const k = t.closest('[data-xn]').dataset.xn, list = xnOf(k), i = t.dataset.xni, v = t.textContent.replace(/\s+/g, ' ').trim();
+    if (i === 'new') { if (!v) { t.remove(); return; } list.push(v); }
+    else if (!v) { if (!confirm('清空就會刪掉這個註記，確定？')) { t.textContent = list[+i] || ''; return; } list.splice(+i, 1); }
+    else if (list[+i] === v) return;
+    else list[+i] = v;
+    xnSave(k, list);
+    document.querySelectorAll('.xl-notes').forEach(n => { if (n.dataset.xn === k) n.outerHTML = xnHtml(k); });
+  });
+  async function xnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(XN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = xnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      try { localStorage.setItem(XNK, JSON.stringify(all)); } catch (e) {}
+      if (JSON.stringify(all) !== JSON.stringify(mine)) document.querySelectorAll('.xl-notes').forEach(n => { if (!n.contains(document.activeElement)) n.outerHTML = xnHtml(n.dataset.xn); });
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(XN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步藥物分類註記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  setTimeout(() => xnSync(false), 1500);
   function xgPane(side) {
     const k = xgSt[side], g = k && xg[k];
-    if (side === 'p') return `<header class="xl-ph"><button type="button" class="xl-pb" data-xltotal title="藥物總表（可放大縮小）" aria-label="進入藥物總表">⊞</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>` : '<b class="xl-pt">選左邊的分類</b>'}</header><div class="xl-pbody">${g ? xgRows(g.ids) : ''}</div>`;
-    return `<header class="xl-ph"><button type="button" class="xl-pb" data-xlpick title="換一個分類來比較" aria-label="換比較的分類">＋</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small><button type="button" class="xl-px" data-xlclr aria-label="清除比較">✕</button>` : '<b class="xl-pt">比較</b>'}</header>` +
+    if (side === 'p') return `<header class="xl-ph"><button type="button" class="xl-pb" data-xltotal title="藥物總表（可放大縮小）" aria-label="進入藥物總表">⊞</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>${xnHtml(g.name)}` : '<b class="xl-pt">選左邊的分類</b>'}</header><div class="xl-pbody">${g ? xgRows(g.ids) : ''}</div>`;
+    return `<header class="xl-ph"><button type="button" class="xl-pb" data-xlpick title="換一個分類來比較" aria-label="換比較的分類">＋</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>${xnHtml(g.name)}<button type="button" class="xl-px" data-xlclr aria-label="清除比較">✕</button>` : '<b class="xl-pt">比較</b>'}</header>` +
       (g ? `<div class="xl-pbody">${xgRows(g.ids)}</div>` : '<div class="xl-pbody xl-pempty"><button type="button" class="xl-pplus" data-xlpick aria-label="選一個分類來比較">＋</button><p>按 ＋，再選左邊一個分類來比較</p></div>');
   }
   function xgRender(sp) {
