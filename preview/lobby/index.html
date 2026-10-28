@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <script>
     // 外層開大廳時帶 ?t=時間：樣式和程式也一起拿最新的
-    window.TCM_V = new URLSearchParams(location.search).get('t') || '';
+    window.TCM_V = new URLSearchParams(location.search).get('t') || String(Date.now());   // 直接打開 lobby/ 時也每次拿最新的程式
     document.write(['../bz/bz.css', 'lobby.css'].map(f => '<link rel="stylesheet" href="' + f + (window.TCM_V ? '?v=' + window.TCM_V : '') + '">').join(''));
   </script>
 </head>
