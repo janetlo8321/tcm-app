@@ -1928,7 +1928,7 @@
     if (!v && old && !confirm('清空就會刪掉這段歸經補充，確定？')) { t.textContent = old; return; }
     a[id] = Object.assign({ list: [] }, a[id], { gj: v, t: Date.now() }); gxStore(a);
     clearTimeout(gxSync.t); gxSync.t = setTimeout(() => gxSync(true), 1200);
-    document.querySelectorAll('#entry dd.jings').forEach(dd => { dd.dataset.gj = ''; }); gjDecorate(id);
+    document.querySelectorAll('#entry dd.jings').forEach(dd => { dd.dataset.gj = ''; }); gjDecorate(id); gjSheet();
   });
   const gxEdit = t => { t.contentEditable = 'true'; t.focus(); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
   document.addEventListener('click', e => {
@@ -1965,14 +1965,28 @@
       Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
       const changed = JSON.stringify(all) !== JSON.stringify(mine);
       gxStore(all);
-      if (changed) { const ul = document.querySelector('#entry ul[data-gx]'); if (ul && !ul.contains(document.activeElement)) { ul.dataset.gx = ''; gxDecorate(); } else gxDecorate(); }
+      if (changed) { const ul = document.querySelector('#entry ul[data-gx]'); if (ul && !ul.contains(document.activeElement)) { ul.dataset.gx = ''; gxDecorate(); } else gxDecorate(); gjSheet(); }
       if (push && JSON.stringify(all) !== JSON.stringify(remote))
         await fetch(GX_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: '同步藥材功效補充', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
       return true;
     } catch (e) { return false; }
   }
-  { const ent = document.getElementById('entry'); if (ent) new MutationObserver(() => setTimeout(gxDecorate, 0)).observe(ent, { childList: true }); gxDecorate(); }
+  // 藥物總表（含粉紅／橘色比較框）每味藥的歸經格：也顯示藥材頁補充的歸經灰字（同一份資料，改一邊兩邊都會變）
+  function gjSheet() {
+    const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined' || state.cur !== 'sheet') return;
+    const a = gxAll();
+    ent.querySelectorAll('td.xl-j').forEach(td => {
+      const l = td.previousElementSibling && td.previousElementSibling.querySelector('a[data-go]'); if (!l) return;
+      const v = (a[l.dataset.go] || {}).gj || '';
+      let sp = td.querySelector('.bz-gjx');
+      if (!v) { if (sp) sp.remove(); return; }
+      if (!sp) { sp = document.createElement('span'); sp.className = 'bz-gjx'; td.appendChild(sp); }
+      if (sp.textContent !== v) sp.textContent = v;
+    });
+  }
+  { const _r = xgRender; xgRender = function () { const r = _r.apply(this, arguments); try { gjSheet(); } catch (e) {} return r; }; }
+  { const ent = document.getElementById('entry'); if (ent) new MutationObserver(() => setTimeout(() => { gxDecorate(); gjSheet(); }, 0)).observe(ent, { childList: true }); gxDecorate(); gjSheet(); }
   gxSync(false);
 
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
