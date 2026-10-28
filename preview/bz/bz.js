@@ -372,7 +372,7 @@
     const seen = new Set(), list = [];
     pats.forEach(p => p.fx.forEach(f => { if (!seen.has(f.name)) { seen.add(f.name); list.push({ ...fxLeaf(f.name), note: p.name }); } }));
     myFx().forEach(x => { if (!seen.has(x.n)) { seen.add(x.n); list.push(fxLeaf(x.n, '自訂')); } });
-    return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? [{ sec: '本病的方', cls: 'hit' }] : [], list.map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` })));
+    return [{ t: '＋新增', v: OTHER, cls: 'dir add' }].concat(list.length ? [{ sec: '本病常用方', cls: 'hit' }] : [], list.map((x, i) => ({ ...x, t: `${i + 1}. ${x.t}` })));
   }
   // 其他處方：我輸入過的方、本病常用（依證型）、各系統的方
   function fxOtherTree() {
@@ -763,7 +763,7 @@
     const mine = uniqBy(myFxAll()[o.id] || [], x => x.n).filter(x => !own.has(x.n));
     const fid = n => { const f = (DB.formulas || []).find(x => x.name === n); return f ? f.id : null; };
     const item = (n, i, tag) => { const id = fid(n); return `<li><span class="bz-fxl-no">${i}.</span>${id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`}${tag ? `<small>${E(tag)}</small>` : ''}</li>`; };
-    return `<h3>本病的方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
+    return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <ol>${names.map((n, i) => item(n, i + 1)).join('')}${mine.map((x, i) => item(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <li class="bz-fxl-add"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></li></ol>`;
   }
