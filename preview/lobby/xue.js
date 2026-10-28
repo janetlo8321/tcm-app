@@ -41,6 +41,7 @@
   let cur = null, last = null, lit = null;   // lit：資訊欄下拉選的穴，只亮燈不跳小卡
   function fill(o) {
     const d = XUE && XUE[o.m.id + o.no];
+    card.dataset.hlk = 'x:' + o.m.id + o.no;
     const ps = a => (a || []).map(t => `<p>${E(t)}</p>`).join('');
     card.innerHTML = `<button type="button" class="xue-x" aria-label="關閉">✕</button>
       <header><button type="button" class="xue-mback" aria-label="回到${E(o.m.name)}" title="回到${E(o.m.name)}">«</button><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>

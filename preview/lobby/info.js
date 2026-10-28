@@ -229,11 +229,11 @@
     spin = true; lastUser = 0;
     const cu = closeUp(m);
     if (cu) flyTo(cu.tgt, cu.pos, 500);
-    body.innerHTML = content(m);
+    body.dataset.hlk = 'm:' + id; body.innerHTML = content(m);
     body.scrollTop = 0;
     const pts = m.ptNames || [];
     tr.innerHTML = WIDE.matches ? '' : `${pts.length ? `<label class="ip-pick">${ptSelect(m, pts)}</label>` : ''}<div class="ip-dots" role="tablist" aria-label="切換內容"><button type="button" class="ip-dot on" data-page="0" aria-label="經文"></button><button type="button" class="ip-dot" data-page="1" aria-label="五輸穴天干表"></button></div>`;
-    wxBody.innerHTML = wuxing(id);
+    wxBody.dataset.hlk = 'wx:' + id; wxBody.innerHTML = wuxing(id);
     wxBody.scrollTop = 0;
     [panel, wxPanel].forEach(el => el.classList.remove('show'));
     void panel.offsetWidth;   // 重新播放進場動畫
@@ -400,7 +400,7 @@
     openId = fromId || openId;
     partFrom = fromId;
     if (L.hooks.part) L.hooks.part.forEach(f => f(term));
-    body.innerHTML = html;
+    body.dataset.hlk = 'p:' + (PART_ALIAS[term] || term); body.innerHTML = html;
     body.scrollTop = 0;
     tr.innerHTML = '';
     wxPanel.classList.remove('show');

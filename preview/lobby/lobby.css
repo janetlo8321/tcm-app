@@ -1056,3 +1056,7 @@ body { display: grid; place-items: center; }
 .pp-more td.pp-more-pt { width: 22%; white-space: nowrap; color: #bff3e6; background: none !important; }
 .pp-more td + td { white-space: nowrap; }
 .pp-more td:last-child { white-space: normal; }
+/* 螢光筆：資訊欄、五輸表、穴位小卡的字可以長按選取 */
+.ip:not(.tr-ip) .ip-body, .xue { -webkit-user-select: text; user-select: text; -webkit-touch-callout: none; }
+.ip mark.bz-hl, .xue mark.bz-hl { background: #ffe86b; color: #1d1608; }
+.ip mark.bz-hl *, .xue mark.bz-hl * { color: #1d1608 !important; }
