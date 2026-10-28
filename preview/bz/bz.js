@@ -771,7 +771,7 @@
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur], bar = ent.querySelector('.nb-zbar') || ent.querySelector('.zz-nav');   // 沒有表格的病（例如白內障）放在最下面那列前面
-    if (!o || o.kind !== 'zd' || !bar || /青光眼/.test(o.name)) return;
+    if (!o || o.kind !== 'zd' || !bar) return;
     let box = ent.querySelector('.bz-fxl');
     if (!box) { box = document.createElement('div'); box.className = 'bz-fxl'; bar.parentNode.insertBefore(box, bar); }
     box.dataset.id = o.id;
