@@ -1081,3 +1081,4 @@ body { display: grid; place-items: center; }
 /* 行間筆記也用在表格（五輸天干表、五門十變…）：每一列下面空出一行 */
 .an-on .ip-body td { padding-bottom: 1.55em !important; vertical-align: top; }
 .an-on .ip-left .wx-body .wx-top { line-height: 3.2; }
+.ip-shu-m { margin-top: 14px; }
