@@ -38,14 +38,67 @@
     return best;
   }
 
+  /* 小卡最下面 ＋：自己補充（可加、可改、清空就刪掉）；存在這台裝置（tcm-xnote-v1，依穴位代碼），有設定 GitHub 同步時合併到 tcm-notes sync/xnote.json */
+  const XNK = 'tcm-xnote-v1', XN_URL = 'https://api.github.com/repos/janetlo8321/tcm-notes/contents/sync/xnote.json';
+  const xnAll = () => { try { const a = JSON.parse(localStorage.getItem(XNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const xnStore = a => { try { localStorage.setItem(XNK, JSON.stringify(a)); } catch (e) {} };
+  const xnOf = k => ((xnAll()[k] || {}).list || []).slice();
+  function xnSave(k, list) { const a = xnAll(); a[k] = { list, t: Date.now() }; xnStore(a); clearTimeout(xnSync.t); xnSync.t = setTimeout(() => xnSync(true), 1200); }
+  async function xnSync(push) {
+    let tok = ''; try { tok = localStorage.getItem('tcm-gh-token-v1') || ''; } catch (e) {}
+    if (!tok) return;
+    const b64e = t => btoa(unescape(encodeURIComponent(t))), b64d = t => decodeURIComponent(escape(atob(t.replace(/\s/g, ''))));
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(XN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const merged = { ...remote }, mine = xnAll();
+      Object.keys(mine).forEach(k => { if (!merged[k] || (mine[k].t || 0) > (merged[k].t || 0)) merged[k] = mine[k]; });   // 只加或取較新的
+      const changed = JSON.stringify(merged) !== JSON.stringify(mine);
+      xnStore(merged);
+      if (changed && cur && !card.contains(document.activeElement)) fill(cur);
+      if (push && JSON.stringify(merged) !== JSON.stringify(remote))
+        await fetch(XN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步穴位補充', content: b64e(JSON.stringify(merged, null, 1)), ...(sha ? { sha } : {}) }) });
+    } catch (e) {}
+  }
+  // 補充一排一排加；多出來的超過原本小卡高度的 1/3，就固定高度、小卡右邊出現滾動欄
+  function xnFit(toEnd) {
+    card.style.maxHeight = '';
+    const ps = [...card.querySelectorAll('.xue-my-t')];
+    const extra = ps.reduce((h, p) => h + p.offsetHeight, 0), base = card.scrollHeight - extra;
+    if (extra > base / 3) card.style.maxHeight = Math.min(Math.round(base * 4 / 3), card.getBoundingClientRect().height || 1e9) + 'px';
+    if (toEnd) card.scrollTop = card.scrollHeight;
+  }
+  const xnRead = () => [...card.querySelectorAll('.xue-my-t')].map(p => p.innerText.replace(/\n+$/, ''));
+  card.addEventListener('input', e => { if (!e.target.closest('.xue-my-t') || !cur) return; xnSave(cur.m.id + cur.no, xnRead()); xnFit(false); });
+  card.addEventListener('focusout', e => {
+    const p = e.target.closest && e.target.closest('.xue-my-t'); if (!p || !cur) return;
+    if (p.innerText.trim()) return;
+    p.remove(); xnSave(cur.m.id + cur.no, xnRead().filter(t => t.trim()));
+    card.querySelectorAll('.xue-my-t').forEach((q, i) => { q.dataset.xn = i; });
+    xnFit(false);
+  });
+  card.addEventListener('keydown', e => { if (e.target.closest && e.target.closest('.xue-my-t')) e.stopPropagation(); });   // 打字時 Esc 等鍵不要收起小卡
+  card.addEventListener('paste', e => {   // 貼上只留純文字，字型跟小卡一樣
+    if (!e.target.closest || !e.target.closest('.xue-my-t') || !e.clipboardData) return;
+    e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+  });
+  xnSync(false);
+
   let cur = null, last = null, lit = null;   // lit：資訊欄下拉選的穴，只亮燈不跳小卡
   function fill(o) {
     const d = XUE && XUE[o.m.id + o.no];
+    card.dataset.hlk = 'x:' + o.m.id + o.no;
     const ps = a => (a || []).map(t => `<p>${E(t)}</p>`).join('');
     card.innerHTML = `<button type="button" class="xue-x" aria-label="關閉">✕</button>
       <header><button type="button" class="xue-mback" aria-label="回到${E(o.m.name)}" title="回到${E(o.m.name)}">«</button><b>${E(o.name)}</b><small>${E(o.m.id + o.no)}・${E(o.m.name)}</small></header>
       ${d ? `<section><h4>部位</h4><div class="xue-pos">${ps(d.pos)}</div></section>${d.take && d.take.length ? `<section><h4>取穴法</h4>${ps(d.take)}</section>` : ''}`
-        : `<p class="xue-none">${XUE ? '筆記裡沒有這個穴的部位資料' : '載入中…'}</p>`}`;
+        : `<p class="xue-none">${XUE ? '筆記裡沒有這個穴的部位資料' : '載入中…'}</p>`}
+      <section class="xue-my">${xnOf(o.m.id + o.no).map((t, i) => `<p class="xue-my-t" contenteditable="true" spellcheck="false" data-xn="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</p>`).join('')}<button type="button" class="xue-my-add" data-xnadd title="自己補充">＋</button></section>`;
+    card.scrollTop = 0;
+    requestAnimationFrame(() => xnFit(false));
   }
   let shownAt = 0;
   function show(o) {
@@ -105,6 +158,14 @@
   });
   card.addEventListener('click', e => {
     if (e.target.closest('.xue-x')) { hide(); return; }
+    if (e.target.closest('[data-xnadd]') && cur) {
+      const sec = card.querySelector('.xue-my'), p = document.createElement('p');
+      p.className = 'xue-my-t'; p.contentEditable = 'true'; p.spellcheck = false; p.title = '輕點可以修改；清空就刪掉';
+      p.dataset.xn = sec.querySelectorAll('.xue-my-t').length;
+      sec.insertBefore(p, e.target.closest('[data-xnadd]')); p.focus();
+      xnFit(true);
+      return;
+    }
     if (e.target.closest('.xue-mback') && cur) {   // « 回到這一穴所在經絡的資訊頁
       const id = cur.m.id; hide();
       back.hidden = true; backId = null;
@@ -138,7 +199,7 @@
     return PT.find(o => o.name === name && o.m.id === mid && o.side > 0) || PT.find(o => o.name === name && o.side > 0) || PT.find(o => o.name === name);
   }
   function linkify(root) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('select, option, button, .pt-link, h2, small') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentNode.closest('select, option, button, .pt-link, h2, small, .an-note, [contenteditable]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(n => {
       const t = n.nodeValue; NAME_RE.lastIndex = 0;
