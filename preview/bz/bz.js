@@ -1593,6 +1593,7 @@
     fxl.after(box);
     box.dataset.id = o.id;
     box.innerHTML = dhHtml(o.id);
+    try { hlLater(); } catch (e) {}
   }
   function dhSave(id, patch) {
     const a = dhAll(), x = Object.assign(dhOf(id), a[id] || {}, patch, { t: Date.now() });
@@ -1656,7 +1657,7 @@
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   });
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
-  { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); }; }
+  { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
   dhSync(false);
 
@@ -1777,11 +1778,13 @@
   /* ---------- 螢光筆：長按選字（可拖拉調整範圍），停下來右上出現綠色 ✓，按了變黃底；在黃底上再長按，✓ 確認後去掉 ----------
    * 每一頁分開存（資料庫條目用 state.cur，醫砭面板用 yb:編號），存在這台裝置（tcm-hl-v1），有設定 GitHub 同步時合併到 sync/hl.json
    * 位置用「略過自己加的框（本病常用方、相關藥物作用、括號註記）」之後的文字位置＋原文記下，內容變動時用原文找回來 */
+  let hlLaterFn = null;
   const HLK = 'tcm-hl-v1', HL_URL = GH_URL.replace('myfx.json', 'hl.json');
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
-  const HL_SKIP = '.bz-fxl,.bz-dh,.bz-hn,.bz-fg,.bz-gxu,.bz-gxadd,.bz-gj,.bz-gjadd,.bz-gjx,.xl-notes,.bz-dzed,input,textarea,select,button,[contenteditable="true"],.bz-hl-ok,script,style';
+  const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx';
   const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody')].filter(r => r && !r.closest('[hidden]'));
+  function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
     return typeof state !== 'undefined' && state.cur ? String(state.cur) : '';
@@ -1904,6 +1907,7 @@
   {   // 換頁、打開醫砭面板後重新畫上
     let q = 0;
     const later = root => { clearTimeout(q); q = setTimeout(() => { if (!hlBusy) hlApply(root); }, 60); };
+    hlLaterFn = () => { const ent = document.getElementById('entry'); if (ent) later(ent); };
     const ent = document.getElementById('entry'), yb = document.getElementById('ybBody');
     if (ent) new MutationObserver(() => later(ent)).observe(ent, { childList: true });
     if (yb) new MutationObserver(() => { if (!hlBusy) setTimeout(() => hlApply(yb), 60); }).observe(yb, { childList: true });
@@ -1929,6 +1933,7 @@
     ul.dataset.gx = o.id;
     ul.querySelectorAll('.bz-gxu, .bz-gxadd').forEach(li => li.remove());
     gxOf(o.id).forEach((t, i) => ul.insertAdjacentHTML('beforeend', `<li class="bz-gxu"><span class="bz-gxu-t" data-gxi="${i}" title="輕點可以修改；清空就刪掉">${E(t)}</span></li>`));
+    try { hlLater(); } catch (e) {}
     ul.insertAdjacentHTML('beforeend', '<li class="bz-gxadd"><button type="button" data-gxadd title="補充功效">＋</button></li>');
   }
   // 歸經那一格：經絡色塊後面一個 ＋，補充的字是灰色，輕點可以改
