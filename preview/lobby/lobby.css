@@ -1079,6 +1079,5 @@ body { display: grid; place-items: center; }
 .an-note:focus { background: rgba(255,255,255,.07); color: rgba(235,235,235,.85); }
 .an-on .ip:not(.tr-ip):not(.ip-left) .ip-body p { cursor: text; }
 /* 行間筆記也用在表格（五輸天干表、五門十變…）：每一列下面空出一行 */
-.an-on .ip-body .wx-hh td { padding-bottom: 1.55em !important; vertical-align: top; }   /* 只有五門十變合化表撐開 */
-.an-on .ip-left .wx-body .wx-top { line-height: 3.2; }
+.an-on .ip-body .wx-hh:has(thead) td { padding-bottom: 1.55em !important; vertical-align: top; }   /* 只有五門十變合化表撐開 */
 .ip-shu-m { margin-top: 14px; }
