@@ -770,8 +770,8 @@
   function fxlRefresh() {
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
-    const o = by[state.cur], bar = ent.querySelector('.nb-zbar');
-    if (!o || o.kind !== 'zd' || !bar) return;
+    const o = by[state.cur], bar = ent.querySelector('.nb-zbar') || ent.querySelector('.zz-nav');   // 沒有表格的病（例如白內障）放在最下面那列前面
+    if (!o || o.kind !== 'zd' || !bar || /青光眼/.test(o.name)) return;
     let box = ent.querySelector('.bz-fxl');
     if (!box) { box = document.createElement('div'); box.className = 'bz-fxl'; bar.parentNode.insertBefore(box, bar); }
     box.dataset.id = o.id;
@@ -1307,5 +1307,144 @@
     if (typeof go === 'function') go('sheet');
   });
 
-  window.TCMBZ = { open, close, mount, unmount, patterns: id => patterns(by[id]) };
+  /* ---------- 自建病證：病證清單每一系最後一格「＋」新增病名；打開就有「本病的方」和可以直接填的辨證分型表 ----------
+   * 存在這台裝置（tcm-mydz-v1，大廳的病證區域也讀同一份），有設定 GitHub 同步時合併到 tcm-notes sync/mydz.json */
+  const DZK = 'tcm-mydz-v1', DZ_EDIT = 'tcm-mydz-edit', DZ_URL = GH_URL.replace('myfx.json', 'mydz.json');
+  const DZ_COLS = ['證型', '主方', '治法', '症狀', '舌苔', '脈象'];
+  const dzAll = () => { try { const a = JSON.parse(localStorage.getItem(DZK) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+  const dzStore = a => { try { localStorage.setItem(DZK, JSON.stringify(a)); } catch (e) {} };
+  if (typeof NB_SRC !== 'undefined') NB_SRC.U = '自建';
+  const dzRows = rows => (rows || []).filter(r => r && r.some(x => String(x || '').trim()));
+  const dzTb = rows => ({ n: DZ_COLS.length, head: 1, rows: [DZ_COLS.map((t, i) => i ? { t } : { t, k: 1 }), ...dzRows(rows).map(r => DZ_COLS.map((_, i) => i ? { t: r[i] || '' } : { t: r[0] || '', k: 1 }))] });
+  function dzReg() {
+    if (typeof ZZ === 'undefined' || !ZZ || typeof zzDiseases === 'undefined') return;
+    const list = dzAll().filter(x => x && x.id && !x.del && x.name);
+    const drop = o => { const s = ZZ.systems[o.si]; if (s) s.diseases = s.diseases.filter(d => d !== o.d); };
+    for (let i = zzDiseases.length - 1; i >= 0; i--) { const o = zzDiseases[i]; if (o.mine && !list.some(x => x.id === o.id)) { drop(o); zzDiseases.splice(i, 1); delete by[o.id]; } }
+    list.forEach(x => {
+      let si = ZZ.systems.findIndex(s => s.name === x.sys); if (si < 0) si = ZZ.systems.length - 1;
+      const sys = ZZ.systems[si].name;
+      let o = by[x.id];
+      if (o && !o.mine) return;
+      if (!o) { o = { id: x.id, kind: 'zd', dup: false, mine: true, full: '', sec: '自建', np: 1, fset: new Set() }; by[x.id] = o; zzDiseases.push(o); }
+      else drop(o);
+      const d = { id: x.id, name: x.name, sys, src: 'U', mine: true, secs: [{ src: 'U', label: '自建', title: x.name, parts: [{ tb: dzTb(x.rows) }] }] };
+      Object.assign(o, { name: x.name, sys, si, d, di: ZZ.systems[si].diseases.length, text: x.name + ' ' + dzRows(x.rows).flat().join(' ') });
+      ZZ.systems[si].diseases.push(d);
+      delete cache[x.id];
+    });
+  }
+  function dzSave(x) {   // x = 一筆（含 id）；t 記修改時間，同步時取比較新的
+    const a = dzAll(), i = a.findIndex(y => y.id === x.id);
+    x.t = Date.now();
+    if (i < 0) a.push(x); else a[i] = x;
+    dzStore(a); dzReg();
+    clearTimeout(dzSave.t); dzSave.t = setTimeout(() => dzSync(true), 1200);
+  }
+  async function dzSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DZ_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = [], sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)); } catch (e) {} }
+      const m = new Map();
+      [...(Array.isArray(remote) ? remote : []), ...dzAll()].forEach(x => { if (x && x.id && (!m.has(x.id) || (x.t || 0) > (m.get(x.id).t || 0))) m.set(x.id, x); });
+      const all = [...m.values()];
+      const changed = JSON.stringify(all) !== JSON.stringify(dzAll());
+      dzStore(all);
+      if (changed) { dzReg(); if (typeof state !== 'undefined' && state.cur === 'zz') { state.cur = ''; go('zz', { replace: true }); } }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DZ_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步自建病證', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  dzReg();
+  dzSync(false);
+  // 大廳剛新增的病（存在同一台裝置）：要打開時先登記
+  if (typeof go === 'function') { const _go = go; window.go = function (id) { if (typeof by !== 'undefined' && !by[id]) dzReg(); return _go.apply(this, arguments); }; }
+  try {   // App 先畫好頁面、這支程式才載入：重新畫一次，自建的才會出現
+    const h = decodeURIComponent(location.hash.slice(1));
+    if (/^zu/.test(h) && by[h] && state.cur !== h) go(h, { replace: true });
+    else if (state.cur === 'zz' && zzDiseases.some(o => o.mine)) { state.cur = ''; go('zz', { replace: true }); }
+  } catch (e) {}
+
+  function dzCreate(name, sys) {
+    name = String(name || '').trim(); if (!name) return null;
+    const id = 'zu' + Date.now().toString(36);
+    dzSave({ id, name, sys, rows: [DZ_COLS.map(() => '')] });
+    try { localStorage.setItem(DZ_EDIT, id); } catch (e) {}
+    return id;
+  }
+  // 病證清單：每一系最後一格「＋」
+  function dzListDecorate() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined' || state.cur !== 'zz') return;
+    ent.querySelectorAll('section.zz-sys').forEach(sec => {
+      const ul = sec.querySelector('ul.nb-grid'); if (!ul || ul.querySelector('.bz-dzadd')) return;
+      const i = +sec.id.replace('zz-', '');
+      ul.insertAdjacentHTML('beforeend', `<li class="bz-dzadd"><button type="button" data-dzadd="${i}" aria-label="在${E(ZZ.systems[i] ? ZZ.systems[i].name : '')}新增一個病">＋</button><input type="text" data-dzin="${i}" placeholder="輸入病名後按 Enter" hidden></li>`);
+    });
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-dzadd]'); if (!b) return;
+    const inp = b.parentNode.querySelector('[data-dzin]'); b.hidden = true; inp.hidden = false; inp.focus();
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-dzin]') || e.isComposing) return;
+    if (e.key === 'Escape') { t.hidden = true; t.value = ''; t.parentNode.querySelector('[data-dzadd]').hidden = false; return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const s = ZZ.systems[+t.dataset.dzin], id = dzCreate(t.value, s ? s.name : '其他');
+    if (id) go(id);
+  });
+  document.addEventListener('focusout', e => { const t = e.target; if (t.matches && t.matches('[data-dzin]') && !t.value.trim()) { t.hidden = true; const b = t.parentNode.querySelector('[data-dzadd]'); if (b) b.hidden = false; } });
+
+  // 自建病證的頁面：表格下方「✎ 編輯辨證分型」；新建的直接打開編輯
+  function dzPage() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur]; if (!o || !o.mine || ent.querySelector('.bz-dzed')) return;
+    const x = dzAll().find(y => y.id === o.id); if (!x) return;
+    const box = document.createElement('div'); box.className = 'bz-dzed';
+    const zoom = ent.querySelector('.nb-zoom');
+    (zoom || ent.querySelector('h1')).insertAdjacentElement('afterend', box);
+    let edit = false; try { edit = localStorage.getItem(DZ_EDIT) === o.id; if (edit) localStorage.removeItem(DZ_EDIT); } catch (e) {}
+    dzDraw(box, x, edit);
+  }
+  function dzDraw(box, x, edit) {
+    box.dataset.id = x.id;
+    const zoom = document.querySelector('#entry .nb-zoom');
+    if (zoom) zoom.hidden = edit;
+    if (!edit) { box.innerHTML = `<div class="bz-dzbar"><button type="button" data-dzedit>✎ 編輯辨證分型</button><small>自建病證・存在這台裝置${ghToken() ? '，並同步到 GitHub' : ''}</small></div>`; return; }
+    const rows = (x.rows && x.rows.length ? x.rows : [DZ_COLS.map(() => '')]);
+    const cell = (v, i) => i === 3 ? `<textarea rows="2" data-c="${i}" placeholder="${DZ_COLS[i]}">${E(v || '')}</textarea>` : `<input type="text" data-c="${i}" value="${E(v || '')}" placeholder="${DZ_COLS[i]}">`;
+    box.innerHTML = `<h2 class="bz-dzh">辨證分型</h2>
+      <label class="bz-dzname">病名<input type="text" data-dzname value="${E(x.name)}"></label>
+      <div class="bz-dzt"><div class="bz-dzr bz-dzhead">${DZ_COLS.map(c => `<span>${c}</span>`).join('')}<span></span></div>
+      ${rows.map(r => `<div class="bz-dzr">${DZ_COLS.map((_, i) => cell(r[i], i)).join('')}<button type="button" data-dzdel aria-label="刪除這一列">×</button></div>`).join('')}</div>
+      <div class="bz-dzacts"><button type="button" data-dzrow>⊕ 加一列</button><span></span><button type="button" data-dzrm class="bz-dzrm">刪除這個病</button><button type="button" data-dzcancel>取消</button><button type="button" data-dzok class="bz-dzok">儲存</button></div>`;
+    const f = box.querySelector('.bz-dzr:not(.bz-dzhead) [data-c="0"]'); if (f && !f.value) f.focus();
+  }
+  function dzRead(box) {
+    return [...box.querySelectorAll('.bz-dzr:not(.bz-dzhead)')].map(r => DZ_COLS.map((_, i) => { const el = r.querySelector(`[data-c="${i}"]`); return el ? el.value.trim() : ''; }));
+  }
+  function dzReopen(id) { state.cur = ''; go(id, { replace: true }); }
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('.bz-dzed [data-dzedit], .bz-dzed [data-dzrow], .bz-dzed [data-dzdel], .bz-dzed [data-dzok], .bz-dzed [data-dzcancel], .bz-dzed [data-dzrm]');
+    if (!t) return;
+    const box = t.closest('.bz-dzed'), x = dzAll().find(y => y.id === box.dataset.id); if (!x) return;
+    if (t.dataset.dzedit != null) return dzDraw(box, x, true);
+    if (t.dataset.dzrow != null) { const tb = box.querySelector('.bz-dzt'), rows = dzRead(box); rows.push(DZ_COLS.map(() => '')); const nm = box.querySelector('[data-dzname]').value; dzDraw(box, { ...x, name: nm, rows }, true); const l = [...box.querySelectorAll('.bz-dzr:not(.bz-dzhead)')].pop(); if (l) l.querySelector('[data-c="0"]').focus(); return; }
+    if (t.dataset.dzdel != null) { t.closest('.bz-dzr').remove(); return; }
+    if (t.dataset.dzcancel != null) return dzReopen(x.id);
+    if (t.dataset.dzrm != null) { if (!confirm(`確定刪除「${x.name}」？`)) return; dzSave({ ...x, del: true }); go('zz'); return; }
+    if (t.dataset.dzok != null) { const nm = box.querySelector('[data-dzname]').value.trim() || x.name; const rows = dzRows(dzRead(box)); dzSave({ ...x, name: nm, rows: rows.length ? rows : [DZ_COLS.map(() => '')] }); dzReopen(x.id); }
+  });
+  const dzEnt = document.getElementById('entry');
+  if (dzEnt) new MutationObserver(() => { dzListDecorate(); dzPage(); }).observe(dzEnt, { childList: true });
+  dzListDecorate(); dzPage();
+
+  window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();

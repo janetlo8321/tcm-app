@@ -1025,3 +1025,7 @@ body { display: grid; place-items: center; }
   .stage.ip-on.chips-open .chips.chips-left { opacity: 1; pointer-events: auto; }
   .stage.ip-on.chips-open .ip-tr { opacity: 0; visibility: hidden; pointer-events: none; }
 }
+/* 病證區域：自建的病、最後一格「＋」 */
+.zz-dz.mine { border-color: rgba(217, 119, 6, .55); }
+.zz-dzadd { text-align: center; font-size: 18px; color: var(--bronze, #d6a66b); border-style: dashed; }
+.zz-dzin { font: 13px var(--font); color: var(--text); background: rgba(255,255,255,.08); border: 1px solid var(--bronze-soft, #d6a66b); border-radius: 8px; padding: 8px 10px; outline: none; min-width: 0; }
