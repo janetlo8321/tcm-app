@@ -12,7 +12,7 @@
   'use strict';
 
   const VERSION = 'v2.9.0';
-  const UPDATED = '10/28 13:41';
+  const UPDATED = '10/28 13:43';
   const FIX_NO = 19;
 
   const $ = id => document.getElementById(id);
@@ -585,6 +585,13 @@
   let chipT = 0;
   function collapseChips() { stage.classList.remove('chips-open'); chipTog.setAttribute('aria-expanded', 'false'); }
   canvas.addEventListener('pointerdown', collapseChips);   // 點畫面其他地方也收合
+  // « 下面再放兩顆：🌿 直接到藥物總表、👩🏻‍⚕️ 直接到全部病證
+  [['sheet', '🌿', '藥物總表'], ['zz', '👩🏻‍⚕️', '全部病證']].forEach(([go, ic, t], i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip-tog lb-jump lb-jump' + i; b.textContent = ic; b.title = t; b.setAttribute('aria-label', t);
+    b.addEventListener('click', () => { if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go, bz: false }, '*'); });
+    stage.appendChild(b);
+  });
   chipTog.addEventListener('click', () => {
     chipTog.setAttribute('aria-expanded', String(chipTog.closest('.stage').classList.toggle('chips-open')));
   });
