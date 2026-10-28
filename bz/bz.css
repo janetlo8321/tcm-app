@@ -648,3 +648,14 @@ section.zz-sys .nb-grid li > a > b { font-size: 14px; }
 .yb-doc b.has:hover { background: rgba(232,35,26,.08) !important; }
 /* 搜尋下拉：項目多時在框內捲動 */
 .qsug { max-height: min(60vh, 520px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+/* 醫砭藥名旁的灰色括號註記，輕點可改 */
+.yb-doc .bz-hn { color: var(--muted, #8a8a8e); font-weight: 400; font-size: .85em; margin: 0 1px; cursor: text; }
+.yb-doc .bz-hn-t { outline: none; padding: 0 1px; }
+.yb-doc .bz-hn-t[contenteditable="true"] { color: var(--ink, #1c1c1e); background: rgba(0,122,255,.08); border-bottom: 1px solid var(--accent, #007aff); padding: 0 2px; }
+.yb-doc ul.yh .bz-hn { font-size: .75rem; }
+
+/* 螢光筆 */
+mark.bz-hl { background: #ffe86b; color: inherit; border-radius: 2px; padding: 0; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+#entry, #ybBody { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+.bz-hl-ok { position: fixed; z-index: 2147483646; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: #34c759; color: #fff; font-size: 17px; font-weight: 700; line-height: 30px; box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer; -webkit-user-select: none; user-select: none; }
+.bz-hl-ok.del::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid #ffe86b; }
