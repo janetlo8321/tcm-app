@@ -594,6 +594,8 @@ header.top { position: relative; }
 .bz-dh-rs:hover::after, .bz-dh-rs.on::after { background: var(--accent, #007aff); }
 .bz-dh-add { position: absolute; left: 2px; bottom: 2px; width: 14px; height: 14px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 4px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 11px; line-height: 12px; cursor: pointer; }
 .bz-dh-tb tbody tr:last-child td:first-child .bz-dh-c { padding-left: 20px; }
+.bz-dh-del { left: 19px; }
+.bz-dh-tb tbody tr:last-child td:first-child .bz-dh-del ~ .bz-dh-c, .bz-dh-tb tbody tr:last-child td:first-child:has(.bz-dh-del) .bz-dh-c { padding-left: 38px; }
 
 .bz-fxl-ck { flex: none; width: 15px; height: 15px; margin: 0; align-self: center; accent-color: #c9a400; cursor: pointer; }
 .bz-fxl li.on > a, .bz-fxl li.on > span:not(.bz-fxl-no) { background: #fff6c2; border-radius: 4px; padding: 0 3px; }

@@ -1490,7 +1490,7 @@
   const dhOf = id => { const x = dhAll()[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : DH_W; return { rows, w }; };
   function dhHtml(id) {
     const { rows, w } = dhOf(id);
-    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    const cell = (t, r, c) => `<td><div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' + (rows.length > 1 ? '<button type="button" class="bz-dh-add bz-dh-del" data-dh-del title="刪掉最後一列">－</button>' : '') : ''}</td>`;
     return `<h3>相關藥物作用</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${DH_COLS.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
@@ -1544,6 +1544,16 @@
     dhSave(box.dataset.id, { rows });
     dhRefresh(true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
+  });
+  document.addEventListener('click', e => {   // －：刪掉最後一列（至少留一列）
+    const b = e.target.closest('[data-dh-del]'); if (!b) return;
+    const box = b.closest('.bz-dh'), rows = dhRead(box);
+    if (rows.length <= 1) return;
+    const last = rows[rows.length - 1];
+    if (last.some(x => x.trim()) && !confirm('最後一列有內容，確定刪掉？')) return;
+    rows.pop();
+    dhSave(box.dataset.id, { rows });
+    dhRefresh(true);
   });
   document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度
     const h = e.target.closest('[data-dh-rs]'); if (!h) return;
