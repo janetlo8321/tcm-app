@@ -1575,5 +1575,18 @@
   dhRefresh();
   dhSync(false);
 
+  /* ---------- 電腦版：左邊「總・藥」「證・病證」移到右上角銅人下面，變成圓鈕 🌿 / 👩🏻‍⚕️ ---------- */
+  {
+    const fab = document.createElement('div');
+    fab.className = 'bz-fab';
+    fab.innerHTML = '<button type="button" data-fab="sheet" title="藥物總表" aria-label="藥物總表">🌿</button><button type="button" data-fab="zz" title="全部病證" aria-label="全部病證">👩🏻‍⚕️</button>';
+    fab.addEventListener('click', e => { const b = e.target.closest('[data-fab]'); if (b && typeof go === 'function') go(b.dataset.fab); });
+    const mark = () => fab.querySelectorAll('[data-fab]').forEach(b => b.classList.toggle('on', typeof state !== 'undefined' && state.cur === b.dataset.fab));
+    const put = () => { if (document.body && !fab.isConnected) document.body.appendChild(fab); mark(); };
+    if (document.body) put(); else document.addEventListener('DOMContentLoaded', put);
+    addEventListener('hashchange', () => setTimeout(mark, 0));
+    if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
+  }
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
