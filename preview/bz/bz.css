@@ -686,3 +686,4 @@ td.xl-j .bz-gjx { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85
 /* 本病常用方：勾選框拿掉（改用螢光筆；原本勾選的資料仍保留在裝置上） */
 .bz-fxl-ck { display: none !important; }
 .bz-fxl li.on > a, .bz-fxl li.on > span:not(.bz-fxl-no) { background: none; padding: 0; }
+@media (pointer: coarse) { .bz-hl-ok { width: 38px; height: 38px; line-height: 38px; font-size: 20px; } }

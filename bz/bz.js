@@ -1863,9 +1863,16 @@
   let hlPend = null, hlT = 0;
   const hlPut = () => { if (document.body && !hlOk.isConnected) document.body.appendChild(hlOk); };
   if (document.body) hlPut(); else document.addEventListener('DOMContentLoaded', hlPut);
+  const COARSE = matchMedia('(pointer: coarse)');
   function hlShow(rect, pend) {
     hlPend = pend; hlPut();
-    const x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
+    let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
+    if (COARSE.matches) {   // 手機：系統的「複製…」選單在選取範圍上方，綠勾改放到選取範圍下方（避開拖拉把手）
+      let bt = rect.bottom, rt = rect.right;
+      try { const b = getSelection().getRangeAt(0).getBoundingClientRect(); if (b.height) { bt = b.bottom; rt = Math.max(rt, b.right); } } catch (er) {}
+      x = Math.min(innerWidth - 46, Math.max(6, rt - 20)); y = bt + 30;
+      if (y + 44 > innerHeight) y = Math.max(6, rect.top - 96);
+    }
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
@@ -1895,6 +1902,8 @@
     }, 450);
   });
   ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlOk.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
+  // 手機：手指一放開就算按到（不等 click，免得被系統選單吃掉）
+  hlOk.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { e.preventDefault(); e.stopPropagation(); hlOk.click(); } });
   hlOk.addEventListener('click', e => {
     e.preventDefault(); e.stopPropagation();
     const p = hlPend; if (!p) return;
