@@ -2053,5 +2053,16 @@
   { const ent = document.getElementById('entry'); if (ent) new MutationObserver(() => setTimeout(() => { gxDecorate(); gjSheet(); }, 0)).observe(ent, { childList: true }); gxDecorate(); gjSheet(); }
   gxSync(false);
 
+  /* ---------- 右上角版本：加密資料庫裡寫死的是舊版號（v2.5.0），改成顯示目前真正的版本（和銅人頁同一個來源 lobby/lobby.js） ---------- */
+  (async () => {
+    const el = document.getElementById('ver'); if (!el) return;
+    try {
+      const t = await (await fetch('lobby/lobby.js?t=' + Date.now(), { cache: 'no-store' })).text();
+      const g = k => (t.match(new RegExp('const ' + k + " = '?([^';]+)'?;")) || [])[1];
+      const v = g('VERSION'), u = g('UPDATED'), n = g('FIX_NO');
+      if (v && u && n) el.textContent = `${v}・${u}・第 ${n} 次修正`;
+    } catch (e) {}
+  })();
+
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
