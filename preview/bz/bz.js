@@ -842,6 +842,7 @@
   document.addEventListener('input', e => {
     const c = e.target.closest && e.target.closest('.bz-fxt-c'); if (!c) return;
     fxtSet(c.closest('.bz-fxl').dataset.id, c.dataset.fxt, +c.dataset.c, c.innerText.replace(/\n+$/, ''));
+    const tr = c.closest('tr'); if (tr.querySelector('.bz-fxl-ed')) tr.classList.toggle('empty', ![...tr.querySelectorAll('.bz-fxt-c')].some(d => d.innerText.trim()));
   });
   const fxtW = id => { const x = fxtAll()[id]; return x && Array.isArray(x.w) && x.w.length === 3 ? x.w : [24, 46, 30]; };
   document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度，存在 tcm-dzfx-v1 的 w
@@ -863,6 +864,38 @@
     };
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   });
+  // 排列順序：tcm-dzfx-v1 的 o（方名清單）；沒在清單裡的照原本順序接在後面
+  function fxtOrder(id, rows) {
+    const x = fxtAll()[id], o = x && Array.isArray(x.o) ? x.o : null; if (!o) return rows;
+    const at = n => { const i = o.indexOf(n); return i < 0 ? Infinity : i; };
+    return rows.map((r, i) => [r, i]).sort((a, b) => (at(a[0][0]) - at(b[0][0])) || (a[1] - b[1])).map(z => z[0]);
+  }
+  function fxtSetOrder(id, o) {
+    const a = fxtAll(), x = a[id] && a[id].m ? a[id] : { m: {} }; x.o = o; x.t = Date.now(); a[id] = x; fxtStore(a);
+    clearTimeout(fxtSet.t); fxtSet.t = setTimeout(() => fxtSync(true), 1500);
+  }
+  document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列（輸入方名後按 Enter）；－：刪掉空白的自訂方
+    const b = e.target.closest && e.target.closest('[data-fxt-ins],[data-fxt-rm]'); if (!b) return;
+    const tr = b.closest('tr'), box = b.closest('.bz-fxl'), id = box.dataset.id, n = tr.dataset.n;
+    if (b.dataset.fxtRm != null) { if (!tr.classList.contains('empty')) return; renameFxFor(id, n, ''); return; }
+    const old = box.querySelector('tr.bz-fxt-new'); if (old) old.remove();
+    tr.insertAdjacentHTML('afterend', `<tr class="bz-fxt-new" data-after="${E(n)}"><td colspan="3"><input type="text" data-fxt-in placeholder="輸入方名後按 Enter（Esc 取消）"></td></tr>`);
+    tr.nextElementSibling.querySelector('input').focus();
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-fxt-in]') || e.isComposing) return;
+    if (e.key === 'Escape') { t.closest('tr').remove(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const box = t.closest('.bz-fxl'), id = box.dataset.id, name = t.value.replace(/\s+/g, ' ').trim();
+    if (!name) return;
+    const order = [...box.querySelectorAll('tbody tr[data-n]')].map(r => r.dataset.n).filter(n => n !== name);
+    order.splice(order.indexOf(t.closest('tr').dataset.after) + 1, 0, name);
+    fxtSetOrder(id, order);
+    saveFxFor(id, name, '');
+    fxlRefresh();
+  });
+  document.addEventListener('focusout', e => { const t = e.target; if (t.matches && t.matches('[data-fxt-in]') && !t.value.trim()) setTimeout(() => { if (t.isConnected) t.closest('tr').remove(); }, 150); });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
@@ -873,12 +906,13 @@
     const row = (n, i, tag) => {
       const id = fid(n), v = Array.isArray(m[n]) ? m[n] : ['', ''];
       const nm = tag ? `<span class="bz-fxl-ed" contenteditable="true" spellcheck="false" data-fxl-ed="${E(n)}" title="可以直接改；清空就刪掉">${E(n)}</span><small>${E(tag)}</small>` : id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`;
-      return `<tr><td><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
+      const blank = !String(v[0] || '').trim() && !String(v[1] || '').trim();
+      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <table class="bz-dh-tb bz-fxt"><colgroup>${fxtW(o.id).map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr><th>方劑<span class="bz-dh-rs" data-fxt-rs="0"></span></th><th>成分<span class="bz-dh-rs" data-fxt-rs="1"></span></th><th>補充</th></tr></thead>
-      <tbody>${names.map((n, i) => row(n, i + 1)).join('')}${mine.map((x, i) => row(x.n, names.length + i + 1, x.tag ? '自・' + x.tag : '自')).join('')}
+      <tbody>${fxtOrder(o.id, [...names.map(n => [n]), ...mine.map(x => [x.n, x.tag ? '自・' + x.tag : '自'])]).map((r, i) => row(r[0], i + 1, r[1])).join('')}
       <tr class="bz-fxl-add"><td colspan="3"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></td></tr></tbody></table>`;
   }
   function fxlRefresh() {
@@ -917,7 +951,7 @@
     const to = t.textContent.replace(/\s+/g, ' ').trim();
     if (!to && !confirm('清空就會刪掉「' + t.dataset.fxlEd + '」，確定？')) { t.textContent = t.dataset.fxlEd; return; }
     const fid0 = t.closest('.bz-fxl').dataset.id, from = t.dataset.fxlEd;
-    if (to && to !== from) { const a = fxtAll(), x = a[fid0]; if (x && x.m && x.m[from] && !x.m[to]) { x.m[to] = x.m[from]; delete x.m[from]; x.t = Date.now(); fxtStore(a); setTimeout(() => fxtSync(true), 1500); } }   // 改名：作用、補充跟著搬
+    if (to && to !== from) { const a = fxtAll(), x = a[fid0]; if (x && ((x.m && x.m[from] && !x.m[to]) || (Array.isArray(x.o) && x.o.includes(from)))) { if (x.m && x.m[from] && !x.m[to]) { x.m[to] = x.m[from]; delete x.m[from]; } if (Array.isArray(x.o)) x.o = x.o.map(n => n === from ? to : n); x.t = Date.now(); fxtStore(a); setTimeout(() => fxtSync(true), 1500); } }   // 改名：作用、補充跟著搬
     renameFxFor(fid0, from, to);
   });
   const entObs = document.getElementById('entry');
@@ -1710,7 +1744,7 @@
   const dhAll = () => tbAll('dh'), dhOf = id => tbOf('dh', id);
   function tbHtml(k, id) {
     const { rows, w } = tbOf(k, id);
-    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
     return `<h3>${E(TBS[k].title)}</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
@@ -1769,6 +1803,14 @@
     tbSave(k, box.dataset.id, { rows });
     tbRefresh(k, true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
+  });
+  document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列
+    const b = e.target.closest && e.target.closest('[data-dh-ins]'); if (!b) return;
+    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr'), i = [...tr.parentNode.children].indexOf(tr);
+    rows.splice(i + 1, 0, ['', '', '']);
+    tbSave(k, box.dataset.id, { rows });
+    tbRefresh(k, true);
+    const n = box.querySelectorAll('tbody tr')[i + 1]; if (n) n.querySelector('.bz-dh-c').focus();
   });
   document.addEventListener('click', e => {   // －：刪掉整列空白的那一列（至少留一列）
     const b = e.target.closest('[data-dh-rm]'); if (!b) return;
