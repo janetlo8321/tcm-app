@@ -1696,10 +1696,12 @@
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
    * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
+   * 「治則大綱」：DD. 和本病常用方中間（治則／重點／補充），存 tcm-dzzl-v1、sync/dzzl.json
    * 都依病的 id 存在這台裝置，有設定 GitHub 同步時合併到 tcm-notes */
   const TBS = {
     dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
-    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false },
+    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false, before: 'zl' },
+    zl: { key: 'tcm-dzzl-v1', url: GH_URL.replace('myfx.json', 'dzzl.json'), cols: ['治則', '重點', '補充'], title: '治則大綱', w: [24, 46, 30], msg: '同步治則大綱', after: false },
     ot: { key: 'tcm-dzot-v1', url: GH_URL.replace('myfx.json', 'dzot.json'), cols: ['方式', '重點', '補充'], title: '其他治療方式', w: [24, 46, 30], msg: '同步其他治療方式', after: 'dh' }
   };
   const tbAll = k => { try { const a = JSON.parse(localStorage.getItem(TBS[k].key) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
@@ -1720,7 +1722,7 @@
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
     if (!o || o.kind !== 'zd' || !fxl) return;
     let box = ent.querySelector(`.bz-dh[data-tb="${k}"]`);
-    const put = b => { if (TBS[k].after) { const dd = TBS[k].after === true ? fxl : (ent.querySelector(`.bz-dh[data-tb="${TBS[k].after}"]`) || fxl); if (b.previousElementSibling !== dd) dd.after(b); } else if (b.nextElementSibling !== fxl) fxl.before(b); };
+    const put = b => { if (TBS[k].after) { const dd = TBS[k].after === true ? fxl : (ent.querySelector(`.bz-dh[data-tb="${TBS[k].after}"]`) || fxl); if (b.previousElementSibling !== dd) dd.after(b); } else { const nx = TBS[k].before ? (ent.querySelector(`.bz-dh[data-tb="${TBS[k].before}"]`) || fxl) : fxl; if (b.nextElementSibling !== nx) nx.before(b); } };
     if (box && box.dataset.id === o.id && !force) { put(box); return; }
     if (!box) { box = document.createElement('div'); box.className = 'bz-dh bz-tb-' + k; box.dataset.tb = k; }
     put(box);
@@ -1729,7 +1731,7 @@
     if (k === 'dd') ent.classList.add('bz-has-dd');
     try { hlLater(); } catch (e) {}
   }
-  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('dh', force); tbRefresh('ot', force); }
+  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('zl', force); tbRefresh('dh', force); tbRefresh('ot', force); }
   function tbSave(k, id, patch) {
     const a = tbAll(k), x = Object.assign(tbOf(k, id), a[id] || {}, patch, { t: Date.now() });
     a[id] = x; tbStore(k, a);
@@ -1794,7 +1796,7 @@
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  tbSync('dh', false); tbSync('dd', false); tbSync('ot', false);
+  tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('ot', false);
   // 貼上時只保留純文字，字型跟頁面一致
   document.addEventListener('paste', e => {
     const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
