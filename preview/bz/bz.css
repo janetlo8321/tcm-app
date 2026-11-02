@@ -720,3 +720,22 @@ body.bz-zd-on .zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: block; }
 .bz-fxl tr.bz-fxt-new td { padding: 3px 6px; }
 .bz-fxl tr.bz-fxt-new input { width: min(320px, 100%); min-height: 26px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--accent, #007aff); font: inherit; font-size: 13px; background: var(--surface, #fff); color: var(--ink, #1c1c1e); }
 body.bz-lins-on .bz-dh-tb .bz-dh-rm { display: none !important; }
+
+/* 本病常用方「比」：綠字，點進去是 A4 紙樣式的編輯頁 */
+.bz-fxt-n small.bz-bi { margin-left: 2px; cursor: pointer; text-decoration: none; }
+.bz-fxt-n small.bz-bi:hover { text-decoration: underline; }
+.bz-fxt-n small.bz-bi.has { font-weight: 700; }
+.bz-doc { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; background: #e5e5ea; }
+.bz-doc-bar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: rgba(255,255,255,.92); border-bottom: 1px solid #d1d1d6; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.bz-doc-bar > button { border: 0; background: none; color: var(--accent, #007aff); font: inherit; font-size: 15px; cursor: pointer; padding: 4px 6px; }
+.bz-doc-bar > b { font-size: 15px; }
+.bz-doc-bar > b small { margin-left: 8px; font-weight: 400; font-size: 12px; color: var(--herb, #248a3d); }
+.bz-doc-tools { display: flex; gap: 4px; margin-left: auto; }
+.bz-doc-tools button { min-width: 30px; height: 28px; border: 1px solid #d1d1d6; border-radius: 6px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; color: var(--ink, #1c1c1e); }
+.bz-doc-tools button:hover { background: #f2f2f7; }
+.bz-doc-st { min-width: 3em; font-size: 11px; color: var(--muted, #8a8a8e); }
+.bz-doc-scroll { flex: 1; overflow: auto; padding: 28px 16px 60px; }
+.bz-doc-page { box-sizing: border-box; width: 210mm; max-width: 100%; min-height: 297mm; margin: 0 auto; padding: 25mm 22mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.15); outline: none; font-size: 15px; line-height: 1.7; color: #1c1c1e; white-space: pre-wrap; word-break: break-word; }
+.bz-doc-page h3 { font-size: 19px; margin: .6em 0 .3em; }
+.bz-doc-page ul, .bz-doc-page ol { margin: .3em 0; padding-left: 1.6em; }
+@media (max-width: 820px) { .bz-doc-page { padding: 18px 16px; min-height: calc(100vh - 120px); } .bz-doc-tools { flex-wrap: wrap; } }

@@ -897,6 +897,63 @@
     fxlRefresh();
   });
   document.addEventListener('focusout', e => { const t = e.target; if (t.matches && t.matches('[data-fxt-in]') && !t.value.trim()) setTimeout(() => { if (t.isConnected) t.closest('tr').remove(); }, 150); });
+  /* ---------- 本病常用方每一列「比」：點進去是一張 A4 紙樣式、可以直接編輯的頁面（粗體、底線、螢光筆、標題、條列）----------
+   * 存在這台裝置 tcm-fxdoc-v1（「病的 id|方名」→ {h: 內容, t}），有設定 GitHub 同步時合併到 tcm-notes sync/fxdoc.json */
+  const DOCK = 'tcm-fxdoc-v1', DOC_URL = GH_URL.replace('myfx.json', 'fxdoc.json');
+  const docAll = () => { try { const a = JSON.parse(localStorage.getItem(DOCK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const docStore = a => { try { localStorage.setItem(DOCK, JSON.stringify(a)); } catch (e) {} };
+  const docKey = (id, n) => id + '|' + n;
+  const docHas = (id, n) => { const x = docAll()[docKey(id, n)]; return !!(x && x.h && x.h.replace(/<[^>]*>|&nbsp;|\s/g, '')); };
+  function docMove(id, from, to) { const a = docAll(), f = a[docKey(id, from)]; if (!f || a[docKey(id, to)]) return; a[docKey(id, to)] = { ...f, t: Date.now() }; a[docKey(id, from)] = { h: '', t: Date.now() }; docStore(a); setTimeout(() => docSync(true), 1500); }
+  const docClean = h => { const d = document.createElement('div'); d.innerHTML = h; d.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(x => x.remove()); d.querySelectorAll('*').forEach(x => [...x.attributes].forEach(at => { if (/^on/i.test(at.name) || (/^(href|src)$/i.test(at.name) && /^\s*javascript:/i.test(at.value))) x.removeAttribute(at.name); })); return d.innerHTML; };
+  async function docSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DOC_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = docAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      docStore(all);
+      if (changed && !document.querySelector('.bz-doc')) { const box = document.querySelector('#entry .bz-fxl'); if (box && !box.contains(document.activeElement)) fxlRefresh(); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DOC_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步本病常用方比較筆記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  function docOpen(id, n) {
+    const old = document.querySelector('.bz-doc'); if (old) old.remove();
+    const x = docAll()[docKey(id, n)] || {};
+    const dz = typeof by !== 'undefined' && by[id] ? by[id].name : '';
+    const ov = document.createElement('div'); ov.className = 'bz-doc';
+    ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-doc-x title="關閉（Esc）">‹ 返回</button><b>${E(n)}<small>${E(dz)}・比</small></b>
+      <span class="bz-doc-tools"><button type="button" data-cmd="bold" title="粗體"><b>B</b></button><button type="button" data-cmd="underline" title="底線"><u>U</u></button><button type="button" data-cmd="hl" title="螢光筆">🖍</button><button type="button" data-cmd="h" title="標題">標</button><button type="button" data-cmd="insertUnorderedList" title="條列">•</button><button type="button" data-cmd="insertOrderedList" title="編號">1.</button><button type="button" data-cmd="removeFormat" title="清除格式">⌫</button></span><small class="bz-doc-st"></small></div>
+      <div class="bz-doc-scroll"><div class="bz-doc-page" contenteditable="true" spellcheck="false">${docClean(x.h || '')}</div></div>`;
+    document.body.appendChild(ov);
+    const pg = ov.querySelector('.bz-doc-page'), st = ov.querySelector('.bz-doc-st');
+    let tm;
+    const save = () => { const a = docAll(); a[docKey(id, n)] = { h: pg.innerHTML, t: Date.now() }; docStore(a); st.textContent = '已存'; clearTimeout(docSync.t); docSync.t = setTimeout(() => docSync(true), 1500); };
+    pg.addEventListener('input', () => { st.textContent = '…'; clearTimeout(tm); tm = setTimeout(save, 400); });
+    const close = () => { clearTimeout(tm); save(); ov.remove(); document.removeEventListener('keydown', esc, true); const b = document.querySelector(`#entry .bz-fxl [data-bi="${CSS.escape(n)}"]`); if (b) b.classList.toggle('has', docHas(id, n)); };
+    const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', esc, true);
+    ov.addEventListener('mousedown', e => { if (e.target.closest('.bz-doc-tools button')) e.preventDefault(); });   // 按工具鈕時不要丟掉選取的字
+    ov.addEventListener('click', e => {
+      if (e.target.closest('[data-doc-x]')) return close();
+      const b = e.target.closest('[data-cmd]'); if (!b) return;
+      const c = b.dataset.cmd;
+      if (c === 'hl') document.execCommand('hiliteColor', false, '#fff27a');
+      else if (c === 'h') document.execCommand('formatBlock', false, document.queryCommandValue('formatBlock') === 'h3' ? 'div' : 'h3');
+      else document.execCommand(c, false, null);
+      pg.dispatchEvent(new Event('input'));
+    });
+    pg.focus();
+  }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-bi]'); if (!b) return; e.preventDefault(); docOpen(b.closest('.bz-fxl').dataset.id, b.dataset.bi); });
+  document.addEventListener('keydown', e => { const b = e.target.closest && e.target.closest('[data-bi]'); if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); docOpen(b.closest('.bz-fxl').dataset.id, b.dataset.bi); } });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
@@ -907,8 +964,9 @@
     const row = (n, i, tag) => {
       const id = fid(n), v = Array.isArray(m[n]) ? m[n] : ['', ''];
       const nm = tag ? `<span class="bz-fxl-ed" contenteditable="true" spellcheck="false" data-fxl-ed="${E(n)}" title="可以直接改；清空就刪掉">${E(n)}</span><small>${E(tag)}</small>` : id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`;
+      const bi = `<small class="bz-bi${docHas(o.id, n) ? ' has' : ''}" role="button" tabindex="0" data-bi="${E(n)}" title="打開「${E(n)}」的比較筆記（A4 頁面）">比</small>`;
       const blank = !String(v[0] || '').trim() && !String(v[1] || '').trim();
-      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-fxt-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
+      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-fxt-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}${bi}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <table class="bz-dh-tb bz-fxt"><colgroup>${fxtW(o.id).map(p => `<col style="width:${p}%">`).join('')}</colgroup>
@@ -953,6 +1011,7 @@
     if (!to && !confirm('清空就會刪掉「' + t.dataset.fxlEd + '」，確定？')) { t.textContent = t.dataset.fxlEd; return; }
     const fid0 = t.closest('.bz-fxl').dataset.id, from = t.dataset.fxlEd;
     if (to && to !== from) { const a = fxtAll(), x = a[fid0]; if (x && ((x.m && x.m[from] && !x.m[to]) || (Array.isArray(x.o) && x.o.includes(from)))) { if (x.m && x.m[from] && !x.m[to]) { x.m[to] = x.m[from]; delete x.m[from]; } if (Array.isArray(x.o)) x.o = x.o.map(n => n === from ? to : n); x.t = Date.now(); fxtStore(a); setTimeout(() => fxtSync(true), 1500); } }   // 改名：作用、補充跟著搬
+    if (to && to !== from) docMove(fid0, from, to);
     renameFxFor(fid0, from, to);
   });
   const entObs = document.getElementById('entry');
@@ -960,6 +1019,7 @@
   fxlRefresh();
   fckSync(false);
   fxtSync(false);
+  docSync(false);
 
   /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
    * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
