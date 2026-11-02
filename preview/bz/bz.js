@@ -857,7 +857,7 @@
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <table class="bz-dh-tb bz-fxt"><colgroup><col style="width:24%"><col style="width:46%"><col style="width:30%"></colgroup>
-      <thead><tr><th>方劑</th><th>作用</th><th>補充</th></tr></thead>
+      <thead><tr><th>方劑</th><th>成分</th><th>補充</th></tr></thead>
       <tbody>${names.map((n, i) => row(n, i + 1)).join('')}${mine.map((x, i) => row(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <tr class="bz-fxl-add"><td colspan="3"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></td></tr></tbody></table>`;
   }
