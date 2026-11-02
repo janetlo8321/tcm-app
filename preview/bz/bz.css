@@ -687,3 +687,9 @@ td.xl-j .bz-gjx { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85
 .bz-fxl-ck { display: none !important; }
 .bz-fxl li.on > a, .bz-fxl li.on > span:not(.bz-fxl-no) { background: none; padding: 0; }
 @media (pointer: coarse) { .bz-hl-ok { width: 38px; height: 38px; line-height: 38px; font-size: 20px; } }
+
+/* 病證清單：空白鍵叫出的「已整理」小勾選框（右上角）；勾了整格淡綠底 */
+.zz-sys .nb-grid li.bz-zd { position: relative; }
+.zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: none; position: absolute; top: 7px; right: 8px; z-index: 2; width: 15px; height: 15px; margin: 0; accent-color: #34a853; cursor: pointer; }
+body.bz-zd-on .zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: block; }
+.zz-sys .nb-grid li.bz-zzdone > a { background: #e3f4e1 !important; }

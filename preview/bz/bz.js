@@ -1568,6 +1568,68 @@
   if (dzEnt) new MutationObserver(() => { dzListDecorate(); dzPage(); }).observe(dzEnt, { childList: true });
   dzListDecorate(); dzPage();
 
+  /* ---------- 病證清單：電腦按空白鍵，每格右上角出現小勾選框（再按一次收起）；勾了整格淡綠底，表示已整理 ----------
+   * 存在這台裝置（tcm-zzdone-v1，依病的 id，{on, t}；取消勾也留紀錄，同步時取比較新的），有設定 GitHub 同步時合併到 tcm-notes sync/zzdone.json */
+  const ZDK = 'tcm-zzdone-v1', ZD_URL = GH_URL.replace('myfx.json', 'zzdone.json');
+  const zdAll = () => { try { const a = JSON.parse(localStorage.getItem(ZDK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const zdStore = a => { try { localStorage.setItem(ZDK, JSON.stringify(a)); } catch (e) {} };
+  const zdId = li => { const a = li.querySelector(':scope > a'); if (!a) return ''; return a.dataset.go || decodeURIComponent((a.getAttribute('href') || '').replace(/^#/, '')); };
+  function zdDecorate() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined' || state.cur !== 'zz') return;
+    const a = zdAll();
+    ent.querySelectorAll('section.zz-sys ul.nb-grid > li:not(.bz-dzadd)').forEach(li => {
+      const id = zdId(li); if (!id) return;
+      const on = !!(a[id] && a[id].on);
+      li.classList.add('bz-zd');
+      li.classList.toggle('bz-zzdone', on);
+      let c = li.querySelector(':scope > .bz-zd-ck');
+      if (!c) { c = document.createElement('input'); c.type = 'checkbox'; c.className = 'bz-zd-ck'; c.title = '已整理'; c.tabIndex = -1; li.appendChild(c); }
+      c.dataset.zd = id; c.checked = on;
+    });
+  }
+  document.addEventListener('change', e => {
+    const c = e.target.closest && e.target.closest('.bz-zd-ck'); if (!c) return;
+    const a = zdAll(); a[c.dataset.zd] = { on: c.checked, t: Date.now() }; zdStore(a);
+    c.closest('li').classList.toggle('bz-zzdone', c.checked);
+    c.blur();
+    clearTimeout(zdDecorate.t); zdDecorate.t = setTimeout(() => zdSync(true), 1200);
+  });
+  // 空白鍵：只在病證清單頁、沒在打字時才接；不影響銅人頁的行間筆記
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (typeof state === 'undefined' || state.cur !== 'zz') return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input:not(.bz-zd-ck),textarea,select,[contenteditable="true"]') || t.isContentEditable)) return;
+    const ent = document.getElementById('entry'), g = ent && ent.querySelector('section.zz-sys ul.nb-grid');
+    if (!g || !g.offsetParent) return;
+    e.preventDefault();
+    zdDecorate();
+    document.body.classList.toggle('bz-zd-on');
+  });
+  async function zdSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(ZD_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = zdAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      zdStore(all);
+      if (changed) zdDecorate();
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(ZD_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步病證已整理勾選', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  if (dzEnt) new MutationObserver(() => { if (typeof state !== 'undefined' && state.cur !== 'zz') document.body.classList.remove('bz-zd-on'); zdDecorate(); }).observe(dzEnt, { childList: true });
+  zdDecorate();
+  zdSync(false);
+
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
    * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
