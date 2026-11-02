@@ -879,8 +879,9 @@
     const tr = b.closest('tr'), box = b.closest('.bz-fxl'), id = box.dataset.id, n = tr.dataset.n;
     if (b.dataset.fxtRm != null) { if (!tr.classList.contains('empty')) return; renameFxFor(id, n, ''); return; }
     const old = box.querySelector('tr.bz-fxt-new'); if (old) old.remove();
-    tr.insertAdjacentHTML('afterend', `<tr class="bz-fxt-new" data-after="${E(n)}"><td colspan="3"><input type="text" data-fxt-in placeholder="輸入方名後按 Enter（Esc 取消）"></td></tr>`);
-    tr.nextElementSibling.querySelector('input').focus();
+    const up = b.dataset.fxtIns === 'up', prev = up ? tr.previousElementSibling : tr;
+    tr.insertAdjacentHTML(up ? 'beforebegin' : 'afterend', `<tr class="bz-fxt-new" data-after="${E(prev && prev.dataset.n ? prev.dataset.n : '')}"><td colspan="3"><input type="text" data-fxt-in placeholder="輸入方名後按 Enter（Esc 取消）"></td></tr>`);
+    (up ? tr.previousElementSibling : tr.nextElementSibling).querySelector('input').focus();
   });
   document.addEventListener('keydown', e => {
     const t = e.target; if (!t.matches || !t.matches('[data-fxt-in]') || e.isComposing) return;
@@ -907,7 +908,7 @@
       const id = fid(n), v = Array.isArray(m[n]) ? m[n] : ['', ''];
       const nm = tag ? `<span class="bz-fxl-ed" contenteditable="true" spellcheck="false" data-fxl-ed="${E(n)}" title="可以直接改；清空就刪掉">${E(n)}</span><small>${E(tag)}</small>` : id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`;
       const blank = !String(v[0] || '').trim() && !String(v[1] || '').trim();
-      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
+      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-fxt-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <table class="bz-dh-tb bz-fxt"><colgroup>${fxtW(o.id).map(p => `<col style="width:${p}%">`).join('')}</colgroup>
@@ -1744,7 +1745,7 @@
   const dhAll = () => tbAll('dh'), dhOf = id => tbOf('dh', id);
   function tbHtml(k, id) {
     const { rows, w } = tbOf(k, id);
-    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-dh-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
     return `<h3>${E(TBS[k].title)}</h3>
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
@@ -1806,7 +1807,7 @@
   });
   document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列
     const b = e.target.closest && e.target.closest('[data-dh-ins]'); if (!b) return;
-    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr'), i = [...tr.parentNode.children].indexOf(tr);
+    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr'), i = [...tr.parentNode.children].indexOf(tr) - (b.dataset.dhIns === 'up' ? 1 : 0);
     rows.splice(i + 1, 0, ['', '', '']);
     tbSave(k, box.dataset.id, { rows });
     tbRefresh(k, true);

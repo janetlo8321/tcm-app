@@ -705,17 +705,17 @@ body.bz-zd-on .zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: block; }
 .bz-fxl tr.bz-fxl-add button { font-size: 13px; padding: 2px 8px; }
 .bz-fxl tr.bz-fxl-add input { min-height: 28px; font-size: 13px; }
 
-/* 表格每一列：游標移到列上，左邊出現 ＋（在下面插一列）／－（整列空白才有，刪掉這列） */
-.bz-dh-tb tbody tr { position: relative; }
-.bz-dh-ins { display: none; position: absolute; left: -19px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; padding: 0; border: 1px dashed var(--line-soft, #c7c7cc); border-radius: 4px; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 11px; line-height: 13px; cursor: pointer; z-index: 3; }
-.bz-dh-tb tr.empty .bz-dh-rm { z-index: 3; }
+/* 表格每一列：游標移到列上，左邊直線和這列下方橫線的交叉點出現 ＋（在下面插一列），旁邊 －（整列空白才有，刪掉這列） */
+.bz-dh-ins { display: none; position: absolute; left: -9px; bottom: -9px; width: 17px; height: 17px; padding: 0; border: 1px solid var(--accent, #007aff); border-radius: 50%; background: var(--surface, #fff); color: var(--accent, #007aff); font-size: 13px; line-height: 15px; font-weight: 700; cursor: pointer; z-index: 5; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.bz-dh-ins.bz-ins-up { bottom: auto; top: -9px; }
+.bz-dh-ins:hover { background: var(--accent, #007aff); color: #fff; }
+.bz-dh-tb tr.empty .bz-dh-rm { z-index: 5; }
 .bz-fxl { padding-left: 22px; }
 @media (hover: hover) {
-  .bz-dh, .bz-fxl { padding-left: 40px; }
-  .bz-dh-tb tr.empty .bz-dh-rm { left: -37px; }
   .bz-dh-tb tbody tr:hover .bz-dh-ins { display: block; }
-  .bz-dh-tb tr.empty .bz-dh-rm { display: none; }
+  .bz-dh-tb tr.empty .bz-dh-rm { display: none; left: -27px; top: auto; bottom: -9px; transform: none; width: 17px; height: 17px; border: 1px solid #d70015; border-radius: 50%; font-size: 13px; line-height: 15px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
   .bz-dh-tb tr.empty:hover .bz-dh-rm { display: block; }
+  .bz-dh-tb tr.empty .bz-dh-rm:hover { background: #d70015; color: #fff; }
 }
 .bz-fxl tr.bz-fxt-new td { padding: 3px 6px; }
 .bz-fxl tr.bz-fxt-new input { width: min(320px, 100%); min-height: 26px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--accent, #007aff); font: inherit; font-size: 13px; background: var(--surface, #fff); color: var(--ink, #1c1c1e); }
