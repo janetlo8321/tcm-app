@@ -1840,6 +1840,36 @@
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
   tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('ot', false);
+  // 病證頁表格：游標碰到一條橫線（上下 5px 內），那條線左端出現一個 ＋，按了就在那裡插一列（借用每列隱藏的 ＋ 按鈕）
+  {
+    const lb = document.createElement('button'); lb.type = 'button'; lb.className = 'bz-line-ins'; lb.textContent = '＋'; lb.title = '在這裡插入一列'; lb.hidden = true;
+    let tgt = null;
+    const hide = () => { if (!tgt) return; lb.hidden = true; tgt = null; document.body.classList.remove('bz-lins-on'); };
+    document.addEventListener('mousemove', e => {
+      if (e.target === lb) return;
+      const tb = e.target.closest && e.target.closest('.bz-dh, .bz-fxl');
+      const tbl = tb && tb.querySelector('table.bz-dh-tb'); if (!tbl) return hide();
+      const R = tbl.getBoundingClientRect();
+      if (e.clientX < R.left - 12 || e.clientX > R.right) return hide();
+      const rows = [...tbl.querySelectorAll('tbody tr')].filter(r => r.querySelector('[data-fxt-ins],[data-dh-ins]'));
+      let best = null;
+      rows.forEach((r, i) => {
+        const b = r.getBoundingClientRect();
+        if (i === 0 && Math.abs(e.clientY - b.top) <= 5) best = { r, up: true, y: b.top };
+        if (Math.abs(e.clientY - b.bottom) <= 5) best = { r, up: false, y: b.bottom };
+      });
+      if (!best) return hide();
+      tgt = best;
+      if (!lb.isConnected) document.body.appendChild(lb);
+      lb.style.left = R.left + 'px'; lb.style.top = best.y + 'px'; lb.hidden = false; document.body.classList.add('bz-lins-on');
+    });
+    lb.addEventListener('click', () => {
+      if (!tgt) return;
+      const b = tgt.r.querySelector(tgt.up ? '[data-fxt-ins="up"],[data-dh-ins="up"]' : '[data-fxt-ins]:not([data-fxt-ins="up"]),[data-dh-ins]:not([data-dh-ins="up"])');
+      hide(); if (b) b.click();
+    });
+    addEventListener('scroll', hide, true);
+  }
   // 貼上時只保留純文字，字型跟頁面一致
   document.addEventListener('paste', e => {
     const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
