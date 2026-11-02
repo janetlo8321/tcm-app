@@ -687,3 +687,20 @@ td.xl-j .bz-gjx { margin-left: 6px; color: var(--muted, #8a8a8e); font-size: .85
 .bz-fxl-ck { display: none !important; }
 .bz-fxl li.on > a, .bz-fxl li.on > span:not(.bz-fxl-no) { background: none; padding: 0; }
 @media (pointer: coarse) { .bz-hl-ok { width: 38px; height: 38px; line-height: 38px; font-size: 20px; } }
+
+/* 病證清單：空白鍵叫出的「已整理」小勾選框（右上角）；勾了整格淡綠底 */
+.zz-sys .nb-grid li.bz-zd { position: relative; }
+.zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: none; position: absolute; top: 7px; right: 8px; z-index: 2; width: 15px; height: 15px; margin: 0; accent-color: #34a853; cursor: pointer; }
+body.bz-zd-on .zz-sys .nb-grid li.bz-zd > .bz-zd-ck { display: block; }
+.zz-sys .nb-grid li.bz-zzdone > a { background: #e3f4e1 !important; }
+
+/* 本病常用方改成表格（方劑／作用／補充），樣式跟相關藥物作用一樣 */
+.bz-fxl .bz-fxt td { padding: 0; }
+.bz-fxt-n { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; padding: 1px 6px; font-size: 13px; line-height: 1.3; }
+.bz-fxt-n .bz-fxl-no { min-width: 1.4em; font-size: 11px; }
+.bz-fxt-n small { font-size: 10px; color: var(--herb, #248a3d); }
+.bz-fxt-c { min-height: 17px; padding: 1px 6px; font-size: 13px; line-height: 1.3; outline: none; white-space: pre-wrap; word-break: break-word; color: var(--ink, #1c1c1e); }
+.bz-fxt-c:focus { background: rgba(0, 122, 255, .06); box-shadow: inset 0 0 0 2px var(--accent, #007aff); }
+.bz-fxl tr.bz-fxl-add td { padding: 4px 6px; border-left: 0; border-right: 0; border-bottom: 0; }
+.bz-fxl tr.bz-fxl-add button { font-size: 13px; padding: 2px 8px; }
+.bz-fxl tr.bz-fxl-add input { min-height: 28px; font-size: 13px; }
