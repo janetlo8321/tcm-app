@@ -843,6 +843,26 @@
     const c = e.target.closest && e.target.closest('.bz-fxt-c'); if (!c) return;
     fxtSet(c.closest('.bz-fxl').dataset.id, c.dataset.fxt, +c.dataset.c, c.innerText.replace(/\n+$/, ''));
   });
+  const fxtW = id => { const x = fxtAll()[id]; return x && Array.isArray(x.w) && x.w.length === 3 ? x.w : [24, 46, 30]; };
+  document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度，存在 tcm-dzfx-v1 的 w
+    const h = e.target.closest && e.target.closest('[data-fxt-rs]'); if (!h) return;
+    e.preventDefault();
+    const box = h.closest('.bz-fxl'), id = box.dataset.id, tb = box.querySelector('table'), cols = [...tb.querySelectorAll('col')], i = +h.dataset.fxtRs;
+    const W = tb.getBoundingClientRect().width, w0 = fxtW(id).slice(), x0 = e.clientX, pair = w0[i] + w0[i + 1];
+    let w = w0;
+    h.classList.add('on');
+    const mv = ev => {
+      const d = (ev.clientX - x0) / W * 100, a = Math.max(12, Math.min(pair - 12, w0[i] + d));
+      w = w0.slice(); w[i] = +a.toFixed(1); w[i + 1] = +(pair - a).toFixed(1);
+      cols.forEach((c, j) => { c.style.width = w[j] + '%'; });
+    };
+    const up = () => {
+      h.classList.remove('on'); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      const a = fxtAll(), x = a[id] && a[id].m ? a[id] : { m: {} }; x.w = w; x.t = Date.now(); a[id] = x; fxtStore(a);
+      clearTimeout(fxtSet.t); fxtSet.t = setTimeout(() => fxtSync(true), 1500);
+    };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
@@ -856,8 +876,8 @@
       return `<tr><td><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
-      <table class="bz-dh-tb bz-fxt"><colgroup><col style="width:24%"><col style="width:46%"><col style="width:30%"></colgroup>
-      <thead><tr><th>方劑</th><th>成分</th><th>補充</th></tr></thead>
+      <table class="bz-dh-tb bz-fxt"><colgroup>${fxtW(o.id).map(p => `<col style="width:${p}%">`).join('')}</colgroup>
+      <thead><tr><th>方劑<span class="bz-dh-rs" data-fxt-rs="0"></span></th><th>成分<span class="bz-dh-rs" data-fxt-rs="1"></span></th><th>補充</th></tr></thead>
       <tbody>${names.map((n, i) => row(n, i + 1)).join('')}${mine.map((x, i) => row(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
       <tr class="bz-fxl-add"><td colspan="3"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></td></tr></tbody></table>`;
   }
