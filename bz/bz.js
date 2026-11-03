@@ -842,6 +842,7 @@
   document.addEventListener('input', e => {
     const c = e.target.closest && e.target.closest('.bz-fxt-c'); if (!c) return;
     fxtSet(c.closest('.bz-fxl').dataset.id, c.dataset.fxt, +c.dataset.c, c.innerText.replace(/\n+$/, ''));
+    const tr = c.closest('tr'); if (tr.querySelector('.bz-fxl-ed')) tr.classList.toggle('empty', ![...tr.querySelectorAll('.bz-fxt-c')].some(d => d.innerText.trim()));
   });
   const fxtW = id => { const x = fxtAll()[id]; return x && Array.isArray(x.w) && x.w.length === 3 ? x.w : [24, 46, 30]; };
   document.addEventListener('pointerdown', e => {   // 拖欄線：左右兩欄一起改寬度，存在 tcm-dzfx-v1 的 w
@@ -863,6 +864,96 @@
     };
     addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   });
+  // 排列順序：tcm-dzfx-v1 的 o（方名清單）；沒在清單裡的照原本順序接在後面
+  function fxtOrder(id, rows) {
+    const x = fxtAll()[id], o = x && Array.isArray(x.o) ? x.o : null; if (!o) return rows;
+    const at = n => { const i = o.indexOf(n); return i < 0 ? Infinity : i; };
+    return rows.map((r, i) => [r, i]).sort((a, b) => (at(a[0][0]) - at(b[0][0])) || (a[1] - b[1])).map(z => z[0]);
+  }
+  function fxtSetOrder(id, o) {
+    const a = fxtAll(), x = a[id] && a[id].m ? a[id] : { m: {} }; x.o = o; x.t = Date.now(); a[id] = x; fxtStore(a);
+    clearTimeout(fxtSet.t); fxtSet.t = setTimeout(() => fxtSync(true), 1500);
+  }
+  document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列（輸入方名後按 Enter）；－：刪掉空白的自訂方
+    const b = e.target.closest && e.target.closest('[data-fxt-ins],[data-fxt-rm]'); if (!b) return;
+    const tr = b.closest('tr'), box = b.closest('.bz-fxl'), id = box.dataset.id, n = tr.dataset.n;
+    if (b.dataset.fxtRm != null) { if (!tr.classList.contains('empty')) return; renameFxFor(id, n, ''); return; }
+    const old = box.querySelector('tr.bz-fxt-new'); if (old) old.remove();
+    const up = b.dataset.fxtIns === 'up', prev = up ? tr.previousElementSibling : tr;
+    tr.insertAdjacentHTML(up ? 'beforebegin' : 'afterend', `<tr class="bz-fxt-new" data-after="${E(prev && prev.dataset.n ? prev.dataset.n : '')}"><td colspan="3"><input type="text" data-fxt-in placeholder="輸入方名後按 Enter（Esc 取消）"></td></tr>`);
+    (up ? tr.previousElementSibling : tr.nextElementSibling).querySelector('input').focus();
+  });
+  document.addEventListener('keydown', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-fxt-in]') || e.isComposing) return;
+    if (e.key === 'Escape') { t.closest('tr').remove(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const box = t.closest('.bz-fxl'), id = box.dataset.id, name = t.value.replace(/\s+/g, ' ').trim();
+    if (!name) return;
+    const order = [...box.querySelectorAll('tbody tr[data-n]')].map(r => r.dataset.n).filter(n => n !== name);
+    order.splice(order.indexOf(t.closest('tr').dataset.after) + 1, 0, name);
+    fxtSetOrder(id, order);
+    saveFxFor(id, name, '');
+    fxlRefresh();
+  });
+  document.addEventListener('focusout', e => { const t = e.target; if (t.matches && t.matches('[data-fxt-in]') && !t.value.trim()) setTimeout(() => { if (t.isConnected) t.closest('tr').remove(); }, 150); });
+  /* ---------- 本病常用方每一列「比」：點進去是一張 A4 紙樣式、可以直接編輯的頁面（粗體、底線、螢光筆、標題、條列）----------
+   * 存在這台裝置 tcm-fxdoc-v1（「病的 id|方名」→ {h: 內容, t}），有設定 GitHub 同步時合併到 tcm-notes sync/fxdoc.json */
+  const DOCK = 'tcm-fxdoc-v1', DOC_URL = GH_URL.replace('myfx.json', 'fxdoc.json');
+  const docAll = () => { try { const a = JSON.parse(localStorage.getItem(DOCK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const docStore = a => { try { localStorage.setItem(DOCK, JSON.stringify(a)); } catch (e) {} };
+  const docKey = (id, n) => id + '|' + n;
+  const docHas = (id, n) => { const x = docAll()[docKey(id, n)]; return !!(x && x.h && x.h.replace(/<[^>]*>|&nbsp;|\s/g, '')); };
+  function docMove(id, from, to) { const a = docAll(), f = a[docKey(id, from)]; if (!f || a[docKey(id, to)]) return; a[docKey(id, to)] = { ...f, t: Date.now() }; a[docKey(id, from)] = { h: '', t: Date.now() }; docStore(a); setTimeout(() => docSync(true), 1500); }
+  const docClean = h => { const d = document.createElement('div'); d.innerHTML = h; d.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(x => x.remove()); d.querySelectorAll('*').forEach(x => [...x.attributes].forEach(at => { if (/^on/i.test(at.name) || (/^(href|src)$/i.test(at.name) && /^\s*javascript:/i.test(at.value))) x.removeAttribute(at.name); })); return d.innerHTML; };
+  async function docSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DOC_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = docAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      docStore(all);
+      if (changed && !document.querySelector('.bz-doc')) { const box = document.querySelector('#entry .bz-fxl'); if (box && !box.contains(document.activeElement)) fxlRefresh(); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DOC_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步本病常用方比較筆記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  function docOpen(id, n) {
+    const old = document.querySelector('.bz-doc'); if (old) old.remove();
+    const x = docAll()[docKey(id, n)] || {};
+    const dz = typeof by !== 'undefined' && by[id] ? by[id].name : '';
+    const ov = document.createElement('div'); ov.className = 'bz-doc';
+    ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-doc-x title="關閉（Esc）">‹ 返回</button><b>${E(n)}<small>${E(dz)}・比</small></b>
+      <span class="bz-doc-tools"><button type="button" data-cmd="bold" title="粗體"><b>B</b></button><button type="button" data-cmd="underline" title="底線"><u>U</u></button><button type="button" data-cmd="hl" title="螢光筆">🖍</button><button type="button" data-cmd="h" title="標題">標</button><button type="button" data-cmd="insertUnorderedList" title="條列">•</button><button type="button" data-cmd="insertOrderedList" title="編號">1.</button><button type="button" data-cmd="removeFormat" title="清除格式">⌫</button></span><small class="bz-doc-st"></small></div>
+      <div class="bz-doc-scroll"><div class="bz-doc-page" contenteditable="true" spellcheck="false">${docClean(x.h || '')}</div></div>`;
+    document.body.appendChild(ov);
+    const pg = ov.querySelector('.bz-doc-page'), st = ov.querySelector('.bz-doc-st');
+    let tm;
+    const save = () => { const a = docAll(); a[docKey(id, n)] = { h: pg.innerHTML, t: Date.now() }; docStore(a); st.textContent = '已存'; clearTimeout(docSync.t); docSync.t = setTimeout(() => docSync(true), 1500); };
+    pg.addEventListener('input', () => { st.textContent = '…'; clearTimeout(tm); tm = setTimeout(save, 400); });
+    const close = () => { clearTimeout(tm); save(); ov.remove(); document.removeEventListener('keydown', esc, true); const b = document.querySelector(`#entry .bz-fxl [data-bi="${CSS.escape(n)}"]`); if (b) b.classList.toggle('has', docHas(id, n)); };
+    const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', esc, true);
+    ov.addEventListener('mousedown', e => { if (e.target.closest('.bz-doc-tools button')) e.preventDefault(); });   // 按工具鈕時不要丟掉選取的字
+    ov.addEventListener('click', e => {
+      if (e.target.closest('[data-doc-x]')) return close();
+      const b = e.target.closest('[data-cmd]'); if (!b) return;
+      const c = b.dataset.cmd;
+      if (c === 'hl') document.execCommand('hiliteColor', false, '#fff27a');
+      else if (c === 'h') document.execCommand('formatBlock', false, document.queryCommandValue('formatBlock') === 'h3' ? 'div' : 'h3');
+      else document.execCommand(c, false, null);
+      pg.dispatchEvent(new Event('input'));
+    });
+    pg.focus();
+  }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-bi]'); if (!b) return; e.preventDefault(); docOpen(b.closest('.bz-fxl').dataset.id, b.dataset.bi); });
+  document.addEventListener('keydown', e => { const b = e.target.closest && e.target.closest('[data-bi]'); if (b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); docOpen(b.closest('.bz-fxl').dataset.id, b.dataset.bi); } });
   function fxlHtml(o) {
     const own = new Set();
     const names = uniqBy(patterns(o).flatMap(p => p.fx.map(f => f.name)), x => x);
@@ -873,12 +964,14 @@
     const row = (n, i, tag) => {
       const id = fid(n), v = Array.isArray(m[n]) ? m[n] : ['', ''];
       const nm = tag ? `<span class="bz-fxl-ed" contenteditable="true" spellcheck="false" data-fxl-ed="${E(n)}" title="可以直接改；清空就刪掉">${E(n)}</span><small>${E(tag)}</small>` : id ? `<a href="#${id}" data-go="${id}">${E(n)}</a>` : `<span>${E(n)}</span>`;
-      return `<tr><td><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
+      const bi = `<small class="bz-bi${docHas(o.id, n) ? ' has' : ''}" role="button" tabindex="0" data-bi="${E(n)}" title="打開「${E(n)}」的比較筆記（A4 頁面）">比</small>`;
+      const blank = !String(v[0] || '').trim() && !String(v[1] || '').trim();
+      return `<tr data-n="${E(n)}"${tag && blank ? ' class="empty"' : ''}><td><button type="button" class="bz-dh-rm" data-fxt-rm title="刪掉這一列（這首自訂方）">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-fxt-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-fxt-ins title="在下面插入一列">＋</button><div class="bz-fxt-n"><span class="bz-fxl-no">${i}.</span>${nm}${bi}</div></td>${[1, 2].map(c => `<td><div class="bz-fxt-c" contenteditable="true" data-fxt="${E(n)}" data-c="${c}">${E(v[c - 1] || '')}</div></td>`).join('')}</tr>`;
     };
     return `<h3>本病常用方<small>${names.length} 首${mine.length ? `・自訂 ${mine.length} 首` : ''}</small></h3>
       <table class="bz-dh-tb bz-fxt"><colgroup>${fxtW(o.id).map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr><th>方劑<span class="bz-dh-rs" data-fxt-rs="0"></span></th><th>成分<span class="bz-dh-rs" data-fxt-rs="1"></span></th><th>補充</th></tr></thead>
-      <tbody>${names.map((n, i) => row(n, i + 1)).join('')}${mine.map((x, i) => row(x.n, names.length + i + 1, x.tag ? '自訂・' + x.tag : '自訂')).join('')}
+      <tbody>${fxtOrder(o.id, [...names.map(n => [n]), ...mine.map(x => [x.n, x.tag ? '自・' + x.tag : '自'])]).map((r, i) => row(r[0], i + 1, r[1])).join('')}
       <tr class="bz-fxl-add"><td colspan="3"><button type="button" data-fxl-add>⊕ 其他（自訂）</button><input type="text" data-fxl-in placeholder="輸入方名後按 Enter" hidden></td></tr></tbody></table>`;
   }
   function fxlRefresh() {
@@ -917,7 +1010,8 @@
     const to = t.textContent.replace(/\s+/g, ' ').trim();
     if (!to && !confirm('清空就會刪掉「' + t.dataset.fxlEd + '」，確定？')) { t.textContent = t.dataset.fxlEd; return; }
     const fid0 = t.closest('.bz-fxl').dataset.id, from = t.dataset.fxlEd;
-    if (to && to !== from) { const a = fxtAll(), x = a[fid0]; if (x && x.m && x.m[from] && !x.m[to]) { x.m[to] = x.m[from]; delete x.m[from]; x.t = Date.now(); fxtStore(a); setTimeout(() => fxtSync(true), 1500); } }   // 改名：作用、補充跟著搬
+    if (to && to !== from) { const a = fxtAll(), x = a[fid0]; if (x && ((x.m && x.m[from] && !x.m[to]) || (Array.isArray(x.o) && x.o.includes(from)))) { if (x.m && x.m[from] && !x.m[to]) { x.m[to] = x.m[from]; delete x.m[from]; } if (Array.isArray(x.o)) x.o = x.o.map(n => n === from ? to : n); x.t = Date.now(); fxtStore(a); setTimeout(() => fxtSync(true), 1500); } }   // 改名：作用、補充跟著搬
+    if (to && to !== from) docMove(fid0, from, to);
     renameFxFor(fid0, from, to);
   });
   const entObs = document.getElementById('entry');
@@ -925,6 +1019,7 @@
   fxlRefresh();
   fckSync(false);
   fxtSync(false);
+  docSync(false);
 
   /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
    * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
@@ -1696,31 +1791,36 @@
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
    * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
+   * 「治則大綱」：DD. 和本病常用方中間（治則／重點／補充），存 tcm-dzzl-v1、sync/dzzl.json
    * 都依病的 id 存在這台裝置，有設定 GitHub 同步時合併到 tcm-notes */
   const TBS = {
     dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
-    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false },
+    dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false, before: 'zl' },
+    pt: { key: 'tcm-dzpt-v1', url: GH_URL.replace('myfx.json', 'dzpt.json'), cols: ['病人', 'Subjective', 'Objective', 'Problem', 'Plan'], title: '', w: [14, 22, 22, 20, 22], mig: r => r.length === 3 ? [r[0], r[1], '', '', r[2]] : r, msg: '同步 p\'t list', ov: true },
+    zl: { key: 'tcm-dzzl-v1', url: GH_URL.replace('myfx.json', 'dzzl.json'), cols: ['治則', '重點', '補充'], title: '治則大綱', w: [24, 46, 30], msg: '同步治則大綱', after: false },
     ot: { key: 'tcm-dzot-v1', url: GH_URL.replace('myfx.json', 'dzot.json'), cols: ['方式', '重點', '補充'], title: '其他治療方式', w: [24, 46, 30], msg: '同步其他治療方式', after: 'dh' }
   };
   const tbAll = k => { try { const a = JSON.parse(localStorage.getItem(TBS[k].key) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const tbStore = (k, a) => { try { localStorage.setItem(TBS[k].key, JSON.stringify(a)); } catch (e) {} };
-  const tbOf = (k, id) => { const x = tbAll(k)[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : TBS[k].w; return { rows, w }; };
+  const tbN = k => TBS[k].cols.length, tbBlank = k => Array(tbN(k)).fill('');
+  const tbOf = (k, id) => { const x = tbAll(k)[id] || {}, N = tbN(k); let rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [tbBlank(k)]; if (TBS[k].mig) rows = rows.map(TBS[k].mig); rows = rows.map(r => r.length < N ? [...r, ...Array(N - r.length).fill('')] : r); const w = Array.isArray(x.w) && x.w.length === N ? x.w : TBS[k].w; return { rows, w }; };   // 欄數改過時：舊資料照 mig 搬到新欄位，不丟資料
   const dhAll = () => tbAll('dh'), dhOf = id => tbOf('dh', id);
   function tbHtml(k, id) {
     const { rows, w } = tbOf(k, id);
-    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
-    return `<h3>${E(TBS[k].title)}</h3>
+    const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-dh-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
+    return `${TBS[k].title ? `<h3>${E(TBS[k].title)}</h3>` : ''}
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
-      <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < tbN(k) - 1 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${TBS[k].cols.map((_, c) => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function tbRefresh(k, force) {
+    if (TBS[k].ov) { const b = document.querySelector(`.bz-ptov .bz-dh[data-tb="${k}"]`); if (b) { b.innerHTML = tbHtml(k, b.dataset.id); try { hlLater(); } catch (e) {} } return; }
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
     if (!o || o.kind !== 'zd' || !fxl) return;
     let box = ent.querySelector(`.bz-dh[data-tb="${k}"]`);
-    const put = b => { if (TBS[k].after) { const dd = TBS[k].after === true ? fxl : (ent.querySelector(`.bz-dh[data-tb="${TBS[k].after}"]`) || fxl); if (b.previousElementSibling !== dd) dd.after(b); } else if (b.nextElementSibling !== fxl) fxl.before(b); };
+    const put = b => { if (TBS[k].after) { const dd = TBS[k].after === true ? fxl : (ent.querySelector(`.bz-dh[data-tb="${TBS[k].after}"]`) || fxl); if (b.previousElementSibling !== dd) dd.after(b); } else { const nx = TBS[k].before ? (ent.querySelector(`.bz-dh[data-tb="${TBS[k].before}"]`) || fxl) : fxl; if (b.nextElementSibling !== nx) nx.before(b); } };
     if (box && box.dataset.id === o.id && !force) { put(box); return; }
     if (!box) { box = document.createElement('div'); box.className = 'bz-dh bz-tb-' + k; box.dataset.tb = k; }
     put(box);
@@ -1729,7 +1829,7 @@
     if (k === 'dd') ent.classList.add('bz-has-dd');
     try { hlLater(); } catch (e) {}
   }
-  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('dh', force); tbRefresh('ot', force); }
+  function dhRefresh(force) { tbRefresh('dd', force); tbRefresh('zl', force); tbRefresh('dh', force); tbRefresh('ot', force); }
   function tbSave(k, id, patch) {
     const a = tbAll(k), x = Object.assign(tbOf(k, id), a[id] || {}, patch, { t: Date.now() });
     a[id] = x; tbStore(k, a);
@@ -1763,10 +1863,18 @@
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-dh-add]'); if (!b) return;
     const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box);
-    rows.push(['', '', '']);
+    rows.push(tbBlank(k));
     tbSave(k, box.dataset.id, { rows });
     tbRefresh(k, true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
+  });
+  document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列
+    const b = e.target.closest && e.target.closest('[data-dh-ins]'); if (!b) return;
+    const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr'), i = [...tr.parentNode.children].indexOf(tr) - (b.dataset.dhIns === 'up' ? 1 : 0);
+    rows.splice(i + 1, 0, tbBlank(k));
+    tbSave(k, box.dataset.id, { rows });
+    tbRefresh(k, true);
+    const n = box.querySelectorAll('tbody tr')[i + 1]; if (n) n.querySelector('.bz-dh-c').focus();
   });
   document.addEventListener('click', e => {   // －：刪掉整列空白的那一列（至少留一列）
     const b = e.target.closest('[data-dh-rm]'); if (!b) return;
@@ -1794,7 +1902,63 @@
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  tbSync('dh', false); tbSync('dd', false); tbSync('ot', false);
+  tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('pt', false); tbSync('ot', false);
+  /* ---------- 病名旁 📑：打開「病名 p't list」頁面（病人／症狀／補充表格，用法跟 DD. 一樣）----------
+   * 存 tcm-dzpt-v1（依病的 id），有設定 GitHub 同步時合併到 tcm-notes sync/dzpt.json */
+  function ptDecorate() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur]; if (!o || o.kind !== 'zd') return;
+    const h1 = ent.querySelector('h1'); if (!h1 || h1.querySelector('.bz-pt-btn')) return;
+    h1.insertAdjacentHTML('beforeend', `<button type="button" class="bz-pt-btn" data-pt="${E(o.id)}" title="${E(o.name || '')} p't list">📑</button>`);
+  }
+  function ptOpen(id) {
+    const old = document.querySelector('.bz-ptov'); if (old) old.remove();
+    const nm = by[id] ? by[id].name : '';
+    const ov = document.createElement('div'); ov.className = 'bz-doc bz-ptov';
+    ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-pt-x title="關閉（Esc）">‹ 返回</button><b>${E(nm)} p't list</b></div>
+      <div class="bz-doc-scroll"><div class="bz-pt-wrap"><h2 class="bz-pt-h">${E(nm)} p't list</h2><div class="bz-dh bz-tb-pt" data-tb="pt" data-id="${E(id)}"></div></div></div>`;
+    document.body.appendChild(ov);
+    tbRefresh('pt', true);
+    const esc = e => { if (e.key !== 'Escape') return; e.preventDefault(); const c = e.target.closest && e.target.closest('.bz-dh-c'); if (c) c.blur(); else close(); };   // 正在打字時第一次 Esc 先離開格子
+    const close = () => { ov.remove(); document.removeEventListener('keydown', esc, true); };
+    document.addEventListener('keydown', esc, true);
+    ov.querySelector('[data-pt-x]').addEventListener('click', close);
+  }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-pt]'); if (!b) return; e.preventDefault(); e.stopPropagation(); ptOpen(b.dataset.pt); }, true);
+  if (entObs) new MutationObserver(ptDecorate).observe(entObs, { childList: true });
+  ptDecorate();
+
+  // 病證頁表格：游標碰到一條橫線（上下 5px 內），那條線左端出現一個 ＋，按了就在那裡插一列（借用每列隱藏的 ＋ 按鈕）
+  {
+    const lb = document.createElement('button'); lb.type = 'button'; lb.className = 'bz-line-ins'; lb.textContent = '＋'; lb.title = '在這裡插入一列'; lb.hidden = true;
+    let tgt = null;
+    const hide = () => { if (!tgt) return; lb.hidden = true; tgt = null; document.body.classList.remove('bz-lins-on'); };
+    document.addEventListener('mousemove', e => {
+      if (e.target === lb) return;
+      const tb = e.target.closest && e.target.closest('.bz-dh, .bz-fxl');
+      const tbl = tb && tb.querySelector('table.bz-dh-tb'); if (!tbl) return hide();
+      const R = tbl.getBoundingClientRect();
+      if (e.clientX < R.left - 12 || e.clientX > R.right) return hide();
+      const rows = [...tbl.querySelectorAll('tbody tr')].filter(r => r.querySelector('[data-fxt-ins],[data-dh-ins]'));
+      let best = null;
+      rows.forEach((r, i) => {
+        const b = r.getBoundingClientRect();
+        if (i === 0 && Math.abs(e.clientY - b.top) <= 5) best = { r, up: true, y: b.top };
+        if (Math.abs(e.clientY - b.bottom) <= 5) best = { r, up: false, y: b.bottom };
+      });
+      if (!best) return hide();
+      tgt = best;
+      if (!lb.isConnected) document.body.appendChild(lb);
+      lb.style.left = R.left + 'px'; lb.style.top = best.y + 'px'; lb.hidden = false; document.body.classList.add('bz-lins-on');
+    });
+    lb.addEventListener('click', () => {
+      if (!tgt) return;
+      const b = tgt.r.querySelector(tgt.up ? '[data-fxt-ins="up"],[data-dh-ins="up"]' : '[data-fxt-ins]:not([data-fxt-ins="up"]),[data-dh-ins]:not([data-dh-ins="up"])');
+      hide(); if (b) b.click();
+    });
+    addEventListener('scroll', hide, true);
+  }
   // 貼上時只保留純文字，字型跟頁面一致
   document.addEventListener('paste', e => {
     const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
