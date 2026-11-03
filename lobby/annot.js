@@ -206,5 +206,5 @@
       return true;
     } catch (e) { return false; }
   }
-  sync(false);
+  sync(true);   // 打開時：合併後和雲端不一樣才上傳（這台有、雲端沒有的補上去）
 })();

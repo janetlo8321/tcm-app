@@ -475,6 +475,14 @@
   }
   let pulled = false;
   async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
+  // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
+  async function syncAll() {
+    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
+      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true)];
+    let n = 0;
+    for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
+    return n;
+  }
   async function syncSetup() {
     const W = winOf(), has = !!ghToken();
     const v = W.prompt(has ? `自訂處方已設定同步（${syncMsg || '尚未同步'}）。\n要換金鑰就貼上新的；輸入「關閉」停止這台裝置的同步；直接按確定立即同步。`
@@ -484,7 +492,8 @@
     if (t === '關閉') { try { localStorage.removeItem(GH_KEY); } catch (e) {} W.alert('這台裝置已停止同步（已存的方還在）。'); keep(draw); return; }
     if (t) { try { localStorage.setItem(GH_KEY, t); } catch (e) {} }
     const ok = await syncFx(true);
-    W.alert(ok ? '同步完成。電腦和手機都設定好之後，自訂的方會自動互通。' : syncMsg);
+    const n = await syncAll();
+    W.alert(ok ? `同步完成（${n} 類筆記已上傳／下載）。電腦和手機都貼上同一把金鑰之後，所有自己加的資料（勾選、表格、筆記、螢光筆…）都會自動互通。` : syncMsg);
     keep(draw);
   }
   // 加一味藥：溫／寒涼／中性 → 分類 → 藥
@@ -1017,9 +1026,6 @@
   const entObs = document.getElementById('entry');
   if (entObs) new MutationObserver(() => { if (!entObs.querySelector('.bz-fxl')) { fxlRefresh(); pullOnce(); } }).observe(entObs, { childList: true });
   fxlRefresh();
-  fckSync(false);
-  fxtSync(false);
-  docSync(false);
 
   /* ---------- 小黑學長脈證處方表：欄寬可拉、不再調換欄位、長按格子可編輯 ----------
    * 欄寬與改過的格子存在這台裝置（tcm-xh-v1），有設定 GitHub 同步時一起存到 tcm-notes sync/xh.json */
@@ -1439,7 +1445,6 @@
       return true;
     } catch (e) { return false; }
   }
-  setTimeout(() => xnSync(false), 1500);
   function xgPane(side) {
     const k = xgSt[side], g = k && xg[k];
     if (side === 'p') return `<header class="xl-ph"><button type="button" class="xl-pb" data-xltotal title="藥物總表（可放大縮小）" aria-label="進入藥物總表">⊞</button>${g ? `<b class="xl-pt ${g.cls}">${E(g.name)}</b><small>${g.n} 味</small>${xnHtml(g.name)}` : '<b class="xl-pt">選左邊的分類</b>'}</header><div class="xl-pbody">${g ? xgRows(g.ids) : ''}</div>`;
@@ -1639,7 +1644,6 @@
     } catch (e) { return false; }
   }
   dzReg();
-  dzSync(false);
   // 大廳剛新增的病（存在同一台裝置）：要打開時先登記
   if (typeof go === 'function') { const _go = go; window.go = function (id) { if (typeof by !== 'undefined' && !by[id]) dzReg(); return _go.apply(this, arguments); }; }
   try {   // App 先畫好頁面、這支程式才載入：重新畫一次，自建的才會出現
@@ -1786,7 +1790,6 @@
   }
   if (dzEnt) new MutationObserver(() => { if (typeof state !== 'undefined' && state.cur !== 'zz') document.body.classList.remove('bz-zd-on'); zdDecorate(); }).observe(dzEnt, { childList: true });
   zdDecorate();
-  zdSync(false);
 
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
@@ -1902,7 +1905,6 @@
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('pt', false); tbSync('ot', false);
   /* ---------- 病名旁 📑：打開「病名 p't list」頁面（病人／症狀／補充表格，用法跟 DD. 一樣）----------
    * 存 tcm-dzpt-v1（依病的 id），有設定 GitHub 同步時合併到 tcm-notes sync/dzpt.json */
   function ptDecorate() {
@@ -2084,7 +2086,6 @@
       return true;
     } catch (e) { return false; }
   }
-  hnSync(false);
 
   /* ---------- 螢光筆：長按選字（可拖拉調整範圍），停下來右上出現綠色 ✓，按了變黃底；在黃底上再長按，✓ 確認後去掉 ----------
    * 每一頁分開存（資料庫條目用 state.cur，醫砭面板用 yb:編號），存在這台裝置（tcm-hl-v1），有設定 GitHub 同步時合併到 sync/hl.json
@@ -2234,7 +2235,6 @@
     if (yb) new MutationObserver(() => { if (!hlBusy) setTimeout(() => hlApply(yb), 60); }).observe(yb, { childList: true });
     hlRoots().forEach(hlApply);
   }
-  hlSync(false);
 
   /* ---------- 藥材頁功效清單：最後一行 ＋ 自己補充；補上的那幾行輕點可以修改，清空就刪掉 ----------
    * 存在這台裝置（tcm-hgx-v1，依藥材 id），有設定 GitHub 同步時合併到 tcm-notes sync/hgx.json */
@@ -2341,7 +2341,6 @@
   }
   { const _r = xgRender; xgRender = function () { const r = _r.apply(this, arguments); try { gjSheet(); } catch (e) {} return r; }; }
   { const ent = document.getElementById('entry'); if (ent) new MutationObserver(() => setTimeout(() => { gxDecorate(); gjSheet(); }, 0)).observe(ent, { childList: true }); gxDecorate(); gjSheet(); }
-  gxSync(false);
 
   /* ---------- 右上角版本：加密資料庫裡寫死的是舊版號（v2.5.0），改成顯示目前真正的版本（和銅人頁同一個來源 lobby/lobby.js） ---------- */
   (async () => {
@@ -2353,6 +2352,8 @@
       if (v && u && n) el.textContent = `${v}・${u}・第 ${n} 次修正`;
     } catch (e) {}
   })();
+
+  setTimeout(() => { if (ghToken()) syncAll(); }, 1500);   // 打開時：先抓雲端的合併進來，這台有、雲端沒有的也補上傳
 
   window.TCMBZ = { open: (id, k) => { if (!by[id]) dzReg(); return open(id, k); }, close, mount: (c, id, g) => { if (!by[id]) dzReg(); return mount(c, id, g); }, unmount, patterns: id => patterns(by[id]), reg: dzReg };
 })();
