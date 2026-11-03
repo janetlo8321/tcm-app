@@ -748,3 +748,6 @@ body.bz-lins-on .bz-dh-tb .bz-dh-rm { display: none !important; }
 .bz-ptov .bz-pt-h { margin: 0 0 14px; font-size: 22px; }
 .bz-ptov .bz-dh { margin: 0; }
 .bz-line-ins { z-index: 10001; }
+
+/* p't list、比 的頁面在 #entry 外面：手機也要能長按選字（螢光筆） */
+.bz-doc .bz-doc-scroll, .bz-doc .bz-doc-scroll * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
