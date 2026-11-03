@@ -1796,21 +1796,22 @@
   const TBS = {
     dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
     dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false, before: 'zl' },
-    pt: { key: 'tcm-dzpt-v1', url: GH_URL.replace('myfx.json', 'dzpt.json'), cols: ['病人', '症狀', '補充'], title: '', w: [24, 46, 30], msg: '同步 p\'t list', ov: true },
+    pt: { key: 'tcm-dzpt-v1', url: GH_URL.replace('myfx.json', 'dzpt.json'), cols: ['病人', 'Subjective', 'Objective', 'Problem', 'Plan'], title: '', w: [14, 22, 22, 20, 22], mig: r => r.length === 3 ? [r[0], r[1], '', '', r[2]] : r, msg: '同步 p\'t list', ov: true },
     zl: { key: 'tcm-dzzl-v1', url: GH_URL.replace('myfx.json', 'dzzl.json'), cols: ['治則', '重點', '補充'], title: '治則大綱', w: [24, 46, 30], msg: '同步治則大綱', after: false },
     ot: { key: 'tcm-dzot-v1', url: GH_URL.replace('myfx.json', 'dzot.json'), cols: ['方式', '重點', '補充'], title: '其他治療方式', w: [24, 46, 30], msg: '同步其他治療方式', after: 'dh' }
   };
   const tbAll = k => { try { const a = JSON.parse(localStorage.getItem(TBS[k].key) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const tbStore = (k, a) => { try { localStorage.setItem(TBS[k].key, JSON.stringify(a)); } catch (e) {} };
-  const tbOf = (k, id) => { const x = tbAll(k)[id] || {}; const rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [['', '', '']]; const w = Array.isArray(x.w) && x.w.length === 3 ? x.w : TBS[k].w; return { rows, w }; };
+  const tbN = k => TBS[k].cols.length, tbBlank = k => Array(tbN(k)).fill('');
+  const tbOf = (k, id) => { const x = tbAll(k)[id] || {}, N = tbN(k); let rows = Array.isArray(x.rows) && x.rows.length ? x.rows : [tbBlank(k)]; if (TBS[k].mig) rows = rows.map(TBS[k].mig); rows = rows.map(r => r.length < N ? [...r, ...Array(N - r.length).fill('')] : r); const w = Array.isArray(x.w) && x.w.length === N ? x.w : TBS[k].w; return { rows, w }; };   // 欄數改過時：舊資料照 mig 搬到新欄位，不丟資料
   const dhAll = () => tbAll('dh'), dhOf = id => tbOf('dh', id);
   function tbHtml(k, id) {
     const { rows, w } = tbOf(k, id);
     const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-dh-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
     return `${TBS[k].title ? `<h3>${E(TBS[k].title)}</h3>` : ''}
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
-      <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < tbN(k) - 1 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${TBS[k].cols.map((_, c) => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function tbRefresh(k, force) {
     if (TBS[k].ov) { const b = document.querySelector(`.bz-ptov .bz-dh[data-tb="${k}"]`); if (b) { b.innerHTML = tbHtml(k, b.dataset.id); try { hlLater(); } catch (e) {} } return; }
@@ -1862,7 +1863,7 @@
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-dh-add]'); if (!b) return;
     const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box);
-    rows.push(['', '', '']);
+    rows.push(tbBlank(k));
     tbSave(k, box.dataset.id, { rows });
     tbRefresh(k, true);
     const last = box.querySelector('tbody tr:last-child .bz-dh-c'); if (last) last.focus();
@@ -1870,7 +1871,7 @@
   document.addEventListener('click', e => {   // 列左邊 ＋：在這一列下面插一列
     const b = e.target.closest && e.target.closest('[data-dh-ins]'); if (!b) return;
     const box = b.closest('.bz-dh'), k = box.dataset.tb, rows = dhRead(box), tr = b.closest('tr'), i = [...tr.parentNode.children].indexOf(tr) - (b.dataset.dhIns === 'up' ? 1 : 0);
-    rows.splice(i + 1, 0, ['', '', '']);
+    rows.splice(i + 1, 0, tbBlank(k));
     tbSave(k, box.dataset.id, { rows });
     tbRefresh(k, true);
     const n = box.querySelectorAll('tbody tr')[i + 1]; if (n) n.querySelector('.bz-dh-c').focus();
