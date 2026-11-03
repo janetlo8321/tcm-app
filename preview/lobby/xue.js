@@ -85,7 +85,7 @@
     if (!e.target.closest || !e.target.closest('.xue-my-t') || !e.clipboardData) return;
     e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
   });
-  xnSync(false);
+  xnSync(true);   // 打開時：合併後和雲端不一樣才上傳
 
   let cur = null, last = null, lit = null;   // lit：資訊欄下拉選的穴，只亮燈不跳小卡
   function fill(o) {
