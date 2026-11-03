@@ -1814,7 +1814,7 @@
       <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${TBS[k].cols.map((_, c) => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function tbRefresh(k, force) {
-    if (TBS[k].ov) { const b = document.querySelector(`.bz-ptov .bz-dh[data-tb="${k}"]`); if (b) { b.innerHTML = tbHtml(k, b.dataset.id); try { hlLater(); } catch (e) {} } return; }
+    if (TBS[k].ov) { const b = document.querySelector(`.bz-ptov .bz-dh[data-tb="${k}"]`); if (b) { b.innerHTML = tbHtml(k, b.dataset.id); const w = b.closest('.bz-pt-wrap'); if (w) setTimeout(() => { try { hlApply(w); } catch (e) {} }, 0); } return; }
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
@@ -2094,9 +2094,10 @@
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx';
-  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody')].filter(r => r && !r.closest('[hidden]'));
+  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
+    if (root.classList.contains('bz-pt-wrap')) { const b = root.querySelector('.bz-dh[data-id]'); return b ? 'pt:' + b.dataset.id : ''; }
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
     return typeof state !== 'undefined' && state.cur ? String(state.cur) : '';
   }
