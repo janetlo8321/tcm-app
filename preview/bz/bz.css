@@ -739,3 +739,11 @@ body.bz-lins-on .bz-dh-tb .bz-dh-rm { display: none !important; }
 .bz-doc-page h3 { font-size: 19px; margin: .6em 0 .3em; }
 .bz-doc-page ul, .bz-doc-page ol { margin: .3em 0; padding-left: 1.6em; }
 @media (max-width: 820px) { .bz-doc-page { padding: 18px 16px; min-height: calc(100vh - 120px); } .bz-doc-tools { flex-wrap: wrap; } }
+
+/* 病名旁 📑 → 「病名 p't list」頁面 */
+.bz-pt-btn { margin-left: 10px; padding: 0 4px; border: 0; background: none; font-size: .6em; vertical-align: middle; cursor: pointer; line-height: 1; border-radius: 6px; }
+.bz-pt-btn:hover { background: rgba(0,0,0,.06); }
+.bz-ptov .bz-pt-wrap { max-width: 1100px; margin: 0 auto; }
+.bz-ptov .bz-pt-h { margin: 0 0 14px; font-size: 22px; }
+.bz-ptov .bz-dh { margin: 0; }
+.bz-line-ins { z-index: 10001; }

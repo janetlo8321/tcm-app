@@ -1796,6 +1796,7 @@
   const TBS = {
     dh: { key: 'tcm-dzherb-v1', url: GH_URL.replace('myfx.json', 'dzherb.json'), cols: ['藥物', '作用', '補充'], title: '相關藥物作用', w: [24, 46, 30], msg: '同步相關藥物作用', after: true },
     dd: { key: 'tcm-dzdd-v1', url: GH_URL.replace('myfx.json', 'dzdd.json'), cols: ['疾病', '症狀', '補充'], title: 'DD.', w: [24, 46, 30], msg: '同步 DD', after: false, before: 'zl' },
+    pt: { key: 'tcm-dzpt-v1', url: GH_URL.replace('myfx.json', 'dzpt.json'), cols: ['病人', '症狀', '補充'], title: '', w: [24, 46, 30], msg: '同步 p\'t list', ov: true },
     zl: { key: 'tcm-dzzl-v1', url: GH_URL.replace('myfx.json', 'dzzl.json'), cols: ['治則', '重點', '補充'], title: '治則大綱', w: [24, 46, 30], msg: '同步治則大綱', after: false },
     ot: { key: 'tcm-dzot-v1', url: GH_URL.replace('myfx.json', 'dzot.json'), cols: ['方式', '重點', '補充'], title: '其他治療方式', w: [24, 46, 30], msg: '同步其他治療方式', after: 'dh' }
   };
@@ -1806,12 +1807,13 @@
   function tbHtml(k, id) {
     const { rows, w } = tbOf(k, id);
     const cell = (t, r, c) => `<td>${c === 0 ? '<button type="button" class="bz-dh-rm" data-dh-rm title="刪掉這一列">－</button><button type="button" class="bz-dh-ins bz-ins-up" data-dh-ins="up" title="在這一列上面插入一列">＋</button><button type="button" class="bz-dh-ins" data-dh-ins title="在下面插入一列">＋</button>' : ''}<div class="bz-dh-c" contenteditable="true" data-r="${r}" data-c="${c}">${E(t || '')}</div>${c === 0 && r === rows.length - 1 ? '<button type="button" class="bz-dh-add" data-dh-add title="再加一列">＋</button>' : ''}</td>`;
-    return `<h3>${E(TBS[k].title)}</h3>
+    return `${TBS[k].title ? `<h3>${E(TBS[k].title)}</h3>` : ''}
       <div class="bz-dh-wrap"><table class="bz-dh-tb"><colgroup>${w.map(p => `<col style="width:${p}%">`).join('')}</colgroup>
       <thead><tr>${TBS[k].cols.map((t, c) => `<th>${t}${c < 2 ? `<span class="bz-dh-rs" data-dh-rs="${c}"></span>` : ''}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr${rows.length > 1 && !r.some(x => String(x || '').trim()) ? ' class="empty"' : ''}>${[0, 1, 2].map(c => cell(r[c], i, c)).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function tbRefresh(k, force) {
+    if (TBS[k].ov) { const b = document.querySelector(`.bz-ptov .bz-dh[data-tb="${k}"]`); if (b) { b.innerHTML = tbHtml(k, b.dataset.id); try { hlLater(); } catch (e) {} } return; }
     const ent = document.getElementById('entry');
     if (!ent || typeof state === 'undefined') return;
     const o = by[state.cur], fxl = ent.querySelector('.bz-fxl');
@@ -1899,7 +1901,33 @@
   if (entObs) new MutationObserver(() => dhRefresh()).observe(entObs, { childList: true });
   { const _f = fxlRefresh; fxlRefresh = function () { _f.apply(this, arguments); dhRefresh(); try { hlLater(); } catch (e) {} }; }
   dhRefresh();
-  tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('ot', false);
+  tbSync('dh', false); tbSync('dd', false); tbSync('zl', false); tbSync('pt', false); tbSync('ot', false);
+  /* ---------- 病名旁 📑：打開「病名 p't list」頁面（病人／症狀／補充表格，用法跟 DD. 一樣）----------
+   * 存 tcm-dzpt-v1（依病的 id），有設定 GitHub 同步時合併到 tcm-notes sync/dzpt.json */
+  function ptDecorate() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined') return;
+    const o = by[state.cur]; if (!o || o.kind !== 'zd') return;
+    const h1 = ent.querySelector('h1'); if (!h1 || h1.querySelector('.bz-pt-btn')) return;
+    h1.insertAdjacentHTML('beforeend', `<button type="button" class="bz-pt-btn" data-pt="${E(o.id)}" title="${E(o.name || '')} p't list">📑</button>`);
+  }
+  function ptOpen(id) {
+    const old = document.querySelector('.bz-ptov'); if (old) old.remove();
+    const nm = by[id] ? by[id].name : '';
+    const ov = document.createElement('div'); ov.className = 'bz-doc bz-ptov';
+    ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-pt-x title="關閉（Esc）">‹ 返回</button><b>${E(nm)} p't list</b></div>
+      <div class="bz-doc-scroll"><div class="bz-pt-wrap"><h2 class="bz-pt-h">${E(nm)} p't list</h2><div class="bz-dh bz-tb-pt" data-tb="pt" data-id="${E(id)}"></div></div></div>`;
+    document.body.appendChild(ov);
+    tbRefresh('pt', true);
+    const esc = e => { if (e.key !== 'Escape') return; e.preventDefault(); const c = e.target.closest && e.target.closest('.bz-dh-c'); if (c) c.blur(); else close(); };   // 正在打字時第一次 Esc 先離開格子
+    const close = () => { ov.remove(); document.removeEventListener('keydown', esc, true); };
+    document.addEventListener('keydown', esc, true);
+    ov.querySelector('[data-pt-x]').addEventListener('click', close);
+  }
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-pt]'); if (!b) return; e.preventDefault(); e.stopPropagation(); ptOpen(b.dataset.pt); }, true);
+  if (entObs) new MutationObserver(ptDecorate).observe(entObs, { childList: true });
+  ptDecorate();
+
   // 病證頁表格：游標碰到一條橫線（上下 5px 內），那條線左端出現一個 ＋，按了就在那裡插一列（借用每列隱藏的 ＋ 按鈕）
   {
     const lb = document.createElement('button'); lb.type = 'button'; lb.className = 'bz-line-ins'; lb.textContent = '＋'; lb.title = '在這裡插入一列'; lb.hidden = true;
