@@ -2278,7 +2278,8 @@
       <input type="search" data-shlq placeholder="找條文、方名" aria-label="找條文">
       <button type="button" data-shled class="shl-edbtn" title="開了可以直接點字修改；關了比較好長按畫螢光筆">✎ 可編輯</button>
       <button type="button" data-shlmode class="shl-modebtn" title="翻書：左右兩頁，一頁一頁翻；捲動：一直往下捲">${shlBookMode() ? '📖 翻書' : '↕ 捲動'}</button>
-      <button type="button" data-shlorig class="shl-orig">原本的經方表（暫時）</button></div><div class="shl-body">`;
+      <button type="button" data-shlorig class="shl-orig">原本的經方表（暫時）</button>
+      <button type="button" data-shlx class="shl-x" title="離開經方頁（回上一頁）" aria-label="離開">✕</button></div><div class="shl-body">`;
     bk.rows.forEach(r => {
       if (r.t === 'a') h += shlLine('shl-a', r);
       else if (r.t === 'h') h += `<h2 class="shl-h" id="shl-${shlEsc(r.id)}">${shlLine('shl-ht', r)}</h2>`;
@@ -2416,6 +2417,7 @@
       if (t.dataset.shlpg) { shlGo(shlPage + 2 * +t.dataset.shlpg); return; }
       if (t.hasAttribute('data-shlmode')) { try { localStorage.setItem(SHL_MODE, shlBookMode() ? 'scroll' : 'book'); } catch (er) {} shlLayout(); return; }
       if (t.hasAttribute('data-shled')) { const on = !shlEdOn(); try { localStorage.setItem(SHL_ED, on ? '1' : '0'); } catch (er) {} shlEdApply(w); return; }
+      if (t.hasAttribute('data-shlx')) { history.back(); return; }
       if (t.hasAttribute('data-shlorig')) { shlOrig = true; shlCheck(); window.scrollTo(0, 0); }
     });
     w.addEventListener('change', e => {

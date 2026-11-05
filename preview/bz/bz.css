@@ -802,3 +802,13 @@ html.bz-shl-on #entry { display: none !important; }
 .bz-shl.shl-book .shl-nav button { font: inherit; font-size: 15px; border: 1px solid var(--line-soft, #d9d9de); background: var(--surface, #fff); color: var(--accent, #007aff); border-radius: 8px; padding: 6px 16px; cursor: pointer; -webkit-user-select: none; user-select: none; }
 .bz-shl.shl-book .shl-nav button:disabled { opacity: .35; cursor: default; }
 .bz-shl .shl-modebtn { -webkit-user-select: none; user-select: none; }
+/* 翻書模式佔滿整個螢幕（蓋住左邊選單、上方標題、右邊圓鈕），✕ 回上一頁 */
+.bz-shl.shl-book { position: fixed; inset: 0; z-index: 2147483645; margin: 0; padding: 6px 28px 10px; background: var(--bg, #f2f2f7); overflow: hidden; display: flex; flex-direction: column; }
+.bz-shl.shl-book .shl-bar { flex: none; border-bottom: 0; margin-bottom: 6px; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bz-shl.shl-book .shl-body { flex: none; column-gap: 96px; border-width: 26px 40px; }
+.bz-shl.shl-book .shl-nav { flex: none; }
+.bz-shl .shl-x { display: none; }
+.bz-shl.shl-book .shl-x { display: inline-block; font-size: 16px !important; padding: 5px 12px !important; }
+html:has(#bzShl.shl-book:not([hidden])), html:has(#bzShl.shl-book:not([hidden])) body { overflow: hidden; }
+@media (prefers-color-scheme: dark) { .bz-shl.shl-book { background: var(--bg, #000); } }
+.bz-shl.shl-book { width: auto; max-width: none; box-sizing: border-box; }
