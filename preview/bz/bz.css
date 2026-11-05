@@ -775,15 +775,15 @@ html.bz-shl-on #entry { display: none !important; }
 .bz-shl [contenteditable="true"]:focus { background: rgba(0, 122, 255, .07); box-shadow: 0 0 0 1px rgba(0, 122, 255, .35); }
 .bz-shl .shl-f, .bz-shl .shl-p, .bz-shl .shl-s { padding-left: 1.2em; font-size: 15.5px; }
 .bz-shl .shl-f { color: #3f5f3a; }
-.bz-shl .shl-s { font-weight: 600; }
-.bz-shl b { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.bz-shl .shl-s { font-weight: 700; color: #d70015; }
+.bz-shl b { font-weight: 700; color: #d70015; text-decoration: underline; text-underline-offset: 3px; }
 .bz-shl small { font-size: .78em; color: var(--muted, #6e6e73); }
 .bz-shl .shl-mine { box-shadow: inset 3px 0 0 #9fd3ad; padding-left: 6px; }
 .bz-shl .shl-f.shl-mine, .bz-shl .shl-p.shl-mine, .bz-shl .shl-s.shl-mine { padding-left: calc(1.2em + 6px); }
 .bz-shl .shl-err { padding: 40px 0; color: #b91c1c; }
 .bz-shl-back { display: block; margin: 10px auto; padding: 8px 14px; border: 1px solid #c7c7cc; border-radius: 10px; background: #fff; color: #007aff; font: inherit; font-size: 15px; cursor: pointer; }
 @media (prefers-color-scheme: dark) {
-  .bz-shl .shl-no { color: #fdba74; } .bz-shl .shl-f { color: #a7d3a0; }
+  .bz-shl b, .bz-shl .shl-s { color: #ff6961; } .bz-shl .shl-no { color: #fdba74; } .bz-shl .shl-f { color: #a7d3a0; }
   .bz-shl .shl-edbtn.on { background: rgba(52, 199, 89, .18); color: #a7f3b5; border-color: transparent; }
   .bz-shl-back { background: #2c2c2e; border-color: #3a3a3c; color: #64a8ff; }
 }
