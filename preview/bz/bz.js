@@ -478,7 +478,7 @@
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
     const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
-      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true)];
+      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true)];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
     return n;
@@ -2095,9 +2095,10 @@
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx';
-  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
+  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
+    if (root.classList.contains('shl-body')) { const w = root.closest('#bzShl'); return w && w.dataset.bk ? 'shl:' + w.dataset.bk : ''; }
     if (root.classList.contains('bz-pt-wrap')) { const b = root.querySelector('.bz-dh[data-id]'); return b ? 'pt:' + b.dataset.id : ''; }
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
     return typeof state !== 'undefined' && state.cur ? String(state.cur) : '';
@@ -2234,6 +2235,176 @@
     if (ent) new MutationObserver(() => later(ent)).observe(ent, { childList: true });
     if (yb) new MutationObserver(() => { if (!hlBusy) setTimeout(() => hlApply(yb), 60); }).observe(yb, { childList: true });
     hlRoots().forEach(hlApply);
+  }
+
+  /* ---------- 經方頁：傷寒論條文（之後加金匱要略），每行都可以直接改字、可以畫螢光筆；原本的經方表移到「原本的經方表（暫時）」 ----------
+   * 條文原文在 bz/shl.txt；自己改過的行存在這台裝置（tcm-shl-v1，依行的編號），有設定 GitHub 同步時合併到 tcm-notes sync/shl.json
+   * 原文格式：@@ 書名、@ 作者、# 篇名、「12. 條文」、f: 組成、p: 煎服法、s: 方名小標；**方名** 粗體底線、~小字~ */
+  const SHLK = 'tcm-shl-v1', SHL_URL = GH_URL.replace('myfx.json', 'shl.json'), SHL_ED = 'tcm-shl-ed';
+  const shlAll = () => { try { const a = JSON.parse(localStorage.getItem(SHLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const shlStore = a => { try { localStorage.setItem(SHLK, JSON.stringify(a)); } catch (e) {} };
+  let shlBooks = null, shlLoading = null, shlBook = 0, shlOrig = false;
+  const shlEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const shlFmt = s => shlEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/~(.+?)~/g, '<small>$1</small>').replace(/\n/g, '<br>');
+  function shlParse(txt) {
+    const books = []; let bk = null, cl = null, k = 0, h = 0;
+    txt.split('\n').forEach(raw => {
+      const l = raw.replace(/\s+$/, ''); if (!l.trim()) return;
+      if (l.startsWith('@@ ')) { bk = { name: l.slice(3).trim(), key: 'b' + books.length, rows: [] }; books.push(bk); cl = null; h = 0; return; }
+      if (!bk) { bk = { name: '傷寒論', key: 'b0', rows: [] }; books.push(bk); }
+      const P = bk.key + ':';
+      if (l.startsWith('@ ')) { bk.rows.push({ t: 'a', id: P + 'a', x: l.slice(2) }); return; }
+      if (l.startsWith('# ')) { cl = null; bk.rows.push({ t: 'h', id: P + 'h' + (h++), x: l.slice(2) }); return; }
+      const m = l.match(/^([0-9]+|[一二三四五六七八九十]+ ?-[0-9]+)\.\s*(.*)$/);
+      if (m) { const no = m[1].replace(/\s/g, ''); cl = { t: 'c', no, id: P + no, x: m[2], sub: [] }; k = 0; bk.rows.push(cl); return; }
+      const s = l.match(/^([fps]):\s?(.*)$/);
+      const row = s ? { t: s[1], x: s[2] } : { t: 'p', x: l };
+      if (cl) { row.id = cl.id + '.' + (++k); cl.sub.push(row); } else { row.id = P + 'x' + (h++); bk.rows.push(row); }
+    });
+    return books;
+  }
+  function shlLoad() {
+    if (shlBooks) return Promise.resolve(shlBooks);
+    if (!shlLoading) shlLoading = fetch('bz/shl.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(t => (shlBooks = shlParse(t))).catch(e => { shlLoading = null; throw e; });
+    return shlLoading;
+  }
+  const shlTxt = (id, x) => { const e = shlAll()[id]; return e && typeof e.x === 'string' ? e.x : x; };
+  const shlLine = (cls, r) => `<div class="${cls}${shlAll()[r.id] ? ' shl-mine' : ''}" data-shl="${shlEsc(r.id)}">${shlFmt(shlTxt(r.id, r.x))}</div>`;
+  function shlHtml(bk) {
+    const chs = bk.rows.filter(r => r.t === 'h');
+    let h = `<div class="shl-bar"><div class="shl-tabs">${shlBooks.map((b, i) => `<button type="button" data-shlbk="${i}" class="${i === shlBook ? 'on' : ''}">${shlEsc(b.name)}</button>`).join('')}</div>
+      <select data-shlgo aria-label="跳到篇"><option value="">跳到…</option>${chs.map(r => `<option value="${shlEsc(r.id)}">${shlEsc(shlTxt(r.id, r.x))}</option>`).join('')}</select>
+      <input type="search" data-shlq placeholder="找條文、方名" aria-label="找條文">
+      <button type="button" data-shled class="shl-edbtn" title="開了可以直接點字修改；關了比較好長按畫螢光筆">✎ 可編輯</button>
+      <button type="button" data-shlorig class="shl-orig">原本的經方表（暫時）</button></div><div class="shl-body">`;
+    bk.rows.forEach(r => {
+      if (r.t === 'a') h += shlLine('shl-a', r);
+      else if (r.t === 'h') h += `<h2 class="shl-h" id="shl-${shlEsc(r.id)}">${shlLine('shl-ht', r)}</h2>`;
+      else if (r.t === 'c') h += `<div class="shl-c" data-no="${shlEsc(r.no)}"><span class="shl-no">${shlEsc(r.no)}.</span><div class="shl-cb">${shlLine('shl-t', r)}${r.sub.map(s => shlLine('shl-' + s.t, s)).join('')}</div></div>`;
+      else h += shlLine('shl-' + r.t, r);
+    });
+    return h + '</div>';
+  }
+  function shlEdOn() { try { const v = localStorage.getItem(SHL_ED); if (v) return v === '1'; } catch (e) {} return !COARSE.matches; }
+  function shlEdApply(w) {
+    const on = shlEdOn();
+    w.querySelectorAll('[data-shl]').forEach(d => { if (on) { d.contentEditable = 'true'; d.spellcheck = false; } else d.removeAttribute('contenteditable'); });
+    const b = w.querySelector('[data-shled]'); if (b) b.classList.toggle('on', on);
+  }
+  function shlWrap() {
+    let w = document.getElementById('bzShl');
+    const ent = document.getElementById('entry'); if (!ent) return null;
+    if (!w) { w = document.createElement('div'); w.id = 'bzShl'; w.className = 'bz-shl'; w.hidden = true; ent.parentNode.insertBefore(w, ent.nextSibling); shlEvents(w); }
+    return w;
+  }
+  function shlDraw() {
+    const w = shlWrap(); if (!w || !shlBooks) return;
+    const bk = shlBooks[shlBook] || shlBooks[0]; if (!bk) return;
+    w.innerHTML = shlHtml(bk); w.dataset.bk = bk.key;
+    shlEdApply(w);
+    const b = w.querySelector('.shl-body'); if (b) try { hlApply(b); } catch (e) {}
+  }
+  function shlCheck() {
+    const on = typeof state !== 'undefined' && state.cur === 'jk';
+    const ent = document.getElementById('entry');
+    document.documentElement.classList.toggle('bz-shl-on', on && !shlOrig);
+    const w = document.getElementById('bzShl');
+    if (!on) { shlOrig = false; shlUpdOrig(); document.documentElement.classList.remove('bz-shl-on'); if (w) w.hidden = true; return; }
+    shlUpdOrig();
+    if (shlOrig) { if (w) w.hidden = true; return; }
+    shlLoad().then(() => {
+      const w2 = shlWrap(); if (!w2) return;
+      if (!w2.dataset.bk) shlDraw();
+      w2.hidden = !(typeof state !== 'undefined' && state.cur === 'jk') || shlOrig;
+    }).catch(() => { const w2 = shlWrap(); if (w2) { w2.hidden = false; w2.innerHTML = '<p class="shl-err">條文讀取失敗，請確認有網路後重新整理。</p>'; } });
+    if (ent && ent.parentNode && w && w.previousSibling !== ent) ent.parentNode.insertBefore(w, ent.nextSibling);
+  }
+  function shlUpdOrig() {   // 看原本經方表時，最上面放一個「回到條文」
+    const ent = document.getElementById('entry'); if (!ent) return;
+    let b = document.getElementById('bzShlBack');
+    if (shlOrig && typeof state !== 'undefined' && state.cur === 'jk') {
+      if (!b) { b = document.createElement('button'); b.type = 'button'; b.id = 'bzShlBack'; b.className = 'bz-shl-back'; b.textContent = '← 回到傷寒論條文'; b.addEventListener('click', () => { shlOrig = false; shlCheck(); window.scrollTo(0, 0); }); }
+      if (b.nextSibling !== ent) ent.parentNode.insertBefore(b, ent);
+      b.hidden = false;
+    } else if (b) b.hidden = true;
+  }
+  function shlFromDom(el) {   // 畫面上的字 → 原文格式（保留粗體方名、小字）
+    let out = '';
+    const walk = n => n.childNodes.forEach(c => {
+      if (c.nodeType === 3) { out += c.data; return; }
+      if (c.nodeType !== 1) return;
+      const t = c.tagName;
+      if (t === 'BR') { out += '\n'; return; }
+      if ((t === 'DIV' || t === 'P') && out && !out.endsWith('\n')) out += '\n';
+      if (t === 'B' || t === 'STRONG') { const s = out; out = ''; walk(c); const x = out; out = s + (x.trim() ? '**' + x + '**' : x); return; }
+      if (t === 'SMALL') { const s = out; out = ''; walk(c); const x = out; out = s + (x.trim() ? '~' + x + '~' : x); return; }
+      walk(c);
+    });
+    walk(el);
+    return out.replace(/ /g, ' ').replace(/\n+$/, '');
+  }
+  function shlSave(el) {
+    const id = el.dataset.shl, x = shlFromDom(el), a = shlAll();
+    if (a[id] && a[id].x === x) return;
+    if (!a[id] && shlBooks) {   // 沒改過、內容和原文一樣：不用存
+      let orig = null; shlBooks.forEach(b => b.rows.forEach(r => { if (r.id === id) orig = r.x; (r.sub || []).forEach(s => { if (s.id === id) orig = s.x; }); }));
+      if (orig === x) return;
+    }
+    a[id] = { x, t: Date.now() }; shlStore(a); el.classList.add('shl-mine');
+    clearTimeout(shlSync.t); shlSync.t = setTimeout(() => shlSync(true), 1500);
+  }
+  function shlEvents(w) {
+    w.addEventListener('input', e => { const el = e.target.closest && e.target.closest('[data-shl]'); if (!el) return; clearTimeout(el._t); el._t = setTimeout(() => shlSave(el), 600); });
+    w.addEventListener('focusout', e => { const el = e.target.closest && e.target.closest('[data-shl]'); if (el) { clearTimeout(el._t); shlSave(el); } });
+    w.addEventListener('paste', e => {   // 貼上只貼純文字
+      const el = e.target.closest && e.target.closest('[data-shl]'); if (!el) return;
+      e.preventDefault(); const t = (e.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, t);
+    });
+    w.addEventListener('keydown', e => { if (e.key === 'Escape' && e.target.closest && e.target.closest('[data-shl]')) { e.preventDefault(); e.stopPropagation(); e.target.closest('[data-shl]').blur(); } }, true);
+    w.addEventListener('click', e => {
+      const t = e.target.closest && e.target.closest('button'); if (!t) return;
+      if (t.dataset.shlbk != null) { shlBook = +t.dataset.shlbk; shlDraw(); return; }
+      if (t.hasAttribute('data-shled')) { const on = !shlEdOn(); try { localStorage.setItem(SHL_ED, on ? '1' : '0'); } catch (er) {} shlEdApply(w); return; }
+      if (t.hasAttribute('data-shlorig')) { shlOrig = true; shlCheck(); window.scrollTo(0, 0); }
+    });
+    w.addEventListener('change', e => {
+      if (!e.target.matches('[data-shlgo]')) return;
+      const id = e.target.value; e.target.value = ''; if (!id) return;
+      const h = document.getElementById('shl-' + id); if (h) h.scrollIntoView({ block: 'start' });
+    });
+    w.addEventListener('input', e => {
+      if (!e.target.matches('[data-shlq]')) return;
+      const q = e.target.value.trim();
+      w.querySelectorAll('.shl-c').forEach(c => { c.hidden = !!q && !c.textContent.includes(q); });
+      w.querySelectorAll('.shl-h').forEach(c => { c.hidden = !!q; });
+    });
+  }
+  async function shlSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(SHL_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = shlAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      shlStore(all);
+      if (changed) { const w = document.getElementById('bzShl'); if (w && w.dataset.bk && !w.contains(document.activeElement)) shlDraw(); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(SHL_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步經方條文修改', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  {
+    const ent = document.getElementById('entry');
+    const later = () => setTimeout(shlCheck, 0);
+    if (ent) new MutationObserver(later).observe(ent, { childList: true });
+    addEventListener('hashchange', later); addEventListener('popstate', later);
+    document.addEventListener('click', e => { if (!(e.target.closest && e.target.closest('#bzShl'))) setTimeout(shlCheck, 60); }, true);
+    shlCheck();
   }
 
   /* ---------- 藥材頁功效清單：最後一行 ＋ 自己補充；補上的那幾行輕點可以修改，清空就刪掉 ----------
