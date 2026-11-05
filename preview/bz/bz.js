@@ -2286,7 +2286,7 @@
       else if (r.t === 'c') h += `<div class="shl-c" data-no="${shlEsc(r.no)}"><span class="shl-no">${shlEsc(r.no)}.</span><div class="shl-cb">${shlLine('shl-t', r)}${r.sub.map(s => shlLine('shl-' + s.t, s)).join('')}</div></div>`;
       else h += shlLine('shl-' + r.t, r);
     });
-    return h + '</div><div class="shl-nav"><button type="button" data-shlpg="-1" aria-label="上一頁">‹ 上一頁</button><span class="shl-pgno"></span><button type="button" data-shlpg="1" aria-label="下一頁">下一頁 ›</button></div>';
+    return h + '</div><div class="shl-nav"><button type="button" data-shlpg="-1" aria-label="上一頁">‹</button><div class="shl-dock" aria-label="頁面列"></div><button type="button" data-shlpg="1" aria-label="下一頁">›</button><span class="shl-pgno"></span><div class="shl-tip" hidden></div></div>';
   }
   /* 翻書模式：左右兩頁（CSS 分欄），一次翻兩頁；記住每本書翻到哪一條，換視窗大小也回到同一條 */
   const SHL_MODE = 'tcm-shl-mode', SHL_PG = 'tcm-shl-pg';
@@ -2302,6 +2302,7 @@
     const g = shlGeom(b); pg = Math.max(0, Math.min(pg - (pg % 2), g.pages - 1 - ((g.pages - 1) % 2))); shlPage = pg;
     b.scrollLeft = pg * g.step;
     const n = w.querySelector('.shl-pgno'); if (n) n.textContent = `第 ${pg + 1}${pg + 2 <= g.pages ? '–' + (pg + 2) : ''} 頁／共 ${g.pages} 頁`;
+    w.querySelectorAll('.shl-dock > i').forEach(x => x.classList.toggle('on', +x.dataset.pg === pg));
     w.querySelectorAll('[data-shlpg]').forEach(x => { x.disabled = (+x.dataset.shlpg < 0 && pg <= 0) || (+x.dataset.shlpg > 0 && pg + 2 >= g.pages); });
     if (!keep) {   // 記下左頁第一條，下次打開或視窗變大小時回到這一條
       const c = [...b.querySelectorAll('.shl-c, .shl-h')].find(x => !x.hidden && shlPageOf(b, x) >= pg);
@@ -2325,6 +2326,67 @@
     b.style.height = Math.max(320, innerHeight - Math.max(60, top) - (nav ? nav.offsetHeight : 40) - 24) + 'px';
     const a = shlAnchor(w);
     shlGo(a ? shlPageOf(b, a) : 0, true);
+    shlDock();
+  }
+  /* 底下的頁面列（像 Mac 的 Dock）：每一格是一個左右兩頁，同一篇同一個顏色；滑過去放大並顯示第幾頁、哪一篇、第幾條到第幾條，點一下翻過去 */
+  let shlSpreads = [];
+  function shlDock() {
+    const w = document.getElementById('bzShl'), b = w && w.querySelector('.shl-body'), d = w && w.querySelector('.shl-dock');
+    if (!b || !d || !w.classList.contains('shl-book')) return;
+    const g = shlGeom(b), n = Math.ceil(g.pages / 2), sp = Array.from({ length: n }, (_, i) => ({ pg: i * 2, ch: '', ci: 0, nos: [] }));
+    let ch = '', ci = -1;
+    const els = [...b.querySelectorAll('.shl-h, .shl-c')].filter(x => !x.hidden);
+    els.forEach(x => {
+      const k = Math.min(n - 1, Math.floor(shlPageOf(b, x) / 2));
+      if (x.classList.contains('shl-h')) { ch = x.textContent.trim(); ci++; if (!sp[k].nos.length) { sp[k].ch = ch; sp[k].ci = ci; } return; }
+      if (!sp[k].ch) { sp[k].ch = ch; sp[k].ci = Math.max(0, ci); }
+      sp[k].nos.push(x.dataset.no);
+    });
+    for (let i = 1; i < n; i++) if (!sp[i].ch) { sp[i].ch = sp[i - 1].ch; sp[i].ci = sp[i - 1].ci; }
+    shlSpreads = sp;
+    d.innerHTML = sp.map((s, i) => `<i data-pg="${s.pg}" data-k="${i}" class="c${s.ci % 2}${i && s.ci !== sp[i - 1].ci ? ' new' : ''}${s.pg === shlPage ? ' on' : ''}"><b>${shlEsc(s.nos[0] || '')}</b></i>`).join('');
+  }
+  function shlDockMag(d, x) {   // 放大游標附近的幾格
+    d.querySelectorAll('i').forEach(t => {
+      const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = x == null ? 1e9 : Math.abs(x - c);
+      const s = 1 + 1.6 * Math.max(0, 1 - dist / 90);
+      t.style.transform = s > 1.01 ? `scale(${s.toFixed(2)})` : '';
+      t.classList.toggle('big', s > 1.5);
+    });
+  }
+  function shlTip(w, t) {
+    const tip = w.querySelector('.shl-tip'); if (!tip) return;
+    if (!t) { tip.hidden = true; return; }
+    const s = shlSpreads[+t.dataset.k]; if (!s) return;
+    const g = shlGeom(w.querySelector('.shl-body')), nos = s.nos;
+    tip.innerHTML = `<b>第 ${s.pg + 1}${s.pg + 2 <= g.pages ? '–' + (s.pg + 2) : ''} 頁</b>　${shlEsc(s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
+    tip.hidden = false;
+    const r = t.getBoundingClientRect(), nr = tip.parentNode.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(nr.width - tip.offsetWidth - 8, r.left + r.width / 2 - nr.left - tip.offsetWidth / 2)) + 'px';
+  }
+  document.addEventListener('mousemove', e => {
+    const w = document.getElementById('bzShl'); if (!w || w.hidden || !w.classList.contains('shl-book')) return;
+    const d = w.querySelector('.shl-dock'); if (!d) return;
+    const r = d.getBoundingClientRect(), near = e.clientY > r.top - 60 && e.clientY < r.bottom + 10 && e.clientX > r.left - 20 && e.clientX < r.right + 20;
+    shlDockMag(d, near ? e.clientX : null);
+    const t = near && e.target.closest && e.target.closest('.shl-dock > i');
+    shlTip(w, t || null);
+  });
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('#bzShl .shl-dock > i'); if (!t) return;
+    shlGo(+t.dataset.pg);
+  });
+  {   // 滑鼠滾輪、觸控板往下＝下一頁，往上＝上一頁
+    let acc = 0, last = 0;
+    document.addEventListener('wheel', e => {
+      const w = document.getElementById('bzShl'); if (!w || w.hidden || !w.classList.contains('shl-book') || !w.contains(e.target)) return;
+      if (e.target.closest('select')) return;
+      e.preventDefault();
+      const now = Date.now(); if (now - last > 400) acc = 0;
+      acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (Math.abs(acc) < 40 || now - last < 350) return;
+      shlGo(shlPage + (acc > 0 ? 2 : -2)); acc = 0; last = now;
+    }, { passive: false });
   }
   addEventListener('resize', () => { clearTimeout(shlLayout.t); shlLayout.t = setTimeout(shlLayout, 150); });
   document.addEventListener('keydown', e => {
@@ -2431,7 +2493,7 @@
       const q = e.target.value.trim();
       w.querySelectorAll('.shl-c').forEach(c => { c.hidden = !!q && !c.textContent.includes(q); });
       w.querySelectorAll('.shl-h').forEach(c => { c.hidden = !!q; });
-      if (w.classList.contains('shl-book')) shlGo(0, !!q);
+      if (w.classList.contains('shl-book')) { shlGo(0, !!q); shlDock(); }
     });
   }
   async function shlSync(push) {

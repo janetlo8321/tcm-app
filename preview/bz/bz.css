@@ -812,3 +812,22 @@ html.bz-shl-on #entry { display: none !important; }
 html:has(#bzShl.shl-book:not([hidden])), html:has(#bzShl.shl-book:not([hidden])) body { overflow: hidden; }
 @media (prefers-color-scheme: dark) { .bz-shl.shl-book { background: var(--bg, #000); } }
 .bz-shl.shl-book { width: auto; max-width: none; box-sizing: border-box; }
+/* 翻書：底下 Dock 頁面列 */
+.bz-shl.shl-book .shl-nav { position: relative; gap: 10px; padding: 14px 4px 2px; }
+.bz-shl.shl-book .shl-nav > button { padding: 4px 14px; font-size: 20px; line-height: 1.2; }
+.bz-shl .shl-dock { flex: 1; display: flex; align-items: flex-end; gap: 2px; height: 30px; padding: 3px 8px; border-radius: 12px; background: color-mix(in srgb, var(--surface, #fff) 70%, transparent);
+  box-shadow: 0 2px 12px rgba(0,0,0,.12), inset 0 0 0 .5px rgba(0,0,0,.08); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.bz-shl .shl-dock > i { flex: 1; min-width: 3px; max-width: 34px; height: 22px; border-radius: 4px; background: #c9d6e8; transform-origin: 50% 100%; transition: transform .08s; cursor: pointer; position: relative; font-style: normal; -webkit-user-select: none; user-select: none; }
+.bz-shl .shl-dock > i.c1 { background: #e5d6bf; }
+.bz-shl .shl-dock > i.new { margin-left: 4px; }
+.bz-shl .shl-dock > i.on { background: #d70015; }
+.bz-shl .shl-dock > i b { display: none; position: absolute; inset: 0; font-size: 8px; line-height: 22px; text-align: center; color: #333; font-weight: 600; overflow: hidden; white-space: nowrap; }
+.bz-shl .shl-dock > i.big b { display: block; }
+.bz-shl .shl-dock > i.on b { color: #fff; }
+.bz-shl .shl-tip { position: absolute; bottom: 64px; z-index: 5; padding: 6px 12px; border-radius: 8px; background: rgba(30,30,32,.92); color: #fff; font-size: 13px; line-height: 1.5; white-space: nowrap; pointer-events: none; }
+.bz-shl .shl-tip b { font-weight: 700; }
+.bz-shl.shl-book .shl-pgno { min-width: 9em; text-align: right; }
+@media (prefers-color-scheme: dark) { .bz-shl .shl-dock > i { background: #3a4a62; } .bz-shl .shl-dock > i.c1 { background: #5a4a33; } .bz-shl .shl-dock > i b { color: #eee; } }
+.bz-shl .shl-tip b { color: #fff; text-decoration: none; }
+.bz-shl .shl-dock > i b { color: #333; text-decoration: none; font-weight: 600; }
+.bz-shl .shl-dock > i.on b { color: #fff; }
