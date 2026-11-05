@@ -788,3 +788,17 @@ html.bz-shl-on #entry { display: none !important; }
   .bz-shl-back { background: #2c2c2e; border-color: #3a3a3c; color: #64a8ff; }
 }
 @media (max-width: 560px) { .bz-shl { padding: 0 12px 80px; font-size: 16px; } .bz-shl .shl-c { grid-template-columns: 2.8em minmax(0, 1fr); } .bz-shl .shl-orig { margin-left: 0; } }
+/* 經方條文：翻書模式（左右兩頁） */
+.bz-shl .shl-nav { display: none; }
+.bz-shl.shl-book { max-width: none; width: 100%; }
+.bz-shl.shl-book .shl-bar { position: static; }
+.bz-shl.shl-book .shl-body { column-count: 2; column-gap: 72px; column-fill: auto; column-rule: 1px solid var(--line-soft, #d9d9de); overflow: hidden;
+  background: var(--surface, #fff); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 0; box-sizing: border-box; }
+.bz-shl.shl-book .shl-body { border: 22px solid var(--surface, #fff); }
+.bz-shl.shl-book .shl-h { break-before: column; margin-top: 0; }
+.bz-shl.shl-book .shl-a + .shl-h { break-before: auto; }
+.bz-shl.shl-book .shl-c { break-inside: auto; }
+.bz-shl.shl-book .shl-nav { display: flex; justify-content: center; align-items: center; gap: 18px; padding: 10px 0 4px; font-size: 14px; color: var(--muted, #6e6e73); }
+.bz-shl.shl-book .shl-nav button { font: inherit; font-size: 15px; border: 1px solid var(--line-soft, #d9d9de); background: var(--surface, #fff); color: var(--accent, #007aff); border-radius: 8px; padding: 6px 16px; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.bz-shl.shl-book .shl-nav button:disabled { opacity: .35; cursor: default; }
+.bz-shl .shl-modebtn { -webkit-user-select: none; user-select: none; }

@@ -2277,6 +2277,7 @@
       <select data-shlgo aria-label="跳到篇"><option value="">跳到…</option>${chs.map(r => `<option value="${shlEsc(r.id)}">${shlEsc(shlTxt(r.id, r.x))}</option>`).join('')}</select>
       <input type="search" data-shlq placeholder="找條文、方名" aria-label="找條文">
       <button type="button" data-shled class="shl-edbtn" title="開了可以直接點字修改；關了比較好長按畫螢光筆">✎ 可編輯</button>
+      <button type="button" data-shlmode class="shl-modebtn" title="翻書：左右兩頁，一頁一頁翻；捲動：一直往下捲">${shlBookMode() ? '📖 翻書' : '↕ 捲動'}</button>
       <button type="button" data-shlorig class="shl-orig">原本的經方表（暫時）</button></div><div class="shl-body">`;
     bk.rows.forEach(r => {
       if (r.t === 'a') h += shlLine('shl-a', r);
@@ -2284,8 +2285,53 @@
       else if (r.t === 'c') h += `<div class="shl-c" data-no="${shlEsc(r.no)}"><span class="shl-no">${shlEsc(r.no)}.</span><div class="shl-cb">${shlLine('shl-t', r)}${r.sub.map(s => shlLine('shl-' + s.t, s)).join('')}</div></div>`;
       else h += shlLine('shl-' + r.t, r);
     });
-    return h + '</div>';
+    return h + '</div><div class="shl-nav"><button type="button" data-shlpg="-1" aria-label="上一頁">‹ 上一頁</button><span class="shl-pgno"></span><button type="button" data-shlpg="1" aria-label="下一頁">下一頁 ›</button></div>';
   }
+  /* 翻書模式：左右兩頁（CSS 分欄），一次翻兩頁；記住每本書翻到哪一條，換視窗大小也回到同一條 */
+  const SHL_MODE = 'tcm-shl-mode', SHL_PG = 'tcm-shl-pg';
+  function shlBookMode() { try { const v = localStorage.getItem(SHL_MODE); if (v) return v === 'book'; } catch (e) {} return innerWidth >= 900; }
+  let shlPage = 0;
+  function shlGeom(b) {
+    const cs = getComputedStyle(b), gap = parseFloat(cs.columnGap) || 0, cw = (b.clientWidth - gap) / 2;
+    return { gap, step: cw + gap, pages: Math.max(1, Math.round((b.scrollWidth + gap) / (cw + gap))) };
+  }
+  function shlPageOf(b, el) { const g = shlGeom(b); return Math.max(0, Math.floor((el.getBoundingClientRect().left - b.getBoundingClientRect().left + b.scrollLeft + 2) / g.step)); }
+  function shlGo(pg, keep) {
+    const w = document.getElementById('bzShl'), b = w && w.querySelector('.shl-body'); if (!b || !w.classList.contains('shl-book')) return;
+    const g = shlGeom(b); pg = Math.max(0, Math.min(pg - (pg % 2), g.pages - 1 - ((g.pages - 1) % 2))); shlPage = pg;
+    b.scrollLeft = pg * g.step;
+    const n = w.querySelector('.shl-pgno'); if (n) n.textContent = `第 ${pg + 1}${pg + 2 <= g.pages ? '–' + (pg + 2) : ''} 頁／共 ${g.pages} 頁`;
+    w.querySelectorAll('[data-shlpg]').forEach(x => { x.disabled = (+x.dataset.shlpg < 0 && pg <= 0) || (+x.dataset.shlpg > 0 && pg + 2 >= g.pages); });
+    if (!keep) {   // 記下左頁第一條，下次打開或視窗變大小時回到這一條
+      const c = [...b.querySelectorAll('.shl-c, .shl-h')].find(x => !x.hidden && shlPageOf(b, x) >= pg);
+      try { const a = JSON.parse(localStorage.getItem(SHL_PG) || '{}'); a[w.dataset.bk] = c ? (c.dataset.no || c.id) : ''; localStorage.setItem(SHL_PG, JSON.stringify(a)); } catch (e) {}
+    }
+  }
+  function shlAnchor(w) {
+    let id = ''; try { id = (JSON.parse(localStorage.getItem(SHL_PG) || '{}')[w.dataset.bk]) || ''; } catch (e) {}
+    if (!id) return null;
+    return w.querySelector(`.shl-c[data-no="${CSS.escape(id)}"]`) || document.getElementById(id);
+  }
+  function shlLayout() {
+    const w = document.getElementById('bzShl'); if (!w || w.hidden || !w.dataset.bk) return;
+    const b = w.querySelector('.shl-body'); if (!b) return;
+    const on = shlBookMode();
+    w.classList.toggle('shl-book', on);
+    const mb = w.querySelector('[data-shlmode]'); if (mb) mb.textContent = on ? '📖 翻書' : '↕ 捲動';
+    if (!on) { b.style.height = ''; b.scrollLeft = 0; return; }
+    const bar = w.querySelector('.shl-bar'), nav = w.querySelector('.shl-nav');
+    const top = bar ? bar.getBoundingClientRect().bottom - Math.min(0, w.getBoundingClientRect().top) : 120;
+    b.style.height = Math.max(320, innerHeight - Math.max(60, top) - (nav ? nav.offsetHeight : 40) - 24) + 'px';
+    const a = shlAnchor(w);
+    shlGo(a ? shlPageOf(b, a) : 0, true);
+  }
+  addEventListener('resize', () => { clearTimeout(shlLayout.t); shlLayout.t = setTimeout(shlLayout, 150); });
+  document.addEventListener('keydown', e => {
+    const w = document.getElementById('bzShl'); if (!w || w.hidden || !w.classList.contains('shl-book')) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); shlGo(shlPage + 2); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); shlGo(shlPage - 2); }
+  });
   function shlEdOn() { try { const v = localStorage.getItem(SHL_ED); if (v) return v === '1'; } catch (e) {} return !COARSE.matches; }
   function shlEdApply(w) {
     const on = shlEdOn();
@@ -2304,6 +2350,7 @@
     w.innerHTML = shlHtml(bk); w.dataset.bk = bk.key;
     shlEdApply(w);
     const b = w.querySelector('.shl-body'); if (b) try { hlApply(b); } catch (e) {}
+    if (!w.hidden) setTimeout(shlLayout, 0);
   }
   function shlCheck() {
     const on = typeof state !== 'undefined' && state.cur === 'jk';
@@ -2316,7 +2363,8 @@
     shlLoad().then(() => {
       const w2 = shlWrap(); if (!w2) return;
       if (!w2.dataset.bk) shlDraw();
-      w2.hidden = !(typeof state !== 'undefined' && state.cur === 'jk') || shlOrig;
+      const was = w2.hidden; w2.hidden = !(typeof state !== 'undefined' && state.cur === 'jk') || shlOrig;
+      if (was && !w2.hidden) setTimeout(shlLayout, 0);
     }).catch(() => { const w2 = shlWrap(); if (w2) { w2.hidden = false; w2.innerHTML = '<p class="shl-err">條文讀取失敗，請確認有網路後重新整理。</p>'; } });
     if (ent && ent.parentNode && w && w.previousSibling !== ent) ent.parentNode.insertBefore(w, ent.nextSibling);
   }
@@ -2365,19 +2413,23 @@
     w.addEventListener('click', e => {
       const t = e.target.closest && e.target.closest('button'); if (!t) return;
       if (t.dataset.shlbk != null) { shlBook = +t.dataset.shlbk; shlDraw(); return; }
+      if (t.dataset.shlpg) { shlGo(shlPage + 2 * +t.dataset.shlpg); return; }
+      if (t.hasAttribute('data-shlmode')) { try { localStorage.setItem(SHL_MODE, shlBookMode() ? 'scroll' : 'book'); } catch (er) {} shlLayout(); return; }
       if (t.hasAttribute('data-shled')) { const on = !shlEdOn(); try { localStorage.setItem(SHL_ED, on ? '1' : '0'); } catch (er) {} shlEdApply(w); return; }
       if (t.hasAttribute('data-shlorig')) { shlOrig = true; shlCheck(); window.scrollTo(0, 0); }
     });
     w.addEventListener('change', e => {
       if (!e.target.matches('[data-shlgo]')) return;
       const id = e.target.value; e.target.value = ''; if (!id) return;
-      const h = document.getElementById('shl-' + id); if (h) h.scrollIntoView({ block: 'start' });
+      const h = document.getElementById('shl-' + id); if (!h) return;
+      if (w.classList.contains('shl-book')) shlGo(shlPageOf(w.querySelector('.shl-body'), h)); else h.scrollIntoView({ block: 'start' });
     });
     w.addEventListener('input', e => {
       if (!e.target.matches('[data-shlq]')) return;
       const q = e.target.value.trim();
       w.querySelectorAll('.shl-c').forEach(c => { c.hidden = !!q && !c.textContent.includes(q); });
       w.querySelectorAll('.shl-h').forEach(c => { c.hidden = !!q; });
+      if (w.classList.contains('shl-book')) shlGo(0, !!q);
     });
   }
   async function shlSync(push) {
