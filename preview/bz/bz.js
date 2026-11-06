@@ -2482,7 +2482,7 @@
     if (!ntBox.hidden) ntClose();
     const W = o.W, ov = document.createElement('div'); ov.className = 'bz-ntdoc';
     ov.innerHTML = `<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-top"><div class="bz-nd-lb"></div>${ND_TOOLS}</div>
-<div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、貼圖片，自動存"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
+<div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
     ov.querySelector('.bz-nd-lb').textContent = o.label || '';
     const L = ov.querySelector('.bz-nd-l');
     let curEls = [];
