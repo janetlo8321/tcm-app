@@ -1081,25 +1081,6 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-sn-ic.emo { font-size: 23px; line-height: 1; }
 }
 
-/* 電腦版：整個資料庫改成像經絡銅人大廳那樣的深色底（深褐黑＋淡淡暈光，重點色改古銅金） */
-@media (min-width: 821px) {
-  :root {
-    color-scheme: dark;
-    --bg: #0b0907 !important; --surface: #17120d !important; --ink: #ece3d6 !important; --muted: #9d917f !important;
-    --line: #3b3127 !important; --line-soft: #2a221a !important;
-    --accent: #e2ad62 !important; --accent-soft: rgba(226,173,98,.16) !important;
-    --herb: #7fd39a !important; --herb-soft: rgba(127,211,154,.14) !important; --mark: rgba(255,214,90,.3) !important; --flag: #ff6961 !important;
-    --hair: .5px solid rgba(214,166,107,.22) !important;
-  }
-  html, body { background: #070605 !important; color: var(--ink); }
-  body { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(120,84,40,.16), transparent 70%), radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%), #070605 !important; background-attachment: fixed !important; }
-  .search, .tabs { background: rgba(255,255,255,.07) !important; }
-  .tab[aria-selected="true"] { background: var(--surface) !important; color: var(--ink) !important; box-shadow: 0 0 0 .5px rgba(214,166,107,.35) !important; }
-  .bz-shl b, .bz-shl .shl-s { color: #ff6961; } .bz-shl .shl-no { color: #fdba74; } .bz-shl .shl-f { color: #a7d3a0; }
-  .bz-shl .shl-edbtn.on { background: rgba(52,199,89,.18); color: #a7f3b5; border-color: transparent; }
-  .bz-shl-back { background: #1d1711; border-color: #3b3127; color: var(--accent); }
-}
-
 /* 電腦版：頁面拓寬到兩邊 */
 @media (min-width: 821px) {
   .bz-wide { max-width: none !important; }

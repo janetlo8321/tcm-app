@@ -1987,7 +1987,7 @@
     if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
   }
 
-  /* ---------- 電腦版左欄：藥・方・經・脈・👩🏻‍⚕️ 變成深色圓鈕，字是小篆（藥綠、方亮綠、經橘黃、脈亮紅）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
+  /* ---------- 電腦版左欄：藥・方・脈・經・醫 變成深色圓鈕，字是小篆（藥綠、方亮綠、脈亮紅、經橘黃、醫亮藍）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
   {
     const SV = (c, w, d) => `<svg viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
     const IC = {
@@ -1995,9 +1995,9 @@
       fang: SV('#3dff6e', 2.4, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'),
       jing: SV('#f2b250', 2.4, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'),
       mai: SV('#ff3b3b', 2.4, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'),
-      zz: '👩🏻‍⚕️'
+      zz: SV('#4fb3ff', 2.4, '<path d="M14 4q-6 0-7 5v25q0 3 3 3h13"/><path d="M10.5 13.5q2-2 4.5-1.5"/><path d="M9.5 18h7.5"/><path d="M13.2 13v5"/><path d="M9.5 20.5l7.5 8"/><path d="M17 20.5l-7.5 8"/><path d="M22 11q0-6 4-6q3 0 3 4q0 3 5 3"/><path d="M22 19.5h12q-2.5 9-13 16"/><path d="M25.5 21q4 9 12 14"/>')
     };
-    const ORD = { yao: 1, fang: 2, jing: 3, mai: 4, zz: 5 };
+    const ORD = { yao: 1, fang: 2, mai: 3, jing: 4, zz: 5 };
     const keyOf = a => {
       if (a.id === 'sheetLink') return 'yao'; if (a.id === 'zzLink') return 'zz';
       if (a.id === 'jkLink') return 'jing'; if (a.id === 'maiLink') return 'mai';
@@ -2015,7 +2015,7 @@
           const nm = { yao: '藥物總表', zz: '全部病證' }[k] || t;
           a.classList.add('bz-sn', 'bz-sn-' + k); a.style.order = ORD[k];
           if (nm) { a.title = nm; a.setAttribute('aria-label', nm); }
-          const ic = document.createElement('span'); ic.className = 'bz-sn-ic' + (k === 'zz' ? ' emo' : ''); ic.setAttribute('aria-hidden', 'true');
+          const ic = document.createElement('span'); ic.className = 'bz-sn-ic'; ic.setAttribute('aria-hidden', 'true');
           ic.innerHTML = IC[k]; a.appendChild(ic);
           a.closest('.cards').classList.add('bz-sn-cards');
         }
