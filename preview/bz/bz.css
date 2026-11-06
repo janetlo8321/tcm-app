@@ -1033,3 +1033,8 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   :is(.bz-shl .bz-nd-inl, .bz-ntdoc) .bz-nd-tools button { color: #e5e5ea; }
   .bz-shl .bz-nd-inl .bz-nd-tools button.on, .bz-shl .bz-nd-inl .bz-nd-tools button:hover { background: rgba(255, 255, 255, .14); color: #64a8ff; }
 }
+/* 手機：綠勾、註縮小（約原本四分之一大），放在選字的右上角 */
+@media (pointer: coarse) {
+  .bz-hl-ok, .bz-hl-ok.bz-hl-nt { width: 20px; height: 20px; line-height: 20px; font-size: 11px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .bz-hl-ok::after { content: ''; position: absolute; inset: -9px -1px; }   /* 看起來小，手指點的範圍還是夠大 */
+}

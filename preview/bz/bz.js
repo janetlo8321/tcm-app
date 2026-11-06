@@ -2163,19 +2163,18 @@
     hlPend = pend; hlPut();
     if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
     let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
-    if (COARSE.matches) {   // 手機：系統的「拷貝／查詢…」選單會出現在選取範圍上面或下面，綠勾改放到螢幕的另一半（右側），完全避開
-      let tp = rect.top, bt = rect.bottom;
-      try { const b = getSelection().getRangeAt(0).getBoundingClientRect(); if (b.height) { tp = b.top; bt = b.bottom; } } catch (er) {}
-      const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vt = vv ? vv.offsetTop : 0;
-      x = innerWidth - 100;
-      y = (tp + bt) / 2 - vt < vh / 2 ? vt + vh - 150 : vt + 96;   // 選在上半 → 放下面（底下分頁列的上方）；選在下半 → 放上面
+    if (COARSE.matches) {   // 手機：小小的綠勾、註放在選取範圍第一行的右上角（字的上方、行與行之間）
+      let tp = rect.top, rt = rect.right;
+      try { const rs = getSelection().getRangeAt(0).getClientRects(); if (rs.length) { tp = rs[0].top; rt = rs[0].right; } } catch (er) {}
+      x = Math.min(innerWidth - 46, Math.max(4, rt + 2)); y = Math.max(4, tp - 22);
     }
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
     if ((pend.act === 'add' || pend.nt) && pend.root.classList.contains('shl-body')) {
-      hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + 44 > innerWidth - 6 ? x - 40 : x + 38) + 'px'; hlNt.hidden = false;
+      const gap = COARSE.matches ? 22 : 38;
+      hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
   }
   const hlHide = () => { hlOk.hidden = true; hlNt.hidden = true; hlPend = null; };
