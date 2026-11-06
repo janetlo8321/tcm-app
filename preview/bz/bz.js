@@ -2247,7 +2247,7 @@
   });
   const ntBox = document.createElement('div');
   ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
-  ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea><button type="button" class="bz-nt-rm" title="刪掉這個註" hidden>－</button>';
+  ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea><button type="button" class="bz-nt-rm" title="刪掉這個註" hidden>－</button><button type="button" class="bz-nt-ex" title="延伸筆記（左頁原文、右頁打字）">⤢</button>';
   const ntRm = () => { const ta = ntBox.querySelector('textarea'); ntBox.querySelector('.bz-nt-rm').hidden = !!ta.value.trim(); };
   let ntCur = null, ntPin = false, ntHideT = 0;
   const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
@@ -2321,7 +2321,7 @@
     if (f) { const sel = getSelection(); if (sel && !sel.isCollapsed) return; e.preventDefault(); ntOpen(f.root, f.key, f.m.dataset.hl, true); return; }
     if (ntPin && !ntBox.contains(e.target) && !hlNt.contains(e.target)) ntClose();
   });
-  /* 延伸筆記（電腦）：游標在註的字上按空白鍵 → 左頁是原文，右頁是空白的打字頁；存在同一個註裡（doc） */
+  /* 延伸筆記：註的框右上按「⤢」 → 左頁是原文，右頁是空白的打字頁；存在同一個註裡（doc） */
   function ndOpen(f) {
     const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
     if (!ntBox.hidden) ntClose();
@@ -2352,15 +2352,13 @@
     document.body.appendChild(ov);
     setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
   }
-  document.addEventListener('keydown', e => {
-    if (e.code !== 'Space' && e.key !== ' ') return;
-    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-    const t = e.target && e.target.nodeType === 1 ? e.target : null;
-    if (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable)) return;
-    const hv = [...document.querySelectorAll('mark.bz-note:hover')].pop(), f = hv && ntFind(hv);
-    if (!f || document.querySelector('.bz-ntdoc')) return;
-    e.preventDefault(); e.stopPropagation(); ndOpen(f);
-  }, true);
+  ntBox.querySelector('.bz-nt-ex').addEventListener('mousedown', e => e.preventDefault());
+  ntBox.querySelector('.bz-nt-ex').addEventListener('click', e => {   // 框右上的「⤢」：打開延伸筆記
+    e.preventDefault(); e.stopPropagation();
+    if (!ntCur) return;
+    const m = ntCur.root.querySelector(`mark.bz-note[data-hl="${ntCur.id}"]`); if (!m) return;
+    ndOpen({ m, root: ntCur.root, key: ntCur.key });
+  });
   async function hlSync(push) {
     const tok = ghToken(); if (!tok) return false;
     try {

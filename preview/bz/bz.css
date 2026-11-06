@@ -870,6 +870,10 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 /* 註的框：沒字時右上的「－」整個刪掉 */
 .bz-ntbox .bz-nt-rm { position: absolute; top: -9px; right: -9px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: #ff3b30; color: #fff; font-size: 15px; font-weight: 700; line-height: 22px; text-align: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
 .bz-ntbox .bz-nt-rm[hidden] { display: none; }
+.bz-ntbox .bz-nt-ex { position: absolute; top: 3px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: rgba(0,122,255,.1); color: #007aff; font-size: 14px; line-height: 22px; cursor: pointer; }
+.bz-ntbox .bz-nt-ex:hover { background: #007aff; color: #fff; }
+.bz-ntbox .bz-nt-rm:not([hidden]) ~ .bz-nt-ex { right: 20px; }
+.bz-ntbox .bz-nt-t { padding-right: 30px; }
 /* 延伸筆記：左頁原文，右頁空白打字頁 */
 .bz-ntdoc { position: fixed; inset: 0; z-index: 2147483645; display: grid; grid-template-columns: 1fr 1fr; background: #f2f2f7; font: 18px/1.9 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif; color: #1c1c1e; }
 .bz-ntdoc .bz-nd-l { overflow: auto; padding: 56px 48px; border-right: 1px solid #d9d9de; background: var(--surface, #fff); }
