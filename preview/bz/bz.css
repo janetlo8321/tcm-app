@@ -1206,3 +1206,8 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   .index > .xl-idx.bz-ccmv .xl-gl small { display: inline !important; }
   .index > .xl-idx.bz-ccmv .xl-gh { min-height: 40px; }
 }
+
+/* v2.43.4：延伸筆記右邊白色頁內容多時可以上下捲動（格線／彈性盒子的子項不再被內容撐高） */
+.bz-ntdoc { grid-template-rows: minmax(0, 1fr); }
+.bz-ntdoc .bz-nd-r { min-height: 0; overflow: hidden; }
+.bz-ntdoc .bz-nd-ed { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }

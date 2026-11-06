@@ -2423,13 +2423,13 @@
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
-      const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && startEl.closest('mark.bz-hl');
-      const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
+      const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && (startEl.closest('mark.bz-hl:not(.bz-note)') || startEl.closest('mark.bz-hl'));   // 黃底和註疊在一起時，綠勾只管黃底
+      const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && (endEl.closest('mark.bz-hl:not(.bz-note)') || endEl.closest('mark.bz-hl'));
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
         // 黃底上也可以加註（黃底留著，加藍色底線）：註用選到的那段字
         let nt = null;
-        if (!mk.classList.contains('bz-note')) {
+        if (!mk.classList.contains('bz-note') && !startEl.closest('mark.bz-note')) {
           const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
           const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
           if (x.trim()) nt = { s, e, x };
