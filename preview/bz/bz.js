@@ -2855,7 +2855,16 @@
     try { ndMarks(w); } catch (e) {}
     if (!w.hidden) setTimeout(shlLayout, 0);
   }
+  function shlHdr() {   // 找出最上面放「標題、齒輪、版本」的那一塊（不含內容），標成 bz-hdr，手機的經方頁把它藏起來
+    const v = document.getElementById('ver'), ent = document.getElementById('entry'); if (!v || !ent) return;
+    let el = v.closest('header');
+    if (el && !el.contains(ent)) { el.classList.add('bz-hdr'); return; }
+    el = v;
+    while (el.parentElement && el.parentElement !== document.body && !el.parentElement.contains(ent)) el = el.parentElement;
+    if (el !== document.body && !el.contains(ent)) el.classList.add('bz-hdr');
+  }
   function shlCheck() {
+    try { shlHdr(); } catch (e) {}
     const on = typeof state !== 'undefined' && state.cur === 'jk';
     const ent = document.getElementById('entry');
     document.documentElement.classList.toggle('bz-shl-on', on && !shlOrig);

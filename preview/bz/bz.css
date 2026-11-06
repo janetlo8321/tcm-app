@@ -1007,3 +1007,9 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-shl .bz-nd-inl .bz-nd-ed, .bz-shl .bz-nd-inl .bz-nd-ed:focus { color: #f2f2f7; }
   .bz-shl .bz-nd-inl .bz-nd-tools button { color: #d1d1d6; }
 }
+/* 手機：進到「經」時，最上面的標題列（中醫方證資料庫、齒輪、版本）和作者那一行不顯示，下面的往上補 */
+@media (max-width: 820px) {
+  html.bz-shl-on .bz-hdr { display: none !important; }
+  html.bz-shl-on .bz-shl:not(.shl-book) .shl-a { display: none; }
+  html.bz-shl-on .bz-shl:not(.shl-book) .shl-a + .shl-h { margin-top: 6px; }
+}
