@@ -1042,3 +1042,8 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 @media (max-width: 820px) {
   button[aria-label="回到大廳（經絡銅人）"] { width: 24px !important; height: 24px !important; right: 8px !important; font-size: 8px !important; letter-spacing: 0 !important; padding: 0 !important; line-height: 1 !important; box-shadow: 0 1px 6px rgba(0,0,0,.28) !important; }
 }
+/* 手機：點條號後定格，只看這一條和編輯頁，整頁不能往下拉 */
+.bz-shl.nd-solo:not(.shl-book) .shl-body > :not(.nd-in) { display: none !important; }
+.bz-shl.nd-solo:not(.shl-book) { padding-bottom: 0; }
+html.bz-nd-lock, html.bz-nd-lock body { overflow: hidden !important; overscroll-behavior: none; }
+.bz-nd-inl .bz-nd-ed { box-sizing: border-box; }
