@@ -858,3 +858,7 @@ mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, .26); }
   .bz-nt-t { background: #2c2c2e; border-color: #3a3a3c; } .bz-nt-t:focus { background: #2c2c2e; }
   mark.bz-hl.bz-note { background: rgba(10, 132, 255, .25); }
 }
+/* 註的框：簡化，只留打字的地方，貼在字的右上方 */
+.bz-ntbox { top: auto; right: auto; width: 240px; padding: 4px; gap: 0; border-radius: 10px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+.bz-ntbox .bz-nt-t { min-height: 64px; height: 76px; border: 0; border-radius: 8px; padding: 6px 8px; font-size: 14px; background: #fff; }
+@media (prefers-color-scheme: dark) { .bz-ntbox .bz-nt-t { background: #1c1c1e; } }

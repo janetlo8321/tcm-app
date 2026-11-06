@@ -2187,7 +2187,6 @@
       const key = hlKey(root); if (!key) return;
       const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && startEl.closest('mark.bz-hl');
       const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
-      if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl && mk.classList.contains('bz-note')) { hlHide(); ntOpen(root, key, mk.dataset.hl, true); return; }   // 在註裡長按：打開註
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
         hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl });
@@ -2210,7 +2209,12 @@
     const a = hlAll(), pg = a[p.key] || { list: [] };
     pg.list = pg.list || [];
     if (p.act === 'add') pg.list.push({ id: 'h' + Date.now().toString(36), s: p.s, e: p.e, x: p.x });
-    else pg.list = pg.list.filter(h => h.id !== p.id);
+    else {
+      const it = pg.list.find(h => h.id === p.id);
+      if (it && it.k === 'n' && !confirm('要刪除這個註嗎？（註裡打的字也會一起刪掉）')) { hlHide(); return; }
+      pg.list = pg.list.filter(h => h.id !== p.id);
+      if (ntCur && ntCur.id === p.id) { ntCur = null; ntBox.hidden = true; ntPin = false; }
+    }
     pg.t = Date.now(); a[p.key] = pg; hlStore(a);
     try { getSelection().removeAllRanges(); } catch (er) {}
     hlHide(); hlApply(p.root);
@@ -2235,7 +2239,7 @@
   });
   const ntBox = document.createElement('div');
   ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
-  ntBox.innerHTML = '<div class="bz-nt-h"><b>註</b><span class="bz-nt-q"></span><button type="button" class="bz-nt-x" aria-label="關閉">✕</button></div><textarea class="bz-nt-t" placeholder="在這裡打字，會自動存"></textarea><div class="bz-nt-f"><span class="bz-nt-st"></span><button type="button" class="bz-nt-del">刪除這個註</button></div>';
+  ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea>';
   let ntCur = null, ntPin = false, ntHideT = 0;
   const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
   const ntItem = c => c && (((hlAll()[c.key] || {}).list) || []).find(h => h.id === c.id);
@@ -2245,13 +2249,20 @@
     if (ntCur && ntPin && !pin) return;   // 正在打的那個不要被游標走過的別的註換掉
     ntCur = { root, key, id }; ntPin = !!pin;
     const h = ntItem(ntCur); if (!h) { ntClose(); return; }
-    ntBox.querySelector('.bz-nt-q').textContent = '「' + (h.x.length > 24 ? h.x.slice(0, 24) + '…' : h.x) + '」';
     const ta = ntBox.querySelector('textarea'); ta.value = h.note || '';
-    ntBox.querySelector('.bz-nt-st').textContent = h.nt ? '已存 ' + new Date(h.nt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     ntBox.classList.toggle('pin', ntPin); ntBox.hidden = false;
+    ntPlace(root, id);
     root.querySelectorAll('mark.bz-note.cur').forEach(m => m.classList.remove('cur'));
     root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(m => m.classList.add('cur'));
     if (ntPin) setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+  }
+  function ntPlace(root, id) {   // 框放在那段字的右上方（放不下就放下面、往左移）
+    const ms = root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`); if (!ms.length) return;
+    const r = ms[ms.length - 1].getBoundingClientRect(), W = ntBox.offsetWidth, H = ntBox.offsetHeight;
+    let x = r.right + 2, y = r.top - H - 2;
+    if (x + W > innerWidth - 6) x = Math.max(6, innerWidth - W - 6);
+    if (y < 6) y = r.bottom + 4;
+    ntBox.style.left = x + 'px'; ntBox.style.top = y + 'px';
   }
   function ntSave() {
     if (!ntCur) return;
@@ -2259,7 +2270,6 @@
     const h = (pg.list || []).find(x => x.id === ntCur.id); if (!h) return;
     const v = ntBox.querySelector('textarea').value; if (h.note === v) return;
     h.note = v; h.nt = Date.now(); pg.t = Date.now(); hlStore(a);
-    ntBox.querySelector('.bz-nt-st').textContent = '已存';
     clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
   }
   function ntClose() {
@@ -2272,16 +2282,8 @@
   ntBox.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); ntClose(); } e.stopPropagation(); });
   ntBox.addEventListener('wheel', e => e.stopPropagation());
   ntBox.addEventListener('mouseenter', () => clearTimeout(ntHideT));
+  addEventListener('scroll', e => { if (!ntBox.hidden && !ntBox.contains(e.target)) ntClose(); }, true);   // 翻頁、捲動時收起來（已自動存）
   ntBox.addEventListener('mouseleave', () => { if (!ntPin) ntHideT = setTimeout(ntClose, 300); });
-  ntBox.addEventListener('click', e => {
-    if (e.target.closest('.bz-nt-x')) { ntClose(); return; }
-    if (e.target.closest('.bz-nt-del')) {
-      if (!ntCur || !confirm('確定要刪除這個註嗎？（註裡打的字也會一起刪掉）')) return;
-      const a = hlAll(), pg = a[ntCur.key]; if (pg) { pg.list = (pg.list || []).filter(h => h.id !== ntCur.id); pg.t = Date.now(); hlStore(a); }
-      const root = ntCur.root; ntCur = null; ntBox.hidden = true; ntPin = false; hlApply(root);
-      clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
-    }
-  });
   const ntFind = t => { const m = t && t.closest && t.closest('mark.bz-note'); if (!m) return null; const root = hlRoots().find(r => r.contains(m)); return root ? { m, root, key: hlKey(root) } : null; };
   document.addEventListener('mouseover', e => {
     const f = ntFind(e.target); if (!f) return;
