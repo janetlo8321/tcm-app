@@ -2336,7 +2336,7 @@
       if (W.classList.contains('shl-book') && typeof shlGo === 'function') shlGo(shlPageOf(f.root, m)); else m.scrollIntoView({ block: 'center' });
     };
     const relayout = () => { if (typeof shlLayout === 'function') shlLayout(); toMark(); };
-    if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); }
+    if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); }
     else {
       const cl = row.cloneNode(true);
       cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
@@ -2355,7 +2355,7 @@
     };
     const close = () => {
       save(); ov.remove(); document.removeEventListener('keydown', esc, true);
-      if (W) { W.classList.remove('nd-split'); relayout(); f.root.querySelectorAll('mark.bz-note.cur').forEach(x => x.classList.remove('cur')); }
+      if (W) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); f.root.querySelectorAll('mark.bz-note.cur').forEach(x => x.classList.remove('cur')); }
     };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
     ta.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(save, 400); });
@@ -2405,7 +2405,7 @@
   /* ---------- 經方頁：傷寒論條文（之後加金匱要略），每行都可以直接改字、可以畫螢光筆；原本的經方表移到「原本的經方表（暫時）」 ----------
    * 條文原文在 bz/shl.txt；自己改過的行存在這台裝置（tcm-shl-v1，依行的編號），有設定 GitHub 同步時合併到 tcm-notes sync/shl.json
    * 原文格式：@@ 書名、@ 作者、# 篇名、「12. 條文」、f: 組成、p: 煎服法、s: 方名小標；**方名** 粗體底線、~小字~ */
-  const SHLK = 'tcm-shl-v1', SHL_URL = GH_URL.replace('myfx.json', 'shl.json'), SHL_ED = 'tcm-shl-ed';
+  const SHLK = 'tcm-shl-v1', SHL_URL = GH_URL.replace('myfx.json', 'shl.json'), SHL_ED = 'tcm-shl-ed2';   // 2：原文預設鎖住（舊的 tcm-shl-ed 不再用）
   const shlAll = () => { try { const a = JSON.parse(localStorage.getItem(SHLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const shlStore = a => { try { localStorage.setItem(SHLK, JSON.stringify(a)); } catch (e) {} };
   let shlBooks = null, shlLoading = null, shlBook = 0, shlOrig = false;
@@ -2579,11 +2579,11 @@
     if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); shlGo(shlPage + 2); }
     else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); shlGo(shlPage - 2); }
   });
-  function shlEdOn() { try { const v = localStorage.getItem(SHL_ED); if (v) return v === '1'; } catch (e) {} return !COARSE.matches; }
+  function shlEdOn() { if (document.querySelector('#bzShl.nd-split')) return false; try { return localStorage.getItem(SHL_ED) === '1'; } catch (e) {} return false; }   // 預設鎖住，免得誤觸；寫延伸筆記時一定鎖
   function shlEdApply(w) {
     const on = shlEdOn();
     w.querySelectorAll('[data-shl]').forEach(d => { if (on) { d.contentEditable = 'true'; d.spellcheck = false; } else d.removeAttribute('contenteditable'); });
-    const b = w.querySelector('[data-shled]'); if (b) b.classList.toggle('on', on);
+    const b = w.querySelector('[data-shled]'); if (b) { b.classList.toggle('on', on); b.textContent = on ? '✎ 編輯中' : '🔒 原文鎖定'; b.title = on ? '現在可以直接點字修改；再按一下鎖起來' : '原文鎖住，不會誤改；要修改請按一下打開'; }
   }
   function shlWrap() {
     let w = document.getElementById('bzShl');
