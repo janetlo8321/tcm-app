@@ -910,3 +910,22 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 .bz-ntdoc.page .bz-nd-lb { padding: 14px 36px 0; }
 .bz-ntdoc.page .bz-nd-r textarea { padding: 14px 36px 28px; border-radius: inherit; }
 .bz-ntdoc.page .bz-nd-x { top: 8px; right: 10px; width: 30px; height: 30px; font-size: 15px; }
+
+/* 延伸筆記的編輯器：工具列、表格、圖片 */
+.bz-ntdoc .bz-nd-top { flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 52px 6px 36px; border-bottom: 1px solid #ececf0; }
+.bz-ntdoc .bz-nd-top .bz-nd-lb { padding: 0; min-height: 0; }
+.bz-ntdoc .bz-nd-tools { display: flex; flex-wrap: wrap; gap: 2px; }
+.bz-ntdoc .bz-nd-tools button { min-width: 28px; height: 28px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: #3a3a3c; font-size: 14px; cursor: pointer; }
+.bz-ntdoc .bz-nd-tools button:hover { background: rgba(0,122,255,.1); color: #007aff; }
+.bz-ntdoc .bz-nd-tbt { display: inline-flex; gap: 2px; margin-left: 4px; padding-left: 6px; border-left: 1px solid #e0e0e5; }
+.bz-ntdoc .bz-nd-tbt[hidden] { display: none; }
+.bz-ntdoc .bz-nd-tbt button { font-size: 12px; color: #007aff; }
+.bz-ntdoc .bz-nd-ed { flex: 1; overflow: auto; outline: none; padding: 16px 36px 40px; font-size: 16px; line-height: 1.8; color: #1c1c1e; background: #fff; -webkit-user-select: text; user-select: text; }
+.bz-ntdoc .bz-nd-ed:empty::before { content: attr(data-ph); color: #a1a1a6; }
+.bz-ntdoc .bz-nd-ed h3 { font-size: 18px; margin: 10px 0 4px; }
+.bz-ntdoc .bz-nd-ed table { border-collapse: collapse; width: 100%; margin: 8px 0; table-layout: fixed; }
+.bz-ntdoc .bz-nd-ed td, .bz-ntdoc .bz-nd-ed th { border: 1px solid #c7c7cc; padding: 4px 8px; vertical-align: top; min-width: 2em; word-break: break-word; }
+.bz-ntdoc .bz-nd-ed th { background: #f2f2f7; }
+.bz-ntdoc .bz-nd-ed img { display: block; max-width: 100%; height: auto; margin: 6px 0; border-radius: 6px; cursor: pointer; }
+.bz-ntdoc .bz-nd-ed ul, .bz-ntdoc .bz-nd-ed ol { padding-left: 1.6em; margin: 4px 0; }
+.bz-ntdoc.split .bz-nd-top, .bz-ntdoc:not(.page) .bz-nd-top { padding-left: 48px; }

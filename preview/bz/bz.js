@@ -478,7 +478,7 @@
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
     const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
-      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true)];
+      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
     return n;
@@ -2330,7 +2330,10 @@
     if (ndCloseCur) ndCloseCur();
     if (!ntBox.hidden) ntClose();
     const W = o.W, ov = document.createElement('div'); ov.className = 'bz-ntdoc';
-    ov.innerHTML = '<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-lb"></div><textarea placeholder="延伸筆記：直接打字，自動存"></textarea></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>';
+    ov.innerHTML = `<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-top"><div class="bz-nd-lb"></div><span class="bz-nd-tools">
+<button type="button" data-nd="bold" title="粗體"><b>B</b></button><button type="button" data-nd="underline" title="底線"><u>U</u></button><button type="button" data-nd="hl" title="螢光筆">🖍</button><button type="button" data-nd="h" title="標題">標</button><button type="button" data-nd="insertUnorderedList" title="條列">•</button><button type="button" data-nd="insertOrderedList" title="編號">1.</button><button type="button" data-nd="table" title="插入表格">▦</button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）">🖼</button><button type="button" data-nd="removeFormat" title="清除格式">⌫</button>
+<span class="bz-nd-tbt" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span></div>
+<div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、貼圖片，自動存"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
     ov.querySelector('.bz-nd-lb').textContent = o.label || '';
     const L = ov.querySelector('.bz-nd-l');
     let curEls = [];
@@ -2357,9 +2360,10 @@
     addEventListener('resize', onRs);
     const onFlip = () => { if (book && ov.isConnected) close(); };   // 翻到別頁就收起來（已自動存）
     if (book) o.root.addEventListener('scroll', onFlip);
-    const ta = ov.querySelector('textarea'); ta.value = o.get() || '';
+    const ta = ov.querySelector('.bz-nd-ed'); ta.innerHTML = ndToHtml(o.get() || ''); ndImgFill(ta);
     let tm = 0;
-    const save = () => { clearTimeout(tm); if ((o.get() || '') !== ta.value) o.set(ta.value); };
+    const save = () => { clearTimeout(tm); const v = ndFromEd(ta); if ((o.get() || '') !== v) o.set(v); };
+    ndEditor(ov, ta, () => { clearTimeout(tm); tm = setTimeout(save, 400); });
     const close = () => {
       ndCloseCur = null;
       save(); ov.remove(); document.removeEventListener('keydown', esc, true); removeEventListener('resize', onRs); if (book) o.root.removeEventListener('scroll', onFlip);
@@ -2367,15 +2371,170 @@
       curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
     };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
-    ta.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(save, 400); });
-    ta.addEventListener('keydown', e => e.stopPropagation());
     ov.addEventListener('wheel', e => e.stopPropagation());
     ov.querySelector('.bz-nd-x').addEventListener('click', close);
     document.addEventListener('keydown', esc, true);
     document.body.appendChild(ov);
     ndCloseCur = close;
     if (W) relayout();
-    setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+    setTimeout(() => { ta.focus(); try { const r = document.createRange(); r.selectNodeContents(ta); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); } catch (er) {} }, 0);
+  }
+  /* 延伸筆記的編輯器：文字、表格、圖片。存成精簡過的 HTML；圖片另外存（tcm-ndimg-v1，每張一個檔 sync/ndimg/編號.json），筆記裡只留 data-img 編號 */
+  const NDIMG = 'tcm-ndimg-v1', NDIMG_URL = GH_URL.replace('myfx.json', 'ndimg/');
+  const ndImgAll = () => { try { const a = JSON.parse(localStorage.getItem(NDIMG) || '{}'); return a && typeof a === 'object' ? a : {}; } catch (e) { return {}; } };
+  const ndImgStore = a => { try { localStorage.setItem(NDIMG, JSON.stringify(a)); return true; } catch (e) { return false; } };
+  const ndEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const ND_OK = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, MARK: 1, SPAN: 1, BR: 1, DIV: 1, P: 1, H3: 1, UL: 1, OL: 1, LI: 1, TABLE: 1, TBODY: 1, THEAD: 1, TR: 1, TD: 1, TH: 1, IMG: 1 };
+  function ndClean(root) {   // 只留安全的標籤和少數樣式
+    [...root.querySelectorAll('*')].reverse().forEach(el => {
+      if (!ND_OK[el.tagName]) { if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META)$/.test(el.tagName)) el.remove(); else el.replaceWith(...el.childNodes); return; }
+      const keep = {};
+      if (el.tagName === 'IMG') { if (!el.dataset.img) { el.remove(); return; } keep['data-img'] = el.dataset.img; if (el.style.width) keep.style = 'width:' + el.style.width; }
+      else if (el.style && el.style.backgroundColor) keep.style = 'background-color:' + el.style.backgroundColor;
+      if ((el.tagName === 'TD' || el.tagName === 'TH') && el.colSpan > 1) keep.colspan = el.colSpan;
+      [...el.attributes].forEach(a => el.removeAttribute(a.name));
+      Object.entries(keep).forEach(([k, v]) => el.setAttribute(k, v));
+    });
+    return root;
+  }
+  function ndSafe(h) {   // 用 template 解析（不會執行裡面的東西），清過再變回 HTML
+    const t = document.createElement('template'); t.innerHTML = h; ndClean(t.content);
+    const d = document.createElement('div'); d.appendChild(t.content); return d.innerHTML;
+  }
+  function ndToHtml(v) {   // 以前存的純文字也能讀（換行變 <br>）
+    if (!/<[a-z][\s\S]*>/i.test(v)) return ndEsc(v).replace(/\n/g, '<br>');
+    return ndSafe(v);
+  }
+  function ndFromEd(ed) {
+    const d = ed.cloneNode(true); d.querySelectorAll('img').forEach(i => i.removeAttribute('src'));
+    ndClean(d);
+    const h = d.innerHTML.trim();
+    return (d.textContent.trim() || d.querySelector('img,table')) ? h : '';
+  }
+  async function ndImgFill(ed) {   // 圖片從這台裝置拿，沒有的話從雲端拿
+    const a = ndImgAll();
+    for (const im of ed.querySelectorAll('img[data-img]')) {
+      const id = im.dataset.img;
+      if (a[id] && a[id].u) { im.src = a[id].u; continue; }
+      const tok = ghToken(); if (!tok) { im.alt = '（圖片在另一台裝置，設定同步後會出現）'; continue; }
+      try {
+        const r = await fetch(NDIMG_URL + id + '.json?t=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
+        if (!r.ok) continue;
+        const j = await r.json(); if (!j.u) continue;
+        im.src = j.u; const b = ndImgAll(); b[id] = { u: j.u, t: Date.now(), up: 1 }; ndImgStore(b);
+      } catch (e) {}
+    }
+  }
+  async function ndImgPush(id) {
+    const tok = ghToken(); if (!tok) return false;
+    const a = ndImgAll(), x = a[id]; if (!x || !x.u || x.up) return true;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r0 = await fetch(NDIMG_URL + id + '.json', { headers: H, cache: 'no-store' }); let sha;
+      if (r0.ok) { sha = (await r0.json()).sha; }
+      const r = await fetch(NDIMG_URL + id + '.json', { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: '同步延伸筆記圖片', content: b64e(JSON.stringify({ u: x.u })), ...(sha ? { sha } : {}) }) });
+      if (r.ok) { const b = ndImgAll(); if (b[id]) { b[id].up = 1; ndImgStore(b); } return true; }
+    } catch (e) {}
+    return false;
+  }
+  async function ndImgSync() { if (!ghToken()) return false; for (const id of Object.keys(ndImgAll())) await ndImgPush(id); return true; }
+  function ndShrink(file) {   // 圖片縮到最長邊 1400px、存成 JPEG，免得太大
+    return new Promise(res => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const im = new Image();
+        im.onload = () => {
+          const k = Math.min(1, 1400 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+          c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+          const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+          res(c.toDataURL('image/jpeg', 0.8));
+        };
+        im.onerror = () => res(null); im.src = fr.result;
+      };
+      fr.onerror = () => res(null); fr.readAsDataURL(file);
+    });
+  }
+  function ndEditor(ov, ed, changed) {
+    const fi = ov.querySelector('input[type=file]'), tbt = ov.querySelector('.bz-nd-tbt');
+    let saved = null;
+    const keepSel = () => { const sl = getSelection(); if (sl.rangeCount && ed.contains(sl.anchorNode)) saved = sl.getRangeAt(0).cloneRange(); };
+    const back = () => { ed.focus(); if (saved) { const sl = getSelection(); sl.removeAllRanges(); sl.addRange(saved); } };
+    const cell = () => { const sl = getSelection(); const n = sl.rangeCount && sl.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); return el && ed.contains(el) ? el.closest('td,th') : null; };
+    const toCell = td => { const r = document.createRange(); r.selectNodeContents(td); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); keepSel(); tbt.hidden = false; };
+    const onSel = () => { if (!ov.isConnected) { document.removeEventListener('selectionchange', onSel); return; } keepSel(); tbt.hidden = !cell(); };
+    document.addEventListener('selectionchange', onSel);
+    async function addImgs(files) {
+      for (const f of files) {
+        if (!/^image\//.test(f.type)) continue;
+        const u = await ndShrink(f); if (!u) continue;
+        const id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        const a = ndImgAll(); a[id] = { u, t: Date.now() };
+        if (!ndImgStore(a)) { alert('這台裝置的空間滿了，圖片存不下。'); return; }
+        back(); document.execCommand('insertHTML', false, `<img data-img="${id}" src="${u}"><br>`);
+        ndImgPush(id);
+      }
+      changed();
+    }
+    ov.addEventListener('mousedown', e => { if (e.target.closest('.bz-nd-tools button')) e.preventDefault(); });
+    ov.querySelector('.bz-nd-tools').addEventListener('click', e => {
+      const b = e.target.closest('[data-nd]'); if (!b) return;
+      const c = b.dataset.nd; back();
+      if (c === 'hl') document.execCommand('hiliteColor', false, '#fff27a');
+      else if (c === 'h') document.execCommand('formatBlock', false, document.queryCommandValue('formatBlock') === 'h3' ? 'div' : 'h3');
+      else if (c === 'table') {
+        document.execCommand('insertHTML', false, '<table data-new="1"><tbody>' + '<tr><td><br></td><td><br></td><td><br></td></tr>'.repeat(3) + '</tbody></table><div><br></div>');
+        const t = ed.querySelector('table[data-new]'); if (t) { t.removeAttribute('data-new'); toCell(t.rows[0].cells[0]); }
+      }
+      else if (c === 'img') { fi.value = ''; fi.click(); return; }
+      else if (/^(row|col)[+-]$/.test(c)) {
+        const td = cell(); if (!td) return;
+        const tr = td.parentElement, tb = tr.closest('table'), ci = [...tr.children].indexOf(td);
+        if (c === 'row+') { const n = tr.cloneNode(true); n.querySelectorAll('td,th').forEach(x => x.innerHTML = '<br>'); tr.after(n); }
+        else if (c === 'row-') { if (tb.rows.length > 1) tr.remove(); else tb.remove(); }
+        else if (c === 'col+') [...tb.rows].forEach(r => { const x = r.children[ci]; if (x) { const n = document.createElement(x.tagName); n.innerHTML = '<br>'; x.after(n); } });
+        else [...tb.rows].forEach(r => { const x = r.children[ci]; if (x) x.remove(); if (!r.children.length) r.remove(); });
+        if (tb.isConnected && !tb.rows.length) tb.remove();
+        tbt.hidden = !cell();
+      }
+      else document.execCommand(c, false, null);
+      changed();
+    });
+    fi.addEventListener('change', () => addImgs([...fi.files]));
+    ed.addEventListener('input', changed);
+    ed.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key !== 'Tab' || e.isComposing) return;
+      e.preventDefault();
+      const td = cell();
+      if (!td) { document.execCommand('insertText', false, '　　'); return; }
+      const all = [...td.closest('table').querySelectorAll('td,th')], i = all.indexOf(td);
+      if (e.shiftKey) { if (i > 0) toCell(all[i - 1]); return; }
+      if (i < all.length - 1) toCell(all[i + 1]);
+      else { const tr = td.parentElement, n = tr.cloneNode(true); n.querySelectorAll('td,th').forEach(x => x.innerHTML = '<br>'); tr.after(n); toCell(n.cells[0]); changed(); }   // 最後一格按 Tab：加一列
+    });
+    ed.addEventListener('paste', e => {
+      const cd = e.clipboardData; if (!cd) return;
+      const imgs = [...cd.files].filter(f => /^image\//.test(f.type));
+      e.preventDefault();
+      if (imgs.length) { addImgs(imgs); return; }
+      const h = cd.getData('text/html');
+      if (h && /<table/i.test(h)) {   // 從 Excel、網頁貼表格：留下表格
+        document.execCommand('insertHTML', false, ndSafe(h.replace(/<img\b[^>]*>/gi, '')));
+      } else document.execCommand('insertText', false, cd.getData('text/plain'));
+      changed();
+    });
+    ed.addEventListener('dragover', e => { if ([...(e.dataTransfer.items || [])].some(x => x.kind === 'file')) e.preventDefault(); });
+    ed.addEventListener('drop', e => {
+      const fs = [...(e.dataTransfer.files || [])].filter(f => /^image\//.test(f.type)); if (!fs.length) return;
+      e.preventDefault();
+      try { const r = document.caretRangeFromPoint(e.clientX, e.clientY); if (r) { const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); keepSel(); } } catch (er) {}
+      addImgs(fs);
+    });
+    ed.addEventListener('click', e => {   // 點圖片：在 整欄寬／一半 之間切換大小
+      const im = e.target.closest('img'); if (!im) return;
+      im.style.width = im.style.width === '50%' ? '' : '50%'; changed();
+    });
   }
   function ndOpen(f) {   // 註的延伸筆記
     const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
