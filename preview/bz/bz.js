@@ -2149,17 +2149,19 @@
 
   /* ---------- 檢索表（電腦版）：「分類檢索」搬到左欄搜尋框下面，表可以用整個寬度；手機放回原位 ---------- */
   {
-    const ccMove = () => {
+    // 檢索表的 .cc-idx、藥物總表的 .xl-idx 都一樣處理
+    const one = (splitSel, idxSel) => {
       const idx = document.querySelector('.index'), sw = idx && idx.querySelector('.search-wrap');
-      document.querySelectorAll('.index > .cc-idx').forEach(n => { if (!n._home || !n._home.isConnected) n.remove(); });   // 換頁後留下的舊的拿掉
-      const split = document.querySelector('#entry .cc-split');
+      document.querySelectorAll('.index > ' + idxSel).forEach(n => { if (!n._home || !n._home.isConnected) n.remove(); });   // 換頁後留下的舊的拿掉
+      const split = document.querySelector('#entry ' + splitSel);
       if (!split) return;
-      const moved = idx && idx.querySelector(':scope > .cc-idx');
+      const moved = idx && idx.querySelector(':scope > ' + idxSel);
       if (innerWidth >= 821) {
-        const n = split.querySelector(':scope > .cc-idx'); if (!n || !sw) return;
+        const n = split.querySelector(':scope > ' + idxSel); if (!n || !sw) return;
         n._home = split; sw.insertAdjacentElement('afterend', n); n.classList.add('bz-ccmv');
       } else if (moved && moved._home === split) { split.insertBefore(moved, split.firstChild); moved.classList.remove('bz-ccmv'); }
     };
+    const ccMove = () => { one('.cc-split', '.cc-idx'); one('.xl-split', '.xl-idx'); };
     if (entObs) new MutationObserver(ccMove).observe(entObs, { childList: true });
     addEventListener('resize', ccMove); setTimeout(ccMove, 0);
   }

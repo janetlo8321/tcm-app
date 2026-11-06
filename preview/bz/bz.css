@@ -1143,7 +1143,7 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 
 /* 分類檢索搬到左欄 */
 @media (min-width: 821px) {
-  .index > .cc-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; }
+  .index > .cc-idx.bz-ccmv, .index > .xl-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; width: auto !important; }
 }
 
 /* 檢索表：有筆記的方右上一個藍點；打開筆記時左邊表上這個方加框 */
