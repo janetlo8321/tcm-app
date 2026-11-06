@@ -1160,7 +1160,7 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   .cc-idx { padding: 4px !important; }
   .cc-idx .cc-list { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; gap: 3px !important; font-size: 12px !important; }
   .cc-idx .cc-list button { min-height: 22px !important; padding: 1px 0 !important; border-radius: 6px !important; }
-  .cc-idx .bz-ccbar { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1; padding: 2px 2px 2px 6px; }
+  .cc-idx .bz-ccbar { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1; padding: 2px 62px 2px 6px; }   /* 右邊讓給銅人按鈕，⌄ 往左移 */
   .cc-idx:not(.bz-ccmin) .bz-ccbar { margin-bottom: 4px; }
   .cc-idx .bz-ccbar b { flex: 1; font-weight: 600; }
   .cc-idx .bz-ccbar button { border: 0; background: none; color: var(--accent, #007aff); font-size: 16px; line-height: 1; padding: 2px 8px; cursor: pointer; }
