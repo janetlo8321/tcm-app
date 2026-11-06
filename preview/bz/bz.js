@@ -2247,7 +2247,8 @@
   });
   const ntBox = document.createElement('div');
   ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
-  ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea>';
+  ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea><button type="button" class="bz-nt-rm" title="刪掉這個註" hidden>－</button>';
+  const ntRm = () => { const ta = ntBox.querySelector('textarea'); ntBox.querySelector('.bz-nt-rm').hidden = !!ta.value.trim(); };
   let ntCur = null, ntPin = false, ntHideT = 0;
   const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
   const ntItem = c => c && (((hlAll()[c.key] || {}).list) || []).find(h => h.id === c.id);
@@ -2257,7 +2258,7 @@
     if (ntCur && ntPin && !pin) return;   // 正在打的那個不要被游標走過的別的註換掉
     ntCur = { root, key, id }; ntPin = !!pin;
     const h = ntItem(ntCur); if (!h) { ntClose(); return; }
-    const ta = ntBox.querySelector('textarea'); ta.value = h.note || '';
+    const ta = ntBox.querySelector('textarea'); ta.value = h.note || ''; ntRm();
     ntBox.classList.toggle('pin', ntPin); ntBox.hidden = false;
     ntPlace(root, id);
     root.querySelectorAll('mark.bz-note.cur').forEach(m => m.classList.remove('cur'));
@@ -2285,7 +2286,20 @@
     if (ntCur) ntCur.root.querySelectorAll('mark.bz-note.cur').forEach(m => m.classList.remove('cur'));
     ntCur = null;
   }
-  ntBox.addEventListener('input', () => { clearTimeout(ntSave.t); ntSave.t = setTimeout(ntSave, 400); });
+  ntBox.addEventListener('input', () => { ntRm(); clearTimeout(ntSave.t); ntSave.t = setTimeout(ntSave, 400); });
+  ntBox.querySelector('.bz-nt-rm').addEventListener('mousedown', e => e.preventDefault());
+  ntBox.querySelector('.bz-nt-rm').addEventListener('click', e => {   // 框裡沒字時右上的「－」：整個註刪掉
+    e.preventDefault(); e.stopPropagation();
+    if (!ntCur) return;
+    const c = ntCur, a = hlAll(), pg = a[c.key]; if (!pg) return;
+    const h = (pg.list || []).find(x => x.id === c.id); if (!h) return;
+    if (ntBox.querySelector('textarea').value.trim()) return;
+    if (h.doc && h.doc.trim() && !confirm('這個註的延伸筆記還有字，也一起刪掉嗎？')) return;
+    pg.list = pg.list.filter(x => x.id !== c.id); pg.t = Date.now(); hlStore(a);
+    ntBox.hidden = true; ntPin = false; ntCur = null;
+    hlApply(c.root);
+    clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
+  });
   ntBox.addEventListener('focusin', () => { ntPin = true; ntBox.classList.add('pin'); });
   ntBox.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); ntClose(); } e.stopPropagation(); });
   ntBox.addEventListener('wheel', e => e.stopPropagation());
@@ -2307,6 +2321,46 @@
     if (f) { const sel = getSelection(); if (sel && !sel.isCollapsed) return; e.preventDefault(); ntOpen(f.root, f.key, f.m.dataset.hl, true); return; }
     if (ntPin && !ntBox.contains(e.target) && !hlNt.contains(e.target)) ntClose();
   });
+  /* 延伸筆記（電腦）：游標在註的字上按空白鍵 → 左頁是原文，右頁是空白的打字頁；存在同一個註裡（doc） */
+  function ndOpen(f) {
+    const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
+    if (!ntBox.hidden) ntClose();
+    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.parentElement;
+    const ov = document.createElement('div'); ov.className = 'bz-ntdoc';
+    ov.innerHTML = '<div class="bz-nd-l"></div><div class="bz-nd-r"><textarea placeholder="延伸筆記：直接打字，自動存"></textarea></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>';
+    const L = ov.querySelector('.bz-nd-l'), cl = row.cloneNode(true);
+    cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
+    cl.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
+    L.appendChild(cl);
+    if (h.note && h.note.trim()) { const n = document.createElement('div'); n.className = 'bz-nd-n'; n.textContent = h.note; L.appendChild(n); }
+    const ta = ov.querySelector('textarea'); ta.value = h.doc || '';
+    let tm = 0;
+    const save = () => {
+      clearTimeout(tm);
+      const a = hlAll(), pg = a[c.key]; if (!pg) return;
+      const it = (pg.list || []).find(x => x.id === id); if (!it || (it.doc || '') === ta.value) return;
+      it.doc = ta.value; it.dt = Date.now(); pg.t = Date.now(); hlStore(a);
+      clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
+    };
+    const close = () => { save(); ov.remove(); document.removeEventListener('keydown', esc, true); };
+    const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    ta.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(save, 400); });
+    ta.addEventListener('keydown', e => e.stopPropagation());
+    ov.addEventListener('wheel', e => e.stopPropagation());
+    ov.querySelector('.bz-nd-x').addEventListener('click', close);
+    document.addEventListener('keydown', esc, true);
+    document.body.appendChild(ov);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable)) return;
+    const hv = [...document.querySelectorAll('mark.bz-note:hover')].pop(), f = hv && ntFind(hv);
+    if (!f || document.querySelector('.bz-ntdoc')) return;
+    e.preventDefault(); e.stopPropagation(); ndOpen(f);
+  }, true);
   async function hlSync(push) {
     const tok = ghToken(); if (!tok) return false;
     try {
