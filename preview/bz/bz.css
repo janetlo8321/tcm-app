@@ -1119,7 +1119,8 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 /* 檢索表：點分類 → 只顯示那一類 */
 @media (min-width: 821px) {
   body.bz-ccfocus .cc-main .sheet-wrap:not(.bz-ccf) { display: none !important; }
-  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox { display: block !important; visibility: hidden !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox { display: none !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { display: block !important; border: 6px solid #e0302a !important; border-radius: 4px; }
   body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { cursor: grab; }
