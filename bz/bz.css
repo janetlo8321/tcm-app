@@ -969,3 +969,15 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 .bz-shl .bz-nd-inl .bz-nd-ed, .bz-shl .bz-nd-inl .bz-nd-ed:focus { background: #fff !important; outline: none; box-shadow: none; color: #1c1c1e; }
 .bz-shl .bz-nd-inl b, .bz-shl .bz-nd-inl strong, .bz-ntdoc .bz-nd-tools b { color: inherit; text-decoration: none; }
 .bz-shl .bz-nd-inl .bz-nd-tools u { color: inherit; }
+/* 手機：點條號打開的編輯頁加大到快一整個畫面；工具列一排 */
+@media (max-width: 820px) {
+  .bz-nd-inl .bz-nd-ed { min-height: calc(100vh - 230px); min-height: calc(100dvh - 230px); }
+  .bz-nd-inl .bz-nd-top { overflow-x: auto; scrollbar-width: none; }
+  .bz-nd-inl .bz-nd-top::-webkit-scrollbar { display: none; }
+  .bz-nd-inl .bz-nd-tools { flex-wrap: nowrap; }
+  .bz-nd-inl .bz-nd-tools button { flex: none; min-width: 26px; height: 26px; padding: 0 4px; font-size: 13px; }
+  /* 底部分頁列（證 藥 方 經 脈）：縮成約三分之一高，貼到最下面 */
+  .tabbar { height: auto !important; min-height: 0 !important; padding-bottom: calc(env(safe-area-inset-bottom, 0px) * .35) !important; padding-top: 0 !important; }
+  .tabbar button { min-height: 24px !important; height: auto !important; padding: 1px 0 !important; gap: 0 !important; font-size: 0 !important; line-height: 1 !important; }
+  .tabbar .seal { font-size: 15px !important; line-height: 1.25 !important; }
+}
