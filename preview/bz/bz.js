@@ -1056,6 +1056,18 @@
     } catch (e) { return false; }
   }
   const xhOK = () => typeof XH !== 'undefined' && typeof xhOrder !== 'undefined';
+  // 條文欄：預設收起，點標頭（或收起的格子）才展開；再點標頭收起。只記在這台裝置
+  const xhTW = () => { try { return XH.cols.findIndex(c => c.h === '條文'); } catch (e) { return -1; } };
+  const xhTWOpen = () => { try { return localStorage.getItem('tcm-xh-tw') === '1'; } catch (e) { return false; } };
+  document.addEventListener('click', e => {
+    if (!xhOK() || !e.target.closest || e.target.closest('.xh-rs, .xh-c.editing')) return;
+    const tw = xhTW(); if (tw < 0) return;
+    const h = e.target.closest(`.xh-h[data-xhc="${tw}"]`), c = e.target.closest(`.xh-g.tw-off .xh-c[data-c="${tw}"]`);
+    if (!h && !c) return;
+    if (c && e.target.closest('a')) e.preventDefault();
+    try { localStorage.setItem('tcm-xh-tw', xhTWOpen() ? '0' : '1'); } catch (er) {}
+    window.xhApply();
+  }, true);
   if (typeof xhApply === 'function' && xhOK()) {
     // 不再調換欄位：一律照原表順序
     try { xhOrder = XH_DEF.slice(); localStorage.removeItem('xhOrder'); } catch (e) {}
@@ -1063,7 +1075,9 @@
     window.xhApply = function () {
       const st = document.getElementById('xhCss'), g = document.querySelector('.xh-g'); if (!st || !g) return;
       xhOrder = XH_DEF.slice();
-      g.style.gridTemplateColumns = xhOrder.map(i => ((XS.w[i] && XS.w[i].v) || XH.cols[i].w) + 'em').join(' ');
+      const tw = xhTW(), off = tw >= 0 && !xhTWOpen();
+      g.classList.toggle('tw-off', off); g.dataset.tw = tw;
+      g.style.gridTemplateColumns = xhOrder.map(i => (i === tw && off ? 4.5 : ((XS.w[i] && XS.w[i].v) || XH.cols[i].w)) + 'em').join(' ');
       st.textContent = xhOrder.map((c, p) => `.xh-g [data-c="${c}"]{grid-column:${p + 1}}`).join('');
     };
     const _init = window.xhInit;
@@ -1073,7 +1087,7 @@
     const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
     const sec = g.closest('.xh-sec');
     if (sec) {
-      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。紅字、藍字照原表。方名可以點。';
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，點 I 欄標頭展開或收起。紅字、藍字照原表。方名可以點。';
       const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
     }
     g.querySelectorAll('.xh-h').forEach(h => {

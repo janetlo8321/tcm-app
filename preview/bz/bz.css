@@ -1085,3 +1085,10 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 @media (min-width: 821px) {
   .bz-wide { max-width: none !important; }
 }
+
+/* 脈證處方表：條文欄收起時只留窄欄，點標頭展開 */
+.xh-g .xh-h[data-xhc="8"] { cursor: pointer !important; }
+.xh-g .xh-h[data-xhc="8"] > span::after { content: " 條文 ◂"; font-weight: 600; color: #1a4fd6; }
+.xh-g.tw-off .xh-h[data-xhc="8"] > span::after { content: " 條文 ▸"; }
+.xh-g.tw-off .xh-c[data-c="8"] > div { display: none; }
+.xh-g.tw-off .xh-c[data-c="8"]:not(.e) { cursor: pointer; background-image: repeating-linear-gradient(135deg, rgba(26,79,214,.07) 0 6px, transparent 6px 12px) !important; }
