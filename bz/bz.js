@@ -2163,19 +2163,18 @@
     hlPend = pend; hlPut();
     if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
     let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
-    if (COARSE.matches) {   // 手機：系統的「拷貝／查詢…」選單會出現在選取範圍上面或下面，綠勾改放到螢幕的另一半（右側），完全避開
-      let tp = rect.top, bt = rect.bottom;
-      try { const b = getSelection().getRangeAt(0).getBoundingClientRect(); if (b.height) { tp = b.top; bt = b.bottom; } } catch (er) {}
-      const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vt = vv ? vv.offsetTop : 0;
-      x = innerWidth - 100;
-      y = (tp + bt) / 2 - vt < vh / 2 ? vt + vh - 150 : vt + 96;   // 選在上半 → 放下面（底下分頁列的上方）；選在下半 → 放上面
+    if (COARSE.matches) {   // 手機：小小的綠勾、註放在選取範圍第一行的右上角（字的上方、行與行之間）
+      let tp = rect.top, rt = rect.right;
+      try { const rs = getSelection().getRangeAt(0).getClientRects(); if (rs.length) { tp = rs[0].top; rt = rs[0].right; } } catch (er) {}
+      x = Math.min(innerWidth - 46, Math.max(4, rt + 2)); y = Math.max(4, tp - 22);
     }
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
     if ((pend.act === 'add' || pend.nt) && pend.root.classList.contains('shl-body')) {
-      hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + 44 > innerWidth - 6 ? x - 40 : x + 38) + 'px'; hlNt.hidden = false;
+      const gap = COARSE.matches ? 22 : 38;
+      hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
   }
   const hlHide = () => { hlOk.hidden = true; hlNt.hidden = true; hlPend = null; };
@@ -2331,9 +2330,7 @@
     if (ndCloseCur) ndCloseCur();
     if (!ntBox.hidden) ntClose();
     const W = o.W, ov = document.createElement('div'); ov.className = 'bz-ntdoc';
-    ov.innerHTML = `<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-top"><div class="bz-nd-lb"></div><span class="bz-nd-tools">
-<button type="button" data-nd="bold" title="粗體"><b>B</b></button><button type="button" data-nd="underline" title="底線"><u>U</u></button><button type="button" data-nd="hl" title="螢光筆">🖍</button><button type="button" data-nd="h" title="標題">標</button><button type="button" data-nd="insertUnorderedList" title="條列">•</button><button type="button" data-nd="insertOrderedList" title="編號">1.</button><button type="button" data-nd="table" title="插入表格">▦</button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）">🖼</button><button type="button" data-nd="removeFormat" title="清除格式">⌫</button>
-<span class="bz-nd-tbt" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span></div>
+    ov.innerHTML = `<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-top"><div class="bz-nd-lb"></div>${ND_TOOLS}</div>
 <div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、貼圖片，自動存"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
     ov.querySelector('.bz-nd-lb').textContent = o.label || '';
     const L = ov.querySelector('.bz-nd-l');
@@ -2464,7 +2461,12 @@
     const back = () => { ed.focus(); if (saved) { const sl = getSelection(); sl.removeAllRanges(); sl.addRange(saved); } };
     const cell = () => { const sl = getSelection(); const n = sl.rangeCount && sl.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); return el && ed.contains(el) ? el.closest('td,th') : null; };
     const toCell = td => { const r = document.createRange(); r.selectNodeContents(td); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); keepSel(); tbt.hidden = false; };
-    const onSel = () => { if (!ov.isConnected) { document.removeEventListener('selectionchange', onSel); return; } keepSel(); tbt.hidden = !cell(); };
+    const onSel = () => {
+      if (!ov.isConnected) { document.removeEventListener('selectionchange', onSel); return; }
+      keepSel(); tbt.hidden = !cell();
+      const sl = getSelection(); if (!sl.rangeCount || !ed.contains(sl.anchorNode)) return;
+      ['bold', 'underline', 'insertUnorderedList', 'insertOrderedList'].forEach(c => { const b = ov.querySelector(`[data-nd="${c}"]`); try { if (b) b.classList.toggle('on', document.queryCommandState(c)); } catch (er) {} });
+    };
     document.addEventListener('selectionchange', onSel);
     async function addImgs(files) {
       for (const f of files) {
@@ -2539,9 +2541,7 @@
     });
   }
   /* 手機（捲動模式）：輕點條號 → 這一條底下的組成、煎服法換成白色編輯頁（和電腦的延伸筆記同一份），再點一下條號收回 */
-  const ND_TOOLS = `<span class="bz-nd-tools">
-<button type="button" data-nd="bold" title="粗體"><b>B</b></button><button type="button" data-nd="underline" title="底線"><u>U</u></button><button type="button" data-nd="hl" title="螢光筆">🖍</button><button type="button" data-nd="h" title="標題">標</button><button type="button" data-nd="insertUnorderedList" title="條列">•</button><button type="button" data-nd="insertOrderedList" title="編號">1.</button><button type="button" data-nd="table" title="插入表格">▦</button><button type="button" data-nd="img" title="插入圖片">🖼</button><button type="button" data-nd="removeFormat" title="清除格式">⌫</button>
-<span class="bz-nd-tbt" hidden><button type="button" data-nd="row+">＋列</button><button type="button" data-nd="col+">＋欄</button><button type="button" data-nd="row-">－列</button><button type="button" data-nd="col-">－欄</button></span></span>`;
+  const ND_TOOLS = `<span class="bz-nd-tools"><span class="bz-nd-g"><button type="button" data-nd="bold" title="粗體" aria-label="粗體"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button><button type="button" data-nd="underline" title="底線" aria-label="底線"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4"/><path d="M5 20h14"/></svg></button><button type="button" data-nd="hl" title="螢光筆" aria-label="螢光筆"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 4.5 5 5L10 19H5v-5z"/><path d="m12 7 5 5"/><path d="M4 21h16" stroke-width="2.4" stroke="#f5c400"/></svg></button><button type="button" data-nd="h" title="標題" aria-label="標題"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M14 5v14M5 12h9"/><path d="M18 10.5 20 9v10"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="insertUnorderedList" title="條列" aria-label="條列"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="7" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17" r="1.2" fill="currentColor"/><path d="M9.5 7H20M9.5 12H20M9.5 17H20"/></svg></button><button type="button" data-nd="insertOrderedList" title="編號" aria-label="編號"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5 5.5 4.5V10"/><path d="M4 14.5a1.5 1.5 0 0 1 3 .3c0 1-3 2.2-3 3.7h3"/><path d="M10.5 7H20M10.5 12H20M10.5 17H20"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="table" title="插入表格" aria-label="插入表格"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10M15 9.5v10"/></svg></button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）" aria-label="插入圖片（也可以直接貼上或拖進來）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="removeFormat" title="清除格式" aria-label="清除格式"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12M12 5l-3.5 14"/><path d="m14.5 14 5 5M19.5 14l-5 5"/></svg></button></span><span class="bz-nd-tbt bz-nd-g" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span>`;
   const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
   const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };
   function ndMarks(w) { w.querySelectorAll('.shl-c[data-no]').forEach(c => c.classList.toggle('has-nd', ndHas(ndKeyOf(c)))); }
@@ -2550,7 +2550,7 @@
     const open = cb.querySelector('.bz-nd-inl');
     if (open) { open._save(); open.remove(); cEl.classList.remove('nd-in'); ndMarks(cEl.closest('#bzShl')); return; }
     const box = document.createElement('div'); box.className = 'bz-nd-inl';
-    box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、圖片，自動存（電腦按空白鍵看到的是同一份）"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph=""></div><input type="file" accept="image/*" multiple hidden>`;
     cb.appendChild(box); cEl.classList.add('nd-in');
     const ed = box.querySelector('.bz-nd-ed');
     const get = () => { const e = shlAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
@@ -2559,6 +2559,14 @@
     box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = shlAll(); a[k] = { d: v, t: Date.now() }; shlStore(a); clearTimeout(shlSync.t); shlSync.t = setTimeout(() => shlSync(true), 1500); } };
     ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
     ed.addEventListener('focusout', () => box._save());
+    // 框的底剛好到手機畫面底（底下分頁列的上面），不要往下多出來；字多了在框裡面捲
+    const fit = () => {
+      if (!box.isConnected) { removeEventListener('resize', fit); return; }
+      const tb = document.querySelector('.tabbar'), tbH = tb && tb.offsetParent ? tb.getBoundingClientRect().height : 0;
+      const top = ed.getBoundingClientRect().top;   // 目前畫面上的位置
+      ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight - tbH - top - 12) + 'px';
+    };
+    fit(); addEventListener('resize', fit);
   }
   document.addEventListener('click', e => {
     const n = e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-c > .shl-no'); if (!n) return;
@@ -2847,7 +2855,16 @@
     try { ndMarks(w); } catch (e) {}
     if (!w.hidden) setTimeout(shlLayout, 0);
   }
+  function shlHdr() {   // 找出最上面放「標題、齒輪、版本」的那一塊（不含內容），標成 bz-hdr，手機的經方頁把它藏起來
+    const v = document.getElementById('ver'), ent = document.getElementById('entry'); if (!v || !ent) return;
+    let el = v.closest('header');
+    if (el && !el.contains(ent)) { el.classList.add('bz-hdr'); return; }
+    el = v;
+    while (el.parentElement && el.parentElement !== document.body && !el.parentElement.contains(ent)) el = el.parentElement;
+    if (el !== document.body && !el.contains(ent)) el.classList.add('bz-hdr');
+  }
   function shlCheck() {
+    try { shlHdr(); } catch (e) {}
     const on = typeof state !== 'undefined' && state.cur === 'jk';
     const ent = document.getElementById('entry');
     document.documentElement.classList.toggle('bz-shl-on', on && !shlOrig);
