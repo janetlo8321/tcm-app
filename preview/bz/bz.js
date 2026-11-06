@@ -2763,9 +2763,11 @@
   const ccnGet = i => { const e = ccnAll()[ccnKey(i)]; return e && typeof e.d === 'string' ? e.d : ''; };
   const ccnSet = (i, v) => { const a = ccnAll(); a[ccnKey(i)] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); };
   // 電腦：左半邊是這一類裁出來的表，右半邊是筆記（和經方的延伸筆記一樣）
-  function ccnOpen(c) {
+  function ccnOpen(c, f) {   // f：單一個方 { name, el }，沒有就是整類的筆記
     const box = document.createElement('div'); box.className = 'bz-ccn-clip';
+    if (f && f.el) f.el.classList.add('bz-ccn-cur');
     const cl = c.par.cloneNode(true); cl.querySelectorAll('.cc-tbox,.anchor').forEach(x => x.remove()); cl.removeAttribute('id');
+    if (f && f.el) f.el.classList.remove('bz-ccn-cur');
     cl.style.cssText += ';position:absolute;left:0;top:0;margin:0;transform-origin:0 0';
     box.appendChild(cl);
     const ratio = c.par.offsetHeight / c.par.offsetWidth;
@@ -2773,9 +2775,29 @@
       let sw = pw / c.w; if (sw * ratio * c.h > ph) sw = ph / (ratio * c.h);
       cl.style.width = sw + 'px'; box.style.width = (sw * c.w) + 'px'; box.style.height = (sw * ratio * c.h) + 'px';
       cl.style.transform = `translate(${-c.l * sw}px, ${-c.t * sw * ratio}px)`; };
-    ndShow({ label: '檢索表　' + ccnLabel(c.i), clone: () => box, target: () => ({ els: [], cls: 'nd-cur' }), get: () => ccnGet(c.i), set: v => ccnSet(c.i, v) });
+    const k = f ? 'f:' + f.name : ccnKey(c.i);
+    const get = () => { const e = ccnAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
+    const set = v => { const a = ccnAll(); a[k] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); setTimeout(ccnMarks, 0); };
+    ndShow({ label: f ? f.name + '　' + ccnLabel(c.i) : '檢索表　' + ccnLabel(c.i), clone: () => box, target: () => ({ els: [], cls: 'nd-cur' }), get, set });
     requestAnimationFrame(fit); setTimeout(fit, 200);
   }
+  // 表上的一個方（黃色方名框或藍色手寫方）→ 方名
+  function ccnFormula(el) {
+    const a = el && el.closest && el.closest('#entry .cc-main .spot, #entry .cc-main .hw'); if (!a) return null;
+    let name = '';
+    if (a.classList.contains('hw')) name = (a.getAttribute('title') || '').split('（')[0];
+    else { const sh = a.closest('.sheet'), sc = a.closest('.sheet-scroll'), pi = sc && +sc.dataset.pi, pg = typeof CHART !== 'undefined' && CHART.pages[pi];
+      const idx = [...sh.querySelectorAll(':scope > .spot')].indexOf(a); name = pg && pg.spots[idx] ? pg.spots[idx].f : ''; }
+    return name ? { name, el: a } : null;
+  }
+  function ccnMarks() {
+    const all = ccnAll(), has = n => { const e = all['f:' + n]; return !!(e && typeof e.d === 'string' && e.d.replace(/<[^>]*>|&nbsp;|\s/g, '')); };
+    document.querySelectorAll('#entry .cc-main .spot, #entry .cc-main .hw').forEach(a => { const f = ccnFormula(a); a.classList.toggle('bz-hasn', !!(f && has(f.name))); });
+  }
+  if (entObs) new MutationObserver(() => { if (document.querySelector('#entry .cc-split')) ccnMarks(); }).observe(entObs, { childList: true });
+  setTimeout(() => { if (document.querySelector('#entry .cc-split')) ccnMarks(); }, 0);
+  const ccnCatOf = (f, x, y) => { const r = f.el.getBoundingClientRect(); return ccnCatAt(r.left + r.width / 2, r.top + r.height / 2) || ccnCatAt(x, y) || (() => { const sh = f.el.closest('.sheet'), pr = sh.getBoundingClientRect();
+    return { i: '', par: sh, l: Math.max(0, (r.left - pr.left) / pr.width - 0.1), t: Math.max(0, (r.top - pr.top) / pr.height - 0.1), w: Math.min(1, r.width / pr.width + 0.2), h: Math.min(1, r.height / pr.height + 0.2) }; })(); };
   let ccnXY = null;
   document.addEventListener('mousemove', e => { ccnXY = [e.clientX, e.clientY]; }, { passive: true });
   document.addEventListener('mouseover', e => {
@@ -2789,29 +2811,47 @@
     if (!document.querySelector('#entry .cc-split') || document.querySelector('.bz-ntdoc')) return;
     const t = e.target && e.target.nodeType === 1 ? e.target : null;
     if (t && (t.closest('input,textarea,[contenteditable="true"]') || t.isContentEditable)) return;
-    const c = ccnCatAt(ccnXY[0], ccnXY[1]); if (!c) return;
+    const f = ccnFormula(document.elementFromPoint(ccnXY[0], ccnXY[1]));
+    const c = f ? ccnCatOf(f, ccnXY[0], ccnXY[1]) : ccnCatAt(ccnXY[0], ccnXY[1]); if (!c) return;
     e.preventDefault(); e.stopPropagation();
     if (t && t.closest('select,button') && t.blur) t.blur();
-    ccnOpen(c);
+    ccnOpen(c, f);
   }, true);
+  // 手機：長按表上的一個方 → 這一頁下面打開這個方的筆記框（和經方一樣的白色編輯框）
+  let ccnLP = null, ccnLPfired = 0;
+  document.addEventListener('touchstart', e => {
+    if (innerWidth > 820 || e.touches.length !== 1) return;
+    const f = ccnFormula(e.target); if (!f) return;
+    const t0 = e.touches[0], x = t0.clientX, y = t0.clientY;
+    clearTimeout(ccnLP); ccnLP = setTimeout(() => { ccnLPfired = Date.now(); ccnInline(f.el.closest('.sheet-scroll'), 'f:' + f.name, f.name); }, 550);
+    const cancel = () => { clearTimeout(ccnLP); removeEventListener('touchmove', mv); };
+    const mv = ev => { const p = ev.touches[0]; if (Math.hypot(p.clientX - x, p.clientY - y) > 10) cancel(); };
+    addEventListener('touchmove', mv, { passive: true }); addEventListener('touchend', cancel, { once: true });
+  }, { passive: true });
+  document.addEventListener('click', e => { if (Date.now() - ccnLPfired < 800 && ccnFormula(e.target)) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener('contextmenu', e => { if (innerWidth <= 820 && ccnFormula(e.target)) e.preventDefault(); });
+  function ccnInline(sh, k, label) {
+    const wrap = sh.closest('.sheet-wrap'), open = wrap.querySelector(':scope > .bz-ccn-inl');
+    if (open) { open._save(); open.remove(); if (open.dataset.k === k) return; }
+    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccn-inl'; box.dataset.k = k;
+    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.querySelector('.bz-nd-lb').textContent = label;
+    sh.insertAdjacentElement('afterend', box);
+    const get = () => { const e = ccnAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
+    const ed = box.querySelector('.bz-nd-ed'); ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
+    let tm = 0;
+    box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = ccnAll(); a[k] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); ccnMarks(); } };
+    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
+    ed.addEventListener('focusout', () => box._save());
+    ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight * 0.45) + 'px';
+    box.scrollIntoView({ block: 'nearest' });
+  }
   // 手機：輕點表上某一類（不是點方名）→ 這一頁下面打開筆記框，再點同一類收回
   document.addEventListener('click', e => {
     if (innerWidth > 820 || !e.target.closest) return;
     const sh = e.target.closest('#entry .cc-main .sheet-scroll'); if (!sh || e.target.closest('a,[data-go],button')) return;
     const c = ccnCatAt(e.clientX, e.clientY); if (!c) return;
-    const wrap = sh.closest('.sheet-wrap'), open = wrap.querySelector(':scope > .bz-ccn-inl');
-    if (open) { open._save(); open.remove(); if (open.dataset.i === c.i) return; }
-    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccn-inl'; box.dataset.i = c.i;
-    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
-    box.querySelector('.bz-nd-lb').textContent = ccnLabel(c.i);
-    sh.insertAdjacentElement('afterend', box);
-    const ed = box.querySelector('.bz-nd-ed'); ed.innerHTML = ndToHtml(ccnGet(c.i)); ndImgFill(ed);
-    let tm = 0;
-    box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (ccnGet(c.i) !== v) ccnSet(c.i, v); };
-    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
-    ed.addEventListener('focusout', () => box._save());
-    ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight * 0.45) + 'px';
-    box.scrollIntoView({ block: 'nearest' });
+    ccnInline(sh, ccnKey(c.i), ccnLabel(c.i));
   });
   const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
   const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };

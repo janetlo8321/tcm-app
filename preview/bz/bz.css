@@ -1145,3 +1145,8 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 @media (min-width: 821px) {
   .index > .cc-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; }
 }
+
+/* 檢索表：有筆記的方右上一個藍點；打開筆記時左邊表上這個方加框 */
+#entry .cc-main .spot.bz-hasn::after, #entry .cc-main .hw.bz-hasn::after { content: ''; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #007aff; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
+#entry .cc-main .hw.bz-hasn { position: absolute; }
+.bz-ntdoc .bz-ccn-clip .bz-ccn-cur { outline: 3px solid #007aff; outline-offset: 1px; border-radius: 3px; }
