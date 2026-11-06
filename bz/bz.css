@@ -1143,7 +1143,7 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 
 /* 分類檢索搬到左欄 */
 @media (min-width: 821px) {
-  .index > .cc-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; }
+  .index > .cc-idx.bz-ccmv, .index > .xl-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; width: auto !important; }
 }
 
 /* 檢索表：有筆記的方右上一個藍點；打開筆記時左邊表上這個方加框 */
@@ -1178,3 +1178,11 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   html.bz-mai .xh-zoombar button { min-height: 22px !important; min-width: 0 !important; padding: 1px 7px !important; font-size: 11px !important; border-radius: 6px !important; white-space: nowrap; }
   html.bz-mai .xh-zoombar output { min-width: 2.6em !important; font-size: 11px !important; }
 }
+
+/* 檢索表筆記：看／編輯 兩種狀態 */
+.bz-ntdoc.bz-ccn-ov .bz-ccn-mode { margin-left: 10px; font-size: 12px; color: #8e8e93; white-space: nowrap; }
+.bz-ntdoc.bz-ccn-ov.bz-ccn-editing .bz-ccn-mode { color: #007aff; font-weight: 600; }
+.bz-ntdoc.bz-ccn-ov:not(.bz-ccn-editing) .bz-nd-tools { opacity: .35; pointer-events: none; }
+.bz-ntdoc.bz-ccn-ov:not(.bz-ccn-editing) .bz-nd-ed { cursor: default; }
+.bz-ntdoc.bz-ccn-ov .bz-ccn-clip .spot, .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .hw { cursor: pointer; }
+.bz-ntdoc.bz-ccn-ov .bz-ccn-clip .spot:hover, .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .hw:hover { outline: 2px dashed #007aff; outline-offset: 1px; }
