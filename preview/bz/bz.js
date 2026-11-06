@@ -2161,6 +2161,7 @@
   const COARSE = matchMedia('(pointer: coarse)');
   function hlShow(rect, pend) {
     hlPend = pend; hlPut();
+    if (typeof ntBox !== 'undefined' && !ntBox.hidden && !ntPin) ntClose();   // 選字時先收起註的框，免得遮到綠勾
     let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
     if (COARSE.matches) {   // 手機：系統的「複製…」選單在選取範圍上方，綠勾改放到選取範圍下方（避開拖拉把手）
       let bt = rect.bottom, rt = rect.right;
@@ -2309,6 +2310,7 @@
   const ntFind = t => { const m = t && t.closest && t.closest('mark.bz-note'); if (!m) return null; const root = hlRoots().find(r => r.contains(m)); return root ? { m, root, key: hlKey(root) } : null; };
   document.addEventListener('mouseover', e => {
     const f = ntFind(e.target); if (!f) return;
+    if (!hlOk.hidden) return;   // 正在選字（綠勾出現中）就不要跳出註的框
     clearTimeout(ntHideT); ntOpen(f.root, f.key, f.m.dataset.hl, false);
   });
   document.addEventListener('mouseout', e => {
