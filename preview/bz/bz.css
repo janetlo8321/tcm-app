@@ -1115,3 +1115,12 @@ html.bz-sheet #entry > h1 { display: inline-block; font-size: 22px; line-height:
 html.bz-sheet #entry > .xl-legend { display: inline-flex; flex-wrap: wrap; margin: 0 14px 0 0; vertical-align: middle; font-size: 12px; }
 html.bz-sheet #entry > .note { display: inline; margin: 0; font-size: 11.5px; vertical-align: middle; }
 html.bz-sheet #entry > .xl-split { margin-top: 8px; }
+
+/* 檢索表：點分類 → 只顯示那一類 */
+@media (min-width: 821px) {
+  body.bz-ccfocus .cc-main .sheet-wrap:not(.bz-ccf) { display: none !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox { display: block !important; visibility: hidden !important; }
+  body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { cursor: grab; }
+}

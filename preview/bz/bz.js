@@ -2079,6 +2079,43 @@
     addEventListener('hashchange', () => setTimeout(toTop, 0));
   }
 
+  /* ---------- 檢索表（電腦版）：點左邊分類 → 像藥物總表一樣，那一類停在框的左上角（原本大小、不加紅框），
+     其他頁不顯示；框內可以拖曳或捲動看同一頁的其他部分；「全部頁」回到原本 ---------- */
+  {
+    let ccCur = null, drag = null;
+    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sc || !sh) return;
+      sh.style.paddingRight = ''; sh.style.paddingBottom = ''; sh.style.boxSizing = ''; sh.style.width = ''; sc.style.height = ''; sc.style.overflow = ''; };
+    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccFocus = () => {
+      const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
+      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sh) return;
+      document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
+      document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
+      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
+      const W = sc.clientWidth;
+      sh.style.width = W + 'px'; sh.style.boxSizing = 'content-box';   // 頁面維持原本大小（符合寬度）
+      const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
+      sc.style.height = H + 'px'; sc.style.overflow = 'auto';
+      sh.style.paddingRight = W + 'px'; sh.style.paddingBottom = H + 'px';   // 右下留白，讓任何分類都能停在左上角
+      sc.scrollLeft = 0; sc.scrollTop = 0;
+      const r = tb.getBoundingClientRect(), b = sc.getBoundingClientRect();
+      sc.scrollLeft = Math.max(0, r.left - b.left - 6); sc.scrollTop = Math.max(0, r.top - b.top - 6);
+    };
+    document.addEventListener('click', e => {
+      if (innerWidth < 821 || !e.target.closest) return;
+      if (e.target.closest('[data-ccall]')) { ccUndo(); return; }
+      const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
+      ccCur = j.dataset.jump.slice(3); setTimeout(ccFocus, 30);
+    });
+    // 框內用滑鼠拖曳移動
+    document.addEventListener('mousedown', e => { if (e.button !== 0 || !e.target.closest) return; const sc = e.target.closest('.bz-ccf .sheet-scroll'); if (!sc || e.target.closest('a,button')) return;
+      drag = { sc, x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop }; sc.style.cursor = 'grabbing'; e.preventDefault(); });
+    addEventListener('mousemove', e => { if (!drag) return; drag.sc.scrollLeft = drag.l - (e.clientX - drag.x); drag.sc.scrollTop = drag.t - (e.clientY - drag.y); });
+    addEventListener('mouseup', () => { if (drag) { drag.sc.style.cursor = ''; drag = null; } });
+    addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
+    if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
+  }
+
   /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
   {
     const wide = () => {
