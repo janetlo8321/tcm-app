@@ -2079,7 +2079,7 @@
     addEventListener('hashchange', () => setTimeout(toTop, 0));
   }
 
-  /* ---------- 檢索表（電腦版）：點左邊分類 → 像藥物總表一樣，那一類停在框的左上角（原本大小、不加紅框），
+  /* ---------- 檢索表（電腦版）：點左邊分類 → 像藥物總表一樣，那一類放大停在框的左上角（不加紅框），
      其他頁不顯示；框內可以拖曳或捲動看同一頁的其他部分；「全部頁」回到原本 ---------- */
   {
     let ccCur = null, drag = null;
@@ -2093,9 +2093,12 @@
       document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
       const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
       const W = sc.clientWidth;
-      sh.style.width = W + 'px'; sh.style.boxSizing = 'content-box';   // 頁面維持原本大小（符合寬度）
       const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
       sc.style.height = H + 'px'; sc.style.overflow = 'auto';
+      sh.style.width = W + 'px'; sh.style.boxSizing = 'content-box';
+      const r0 = tb.getBoundingClientRect();   // 放大到這一類剛好填滿框的寬度（字跟之前一樣大），太高就以高度為準
+      let k = Math.min((W - 12) / r0.width, (H - 12) / r0.height); k = Math.max(1, k);
+      sh.style.width = Math.round(W * k) + 'px';
       sh.style.paddingRight = W + 'px'; sh.style.paddingBottom = H + 'px';   // 右下留白，讓任何分類都能停在左上角
       sc.scrollLeft = 0; sc.scrollTop = 0;
       const r = tb.getBoundingClientRect(), b = sc.getBoundingClientRect();
