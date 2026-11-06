@@ -2783,6 +2783,8 @@
   // 電腦：左半邊是這一類裁出來的表，右半邊是筆記（和經方的延伸筆記一樣）
   function ccnOpen(c, f) {   // f：單一個方 { name, el }，沒有就是整類的筆記
     const box = document.createElement('div'); box.className = 'bz-ccn-clip';
+    const origs = [...c.par.querySelectorAll('.spot, .hw')];
+    origs.forEach((a, n) => { a.dataset.ccnI = n; });   // 左邊複製的表上，每個方記得對應到原本哪一個
     if (f && f.el) f.el.classList.add('bz-ccn-cur');
     const cl = c.par.cloneNode(true); cl.querySelectorAll('.cc-tbox,.anchor').forEach(x => x.remove()); cl.removeAttribute('id');
     if (f && f.el) f.el.classList.remove('bz-ccn-cur');
@@ -2798,6 +2800,34 @@
     const set = v => { const a = ccnAll(); a[k] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); setTimeout(ccnMarks, 0); };
     ndShow({ label: f ? f.name + '　' + ccnLabel(c.i) : '檢索表　' + ccnLabel(c.i), clone: () => box, target: () => ({ els: [], cls: 'nd-cur' }), get, set });
     requestAnimationFrame(fit); setTimeout(fit, 200);
+    // 打開時先是「看」的狀態：按一下 ⌘ 開始編輯、再按一下 ⌘ 結束；不在編輯時，游標停在左邊另一個方（或空白處）按空白鍵就換過去
+    const ov = box.closest('.bz-ntdoc'); if (!ov) return;
+    ov.classList.add('bz-ccn-ov');
+    const ed = ov.querySelector('.bz-nd-ed'), top = ov.querySelector('.bz-nd-top');
+    const hint = document.createElement('span'); hint.className = 'bz-ccn-mode'; if (top) top.appendChild(hint);
+    const setEdit = on => {
+      ov.classList.toggle('bz-ccn-editing', on); ed.contentEditable = on ? 'true' : 'false';
+      hint.textContent = on ? '編輯中・按 ⌘ 結束' : '按 ⌘ 開始編輯・游標移到左邊的方按空白鍵切換';
+      if (on) { ed.focus(); try { const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); } catch (er) {} }
+      else { ed.dispatchEvent(new Event('input', { bubbles: true })); ed.blur(); getSelection().removeAllRanges(); }
+    };
+    setEdit(false); setTimeout(() => { if (ov.isConnected && !ov.classList.contains('bz-ccn-editing')) { ed.blur(); getSelection().removeAllRanges(); } }, 20);
+    let metaAlone = false;
+    const onKey = e => {
+      if (!ov.isConnected) { removeEventListener('keydown', onKey, true); removeEventListener('keyup', onUp, true); return; }
+      if (e.key === 'Meta') { metaAlone = true; return; }
+      metaAlone = false;
+      if ((e.code === 'Space' || e.key === ' ') && !ov.classList.contains('bz-ccn-editing') && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && ccnXY) {
+        e.preventDefault(); e.stopPropagation();
+        const el = document.elementFromPoint(ccnXY[0], ccnXY[1]); if (!el || !box.contains(el)) return;
+        const a = el.closest('.spot, .hw'), o = a && origs[+a.dataset.ccnI];
+        const nf = o ? ccnFormula(o) : null;
+        if (nf ? (f && nf.name === f.name) : !f) return;   // 已經是這一頁
+        ccnOpen(c, nf);
+      }
+    };
+    const onUp = e => { if (e.key === 'Meta' && metaAlone && ov.isConnected) { metaAlone = false; setEdit(!ov.classList.contains('bz-ccn-editing')); } };
+    addEventListener('keydown', onKey, true); addEventListener('keyup', onUp, true);
   }
   // 表上的一個方（黃色方名框或藍色手寫方）→ 方名
   function ccnFormula(el) {
