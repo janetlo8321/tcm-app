@@ -2088,7 +2088,7 @@
       if (clip && sh) { sc.insertBefore(sh, clip); clip.remove(); }
       if (sh) { sh.style.width = ''; sh.style.transform = ''; }
       sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
-    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; ccBarSet(null); document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
     const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
       const d = document.createElement('span'); d.className = 'bz-ccz';
       d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button><button type="button" data-ccz="note" title="這一類的筆記（也可以游標停在表上按空白鍵）">📝 筆記</button>';
@@ -2101,7 +2101,12 @@
       document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf'); const zb = ccBar(wrap);
       const W = sc.clientWidth;
       let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
-      const H = Math.max(240, innerHeight - (sc.getBoundingClientRect().top - wrap.getBoundingClientRect().top + 10) - 16);   // 捲到這一頁頂端之後，畫面剩下的高度
+      const phone = innerWidth <= 820;
+      if (phone) ccBarSet(ccCur, true);
+      const idx = document.querySelector('.cc-idx'), tbar = document.querySelector('.tabbar');
+      const topOff = phone && idx ? idx.getBoundingClientRect().height + (parseFloat(getComputedStyle(idx).top) || 0) + 6 : 10;
+      const botOff = phone && tbar && tbar.offsetHeight ? tbar.offsetHeight + 8 : 16;
+      const H = Math.max(200, innerHeight - (sc.getBoundingClientRect().top - wrap.getBoundingClientRect().top + topOff) - botOff);   // 捲到這一頁頂端之後，畫面剩下的高度
       const fit = Math.min(W / r.width, H / r.height), k = ccZ === 'w' ? W / r.width : fit * ccZ;
       sh.style.width = (shr.width * k) + 'px';
       r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
@@ -2113,10 +2118,10 @@
       sc.style.width = Math.min(W, cw) + 'px'; sc.style.height = (ch + (cw > W ? 16 : 0)) + 'px'; sc.style.overflow = cw > W ? 'auto hidden' : 'hidden';
       sc.scrollLeft = 0; sc.scrollTop = 0;
       const out = zb && zb.querySelector('.bz-ccz output'); if (out) out.textContent = Math.round(k / fit * 100) + '%';
-      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
+      const top = wrap.getBoundingClientRect().top + scrollY - topOff; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
     };
     document.addEventListener('click', e => {
-      if (innerWidth < 821 || !e.target.closest) return;
+      if (!e.target.closest) return;
       const zbtn = e.target.closest('[data-ccz]');
       if (zbtn && zbtn.dataset.ccz === 'note') { const tb = document.getElementById('cct-' + ccCur), c = tb && ccnFromTb(tb); if (c) ccnOpen(c); return; }
       if (zbtn) { const m = zbtn.dataset.ccz, cur = ccZ === 'w' ? (() => { const tb = document.getElementById('cct-' + ccCur), sc = tb && tb.closest('.sheet-wrap').querySelector('.sheet-scroll'), o = document.querySelector('.bz-ccf .bz-ccz output'); return o ? parseInt(o.textContent) / 100 : 1; })() : ccZ;
@@ -2125,7 +2130,20 @@
       const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
       ccCur = j.dataset.jump.slice(3); ccZ = 1; setTimeout(ccFocus, 30);
     });
-    addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
+    addEventListener('resize', () => { if (ccCur) ccFocus(); });
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1 && e.target.closest && e.target.closest('.bz-ccf .sheet-scroll')) e.stopPropagation(); }, { capture: true, passive: true });
+    // 手機：分類清單點完收成一小條（目前分類＋右上 v），按 v 拉開／收起
+    function ccBarSet(i, collapse) {
+      const idx = document.querySelector('#entry .cc-idx, .index > .cc-idx'); if (!idx) return;
+      let bar = idx.querySelector(':scope > .bz-ccbar');
+      if (i == null) { if (bar) bar.remove(); idx.classList.remove('bz-ccmin'); return; }
+      if (!bar) { bar = document.createElement('div'); bar.className = 'bz-ccbar'; bar.innerHTML = '<b></b><button type="button" data-ccbar aria-label="展開分類">⌄</button>'; idx.insertBefore(bar, idx.firstChild); }
+      const cat = typeof CHART !== 'undefined' && CHART.cats[i]; bar.querySelector('b').textContent = cat ? (cat.no ? cat.no + '、' : '') + cat.name : '';
+      if (collapse) idx.classList.add('bz-ccmin');
+      bar.querySelector('button').textContent = idx.classList.contains('bz-ccmin') ? '⌄' : '⌃';
+    }
+    document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-ccbar]'); if (!b) return; e.preventDefault(); e.stopPropagation();
+      const idx = b.closest('.cc-idx'); idx.classList.toggle('bz-ccmin'); b.textContent = idx.classList.contains('bz-ccmin') ? '⌄' : '⌃'; }, true);
     if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
   }
 

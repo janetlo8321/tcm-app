@@ -1116,8 +1116,8 @@ html.bz-sheet #entry > .xl-legend { display: inline-flex; flex-wrap: wrap; margi
 html.bz-sheet #entry > .note { display: inline; margin: 0; font-size: 11.5px; vertical-align: middle; }
 html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 
-/* 檢索表：點分類 → 只顯示那一類 */
-@media (min-width: 821px) {
+/* 檢索表：點分類 → 只顯示那一類（電腦、手機都是） */
+@media all {
   body.bz-ccfocus .cc-main .sheet-wrap:not(.bz-ccf) { display: none !important; }
   body.bz-ccfocus .cc-main .bz-ccf .cc-tbox { display: none !important; }
   body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { display: block !important; border: 6px solid #e0302a !important; border-radius: 4px; }
@@ -1150,3 +1150,20 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 #entry .cc-main .spot.bz-hasn::after, #entry .cc-main .hw.bz-hasn::after { content: ''; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #007aff; box-shadow: 0 0 0 1.5px #fff; pointer-events: none; }
 #entry .cc-main .hw.bz-hasn { position: absolute; }
 .bz-ntdoc .bz-ccn-clip .bz-ccn-cur { outline: 3px solid #007aff; outline-offset: 1px; border-radius: 3px; }
+
+/* 檢索表（手機）：分類按鈕縮小一半；點完收成一小條，右上 v 可以拉開 */
+@media (max-width: 820px) {
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar > button, body.bz-ccfocus .cc-main .bz-ccf .zoombar > output, body.bz-ccfocus .cc-main .bz-ccf .zoombar .pg { display: none !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar { position: static !important; padding: 2px 0 !important; font-size: 12px; }
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz button { min-height: 26px !important; padding: 2px 8px !important; font-size: 12px; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { border-width: 4px !important; }
+  .cc-idx { padding: 4px !important; }
+  .cc-idx .cc-list { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; gap: 3px !important; font-size: 12px !important; }
+  .cc-idx .cc-list button { min-height: 22px !important; padding: 1px 0 !important; border-radius: 6px !important; }
+  .cc-idx .bz-ccbar { display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 1; padding: 2px 2px 2px 6px; }
+  .cc-idx:not(.bz-ccmin) .bz-ccbar { margin-bottom: 4px; }
+  .cc-idx .bz-ccbar b { flex: 1; font-weight: 600; }
+  .cc-idx .bz-ccbar button { border: 0; background: none; color: var(--accent, #007aff); font-size: 16px; line-height: 1; padding: 2px 8px; cursor: pointer; }
+  .cc-idx.bz-ccmin .cc-list { display: none !important; }
+}
+.bz-ccbar { display: none; }
