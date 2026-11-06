@@ -2129,19 +2129,19 @@
           while (i >= 0) { if (best < 0 || Math.abs(i - h.s) < Math.abs(best - h.s)) best = i; i = full.indexOf(h.x, i + 1); }
           if (best < 0) return; s = best;
         }
-        hlWrap(ts, s, s + h.x.length, h.id);
+        hlWrap(ts, s, s + h.x.length, h.id, h.k === 'n');
         ts = hlTexts(root);
       });
     } finally { hlBusy = false; }
   }
-  function hlWrap(ts, s, e, id) {
+  function hlWrap(ts, s, e, id, note) {
     ts.forEach(({ n, s: ns }) => {
       const ne = ns + n.data.length;
       if (ne <= s || ns >= e || !n.data.trim()) return;
       let t = n;
       if (s > ns) t = t.splitText(s - ns);
       if (e < ne) t.splitText(e - Math.max(s, ns));
-      const m = document.createElement('mark'); m.className = 'bz-hl'; m.dataset.hl = id;
+      const m = document.createElement('mark'); m.className = note ? 'bz-hl bz-note' : 'bz-hl'; m.dataset.hl = id;
       t.parentNode.insertBefore(m, t); m.appendChild(t);
     });
   }
@@ -2150,6 +2150,9 @@
     if (node.nodeType !== 3) { const r = document.createRange(); r.setStart(node, off); const t = ts.find(x => r.comparePoint(x.n, 0) >= 0); return t ? t.s : (ts.length ? ts[ts.length - 1].s + ts[ts.length - 1].n.data.length : 0); }
     const t = ts.find(x => x.n === node); return t ? t.s + off : -1;
   }
+  const hlNt = document.createElement('button');
+  hlNt.type = 'button'; hlNt.className = 'bz-hl-ok bz-hl-nt'; hlNt.textContent = '註'; hlNt.title = '加註（右上會出現可以打字的框）'; hlNt.hidden = true;
+  const hlPutNt = () => { if (document.body && !hlNt.isConnected) document.body.appendChild(hlNt); };
   const hlOk = document.createElement('button');
   hlOk.type = 'button'; hlOk.className = 'bz-hl-ok'; hlOk.textContent = '✓'; hlOk.hidden = true;
   let hlPend = null, hlT = 0;
@@ -2168,18 +2171,23 @@
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
+    // 經方條文：綠勾旁邊多一個藍色「註」
+    if (pend.act === 'add' && pend.root.classList.contains('shl-body')) {
+      hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + 44 > innerWidth - 6 ? x - 40 : x + 38) + 'px'; hlNt.hidden = false;
+    } else hlNt.hidden = true;
   }
-  const hlHide = () => { hlOk.hidden = true; hlPend = null; };
+  const hlHide = () => { hlOk.hidden = true; hlNt.hidden = true; hlPend = null; };
   document.addEventListener('selectionchange', () => {
     clearTimeout(hlT);
     hlT = setTimeout(() => {
       const sel = getSelection();
-      if (!sel || !sel.rangeCount || sel.isCollapsed) { if (!hlOk.matches(':hover')) hlHide(); return; }
+      if (!sel || !sel.rangeCount || sel.isCollapsed) { if (!hlOk.matches(':hover') && !hlNt.matches(':hover')) hlHide(); return; }
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
       const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && startEl.closest('mark.bz-hl');
       const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
+      if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl && mk.classList.contains('bz-note')) { hlHide(); ntOpen(root, key, mk.dataset.hl, true); return; }   // 在註裡長按：打開註
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
         hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl });
@@ -2209,6 +2217,86 @@
     clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
   });
   addEventListener('scroll', () => { if (!hlOk.hidden) hlHide(); }, true);
+  /* ---------- 註：選字後按藍色「註」，那段字變淡藍底，右上出現可以打字的框；打的字自動存（和螢光筆同一份 tcm-hl-v1，k:'n'），
+   * 游標移到淡藍字上就顯示，點一下可以修改；只有按「刪除這個註」才會刪 ---------- */
+  ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlNt.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
+  hlNt.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { e.preventDefault(); e.stopPropagation(); hlNt.click(); } });
+  hlNt.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    const p = hlPend; if (!p || p.act !== 'add') return;
+    const a = hlAll(), pg = a[p.key] || { list: [] }; pg.list = pg.list || [];
+    const id = 'n' + Date.now().toString(36);
+    pg.list.push({ id, s: p.s, e: p.e, x: p.x, k: 'n', note: '', nt: Date.now() });
+    pg.t = Date.now(); a[p.key] = pg; hlStore(a);
+    try { getSelection().removeAllRanges(); } catch (er) {}
+    hlHide(); hlApply(p.root);
+    clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
+    ntOpen(p.root, p.key, id, true);
+  });
+  const ntBox = document.createElement('div');
+  ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
+  ntBox.innerHTML = '<div class="bz-nt-h"><b>註</b><span class="bz-nt-q"></span><button type="button" class="bz-nt-x" aria-label="關閉">✕</button></div><textarea class="bz-nt-t" placeholder="在這裡打字，會自動存"></textarea><div class="bz-nt-f"><span class="bz-nt-st"></span><button type="button" class="bz-nt-del">刪除這個註</button></div>';
+  let ntCur = null, ntPin = false, ntHideT = 0;
+  const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
+  const ntItem = c => c && (((hlAll()[c.key] || {}).list) || []).find(h => h.id === c.id);
+  function ntOpen(root, key, id, pin) {
+    ntPut(); clearTimeout(ntHideT);
+    if (ntCur && ntCur.id === id) { if (pin && !ntPin) { ntPin = true; ntBox.classList.add('pin'); ntBox.querySelector('textarea').focus(); } return; }
+    if (ntCur && ntPin && !pin) return;   // 正在打的那個不要被游標走過的別的註換掉
+    ntCur = { root, key, id }; ntPin = !!pin;
+    const h = ntItem(ntCur); if (!h) { ntClose(); return; }
+    ntBox.querySelector('.bz-nt-q').textContent = '「' + (h.x.length > 24 ? h.x.slice(0, 24) + '…' : h.x) + '」';
+    const ta = ntBox.querySelector('textarea'); ta.value = h.note || '';
+    ntBox.querySelector('.bz-nt-st').textContent = h.nt ? '已存 ' + new Date(h.nt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    ntBox.classList.toggle('pin', ntPin); ntBox.hidden = false;
+    root.querySelectorAll('mark.bz-note.cur').forEach(m => m.classList.remove('cur'));
+    root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(m => m.classList.add('cur'));
+    if (ntPin) setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
+  }
+  function ntSave() {
+    if (!ntCur) return;
+    const a = hlAll(), pg = a[ntCur.key]; if (!pg) return;
+    const h = (pg.list || []).find(x => x.id === ntCur.id); if (!h) return;
+    const v = ntBox.querySelector('textarea').value; if (h.note === v) return;
+    h.note = v; h.nt = Date.now(); pg.t = Date.now(); hlStore(a);
+    ntBox.querySelector('.bz-nt-st').textContent = '已存';
+    clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
+  }
+  function ntClose() {
+    ntSave(); ntBox.hidden = true; ntPin = false;
+    if (ntCur) ntCur.root.querySelectorAll('mark.bz-note.cur').forEach(m => m.classList.remove('cur'));
+    ntCur = null;
+  }
+  ntBox.addEventListener('input', () => { clearTimeout(ntSave.t); ntSave.t = setTimeout(ntSave, 400); });
+  ntBox.addEventListener('focusin', () => { ntPin = true; ntBox.classList.add('pin'); });
+  ntBox.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); ntClose(); } e.stopPropagation(); });
+  ntBox.addEventListener('wheel', e => e.stopPropagation());
+  ntBox.addEventListener('mouseenter', () => clearTimeout(ntHideT));
+  ntBox.addEventListener('mouseleave', () => { if (!ntPin) ntHideT = setTimeout(ntClose, 300); });
+  ntBox.addEventListener('click', e => {
+    if (e.target.closest('.bz-nt-x')) { ntClose(); return; }
+    if (e.target.closest('.bz-nt-del')) {
+      if (!ntCur || !confirm('確定要刪除這個註嗎？（註裡打的字也會一起刪掉）')) return;
+      const a = hlAll(), pg = a[ntCur.key]; if (pg) { pg.list = (pg.list || []).filter(h => h.id !== ntCur.id); pg.t = Date.now(); hlStore(a); }
+      const root = ntCur.root; ntCur = null; ntBox.hidden = true; ntPin = false; hlApply(root);
+      clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1200);
+    }
+  });
+  const ntFind = t => { const m = t && t.closest && t.closest('mark.bz-note'); if (!m) return null; const root = hlRoots().find(r => r.contains(m)); return root ? { m, root, key: hlKey(root) } : null; };
+  document.addEventListener('mouseover', e => {
+    const f = ntFind(e.target); if (!f) return;
+    clearTimeout(ntHideT); ntOpen(f.root, f.key, f.m.dataset.hl, false);
+  });
+  document.addEventListener('mouseout', e => {
+    const f = ntFind(e.target); if (!f || ntPin) return;
+    if (e.relatedTarget && (ntBox.contains(e.relatedTarget) || (e.relatedTarget.closest && e.relatedTarget.closest(`mark.bz-note[data-hl="${f.m.dataset.hl}"]`)))) return;
+    ntHideT = setTimeout(() => { if (!ntPin) ntClose(); }, 300);
+  });
+  document.addEventListener('click', e => {
+    const f = ntFind(e.target);
+    if (f) { const sel = getSelection(); if (sel && !sel.isCollapsed) return; e.preventDefault(); ntOpen(f.root, f.key, f.m.dataset.hl, true); return; }
+    if (ntPin && !ntBox.contains(e.target) && !hlNt.contains(e.target)) ntClose();
+  });
   async function hlSync(push) {
     const tok = ghToken(); if (!tok) return false;
     try {

@@ -836,3 +836,25 @@ html:has(#bzShl.shl-book:not([hidden])), html:has(#bzShl.shl-book:not([hidden]))
 .bz-shl.shl-book .shl-nav { padding-top: 26px; }
 .bz-shl .shl-dock { position: relative; }
 .bz-shl .shl-dock > em { position: absolute; top: -19px; font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted, #6e6e73); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none; border-bottom: 1px solid rgba(0,0,0,.18); line-height: 16px; }
+/* 註：藍色「註」按鈕、淡藍底的字、右上可以打字的框 */
+.bz-hl-ok.bz-hl-nt { background: #007aff; font-size: 14px; }
+@media (pointer: coarse) { .bz-hl-ok.bz-hl-nt { font-size: 17px; } }
+mark.bz-hl.bz-note { background: rgba(0, 122, 255, .13); color: inherit; border-bottom: 2px solid #3b82f6; border-radius: 2px; cursor: pointer; }
+mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, .26); }
+.bz-ntbox { position: fixed; top: 64px; right: 18px; z-index: 2147483646; width: min(380px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+  background: #fff; color: #1c1c1e; border-radius: 14px; border: 1px solid rgba(0, 122, 255, .35); box-shadow: 0 10px 34px rgba(0, 0, 0, .22); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif; }
+.bz-ntbox[hidden] { display: none; }
+.bz-ntbox.pin { border-color: #007aff; }
+.bz-nt-h { display: flex; align-items: baseline; gap: 8px; }
+.bz-nt-h b { color: #fff; background: #007aff; border-radius: 6px; padding: 0 7px; font-size: 13px; }
+.bz-nt-q { flex: 1; min-width: 0; color: #6e6e73; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bz-nt-x { border: 0; background: none; color: #8a8a8e; font-size: 16px; cursor: pointer; padding: 0 4px; }
+.bz-nt-t { width: 100%; min-height: 140px; resize: vertical; box-sizing: border-box; border: 1px solid #d9d9de; border-radius: 10px; padding: 8px 10px; font: inherit; color: inherit; background: #fbfbfd; outline: none; }
+.bz-nt-t:focus { border-color: #007aff; background: #fff; }
+.bz-nt-f { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #8a8a8e; }
+.bz-nt-del { border: 0; background: none; color: #d70015; font-size: 12px; cursor: pointer; padding: 2px 4px; }
+@media (prefers-color-scheme: dark) {
+  .bz-ntbox { background: #1c1c1e; color: #f2f2f7; }
+  .bz-nt-t { background: #2c2c2e; border-color: #3a3a3c; } .bz-nt-t:focus { background: #2c2c2e; }
+  mark.bz-hl.bz-note { background: rgba(10, 132, 255, .25); }
+}
