@@ -2054,6 +2054,13 @@
     if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
   }
 
+  /* ---------- 脈頁：上面的標題區縮成一行（html.bz-mai） ---------- */
+  {
+    const maiMark = () => document.documentElement.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai');
+    maiMark(); addEventListener('hashchange', () => setTimeout(maiMark, 0));
+    if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
+  }
+
   /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
   {
     const wide = () => {

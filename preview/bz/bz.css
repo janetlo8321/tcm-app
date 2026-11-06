@@ -1094,3 +1094,11 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 .xh-g.tw-off .xh-c[data-c="8"]:not(.e) { cursor: pointer; background-image: repeating-linear-gradient(135deg, rgba(26,79,214,.07) 0 6px, transparent 6px 12px) !important; }
 .xh-zoombar .pg .bz-xhtw { margin-left: 8px; font-weight: 600; color: #1a4fd6; }
 .xh-zoombar .pg .bz-xhtw[aria-pressed="true"] { background: #e3efff; }
+
+/* 脈頁：標題區縮小成一行 */
+html.bz-mai #entry > .kind { display: none; }
+html.bz-mai #entry > h1 { display: inline-block; font-size: 22px; line-height: 1.3; margin: 0 14px 0 0; vertical-align: baseline; }
+html.bz-mai #entry > .meta { display: inline; font-size: 12.5px; margin: 0; }
+html.bz-mai #entry > .xh-sec { margin-top: 10px; }
+html.bz-mai .xh-sec > h2.group { font-size: 14px; margin: 0; padding-bottom: 4px; }
+html.bz-mai .xh-sec > .note { margin: 4px 0 4px !important; font-size: 12px; }
