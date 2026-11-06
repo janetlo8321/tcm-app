@@ -2393,17 +2393,24 @@
       }
     });
   }
+  // 焦點如果還留在大廳（iframe）裡，按鍵會跑去那邊：游標一移到經方書上就把焦點拉回來
+  document.addEventListener('mouseover', e => {
+    const a = document.activeElement; if (!a || a.tagName !== 'IFRAME') return;
+    if (!(e.target.closest && e.target.closest('#bzShl'))) return;
+    try { a.blur(); window.focus(); } catch (er) {}
+  }, true);
   // 電腦：游標停在條文（或註）上按空白鍵 → 打開延伸筆記；原文鎖住時才接，正在打字時不接
   document.addEventListener('keydown', e => {
     if (e.code !== 'Space' && e.key !== ' ') return;
     if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
     const t = e.target && e.target.nodeType === 1 ? e.target : null;
-    if (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable)) return;
+    if (t && (t.closest('input,textarea,[contenteditable="true"]') || t.isContentEditable)) return;
     const W = document.getElementById('bzShl'); if (!W || W.hidden || !W.dataset.bk) return;
     const hv = [...W.querySelectorAll('mark.bz-note:hover')].pop(), f = hv && ntFind(hv);
     const c = [...W.querySelectorAll('.shl-body .shl-c:hover')].pop();
     if (!f && !c) return;
     e.preventDefault(); e.stopPropagation();
+    if (t && t.closest('select,button') && t.blur) t.blur();   // 剛按過「跳到」、‹ › 等，焦點停在上面也照樣打開
     if (f) ndOpen(f); else ndOpenClause(c);
   }, true);
   ntBox.querySelector('.bz-nt-ex').addEventListener('mousedown', e => e.preventDefault());
