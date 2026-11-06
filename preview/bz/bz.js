@@ -2172,7 +2172,7 @@
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
-    if (pend.act === 'add' && pend.root.classList.contains('shl-body')) {
+    if ((pend.act === 'add' || pend.nt) && pend.root.classList.contains('shl-body')) {
       hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + 44 > innerWidth - 6 ? x - 40 : x + 38) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
   }
@@ -2189,7 +2189,14 @@
       const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
-        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl });
+        // 黃底上也可以加註（黃底留著，加藍色底線）：註用選到的那段字
+        let nt = null;
+        if (!mk.classList.contains('bz-note')) {
+          const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
+          const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
+          if (x.trim()) nt = { s, e, x };
+        }
+        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt });
         return;
       }
       const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
@@ -2227,10 +2234,11 @@
   hlNt.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') { e.preventDefault(); e.stopPropagation(); hlNt.click(); } });
   hlNt.addEventListener('click', e => {
     e.preventDefault(); e.stopPropagation();
-    const p = hlPend; if (!p || p.act !== 'add') return;
+    const p = hlPend; if (!p || (p.act !== 'add' && !p.nt)) return;
+    const q = p.act === 'add' ? p : p.nt;
     const a = hlAll(), pg = a[p.key] || { list: [] }; pg.list = pg.list || [];
     const id = 'n' + Date.now().toString(36);
-    pg.list.push({ id, s: p.s, e: p.e, x: p.x, k: 'n', note: '', nt: Date.now() });
+    pg.list.push({ id, s: q.s, e: q.e, x: q.x, k: 'n', note: '', nt: Date.now() });
     pg.t = Date.now(); a[p.key] = pg; hlStore(a);
     try { getSelection().removeAllRanges(); } catch (er) {}
     hlHide(); hlApply(p.root);

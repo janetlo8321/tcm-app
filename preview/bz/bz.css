@@ -841,6 +841,10 @@ html:has(#bzShl.shl-book:not([hidden])), html:has(#bzShl.shl-book:not([hidden]))
 @media (pointer: coarse) { .bz-hl-ok.bz-hl-nt { font-size: 17px; } }
 mark.bz-hl.bz-note { background: rgba(0, 122, 255, .13); color: inherit; border-bottom: 2px solid #3b82f6; border-radius: 2px; cursor: pointer; }
 mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, .26); }
+/* 註加在黃底上（或黃底畫在註上）：黃底留著，只加藍色底線 */
+mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note, mark.bz-hl.bz-note:has(mark.bz-hl:not(.bz-note)) { background: transparent; }
+mark.bz-hl.bz-note mark.bz-hl:not(.bz-note) { border-bottom: 2px solid #3b82f6; }
+mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, .18); }
 .bz-ntbox { position: fixed; top: 64px; right: 18px; z-index: 2147483646; width: min(380px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
   background: #fff; color: #1c1c1e; border-radius: 14px; border: 1px solid rgba(0, 122, 255, .35); box-shadow: 0 10px 34px rgba(0, 0, 0, .22); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif; }
 .bz-ntbox[hidden] { display: none; }
