@@ -11,9 +11,9 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v2.31.10';
-  const UPDATED = '11/06 16:47';
-  const FIX_NO = 81;
+  const VERSION = 'v2.32.0';
+  const UPDATED = '11/06 17:03';
+  const FIX_NO = 82;
 
   const $ = id => document.getElementById(id);
   const stage = $('stage'), wrap = $('canvas-wrap'), labelsEl = $('labels');
@@ -586,9 +586,16 @@
   function collapseChips() { stage.classList.remove('chips-open'); chipTog.setAttribute('aria-expanded', 'false'); }
   canvas.addEventListener('pointerdown', collapseChips);   // 點畫面其他地方也收合
   // « 下面再放兩顆：🌿 直接到藥物總表、👩🏻‍⚕️ 直接到全部病證
-  [['sheet', '🌿', '藥物總表'], ['zz', '👩🏻‍⚕️', '全部病證']].forEach(([go, ic, t], i) => {
+  // 中間那顆是白色小篆「經」：直接到經方（傷寒論・金匱要略）
+  const SEAL_JING = '<svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/>'
+    + '<path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/>'
+    + '<path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/></svg>';
+  [['sheet', '🌿', '藥物總表'], ['jk', SEAL_JING, '經方（傷寒論・金匱要略）'], ['zz', '👩🏻‍⚕️', '全部病證']].forEach(([go, ic, t], i) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip-tog lb-jump lb-jump' + i; b.textContent = ic; b.title = t; b.setAttribute('aria-label', t);
+    b.type = 'button'; b.className = 'chip-tog lb-jump lb-jump' + i + (ic[0] === '<' ? ' lb-seal' : '');
+    if (ic[0] === '<') b.innerHTML = ic; else b.textContent = ic;
+    b.title = t; b.setAttribute('aria-label', t);
     b.addEventListener('click', () => { if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go, bz: false }, '*'); });
     stage.appendChild(b);
   });
