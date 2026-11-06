@@ -73,7 +73,8 @@ function openLobby() {
     lobbyEl = document.createElement('div');
     lobbyEl.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#050403';
     const f = document.createElement('iframe');
-    f.src = 'lobby/?t=' + Date.now();   // 每次都拿最新的大廳頁（有些 App 內建瀏覽器不走 service worker，會用 10 分鐘內的舊檔）
+    if (!window.__lobbyT) window.__lobbyT = Date.now();   // 這次開 App 拿一次最新的大廳頁；之後從資料庫按「銅人」回來沿用同一個版本號，已下載的程式不用再抓
+    f.src = 'lobby/?t=' + window.__lobbyT;
     f.title = '經絡銅人大廳';
     f.style.cssText = 'border:0;width:100%;height:100%;display:block';
     lobbyEl.appendChild(f);
