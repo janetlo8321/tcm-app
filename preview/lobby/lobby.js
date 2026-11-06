@@ -11,9 +11,9 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v2.33.0';
-  const UPDATED = '11/06 17:23';
-  const FIX_NO = 84;
+  const VERSION = 'v2.34.0';
+  const UPDATED = '11/06 17:27';
+  const FIX_NO = 85;
 
   const $ = id => document.getElementById(id);
   const stage = $('stage'), wrap = $('canvas-wrap'), labelsEl = $('labels');
