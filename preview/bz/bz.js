@@ -2061,6 +2061,24 @@
     if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 電腦版：每次點進一頁，自動捲到那一頁的標題，上面的資料庫標題列先藏在畫面上方（往上拖還是看得到） ---------- */
+  {
+    let last = null;
+    const toTop = () => {
+      if (innerWidth < 821 || !entObs || typeof state === 'undefined') return;
+      const cur = state.cur; if (cur === last) return; last = cur;
+      if (!cur || cur === 'jk') return;
+      setTimeout(() => {
+        const t = [...entObs.children].find(e => e.offsetHeight > 0 && getComputedStyle(e).display !== 'none' && !e.matches('.back, style, script'));
+        if (!t) return;
+        const y = t.getBoundingClientRect().top + scrollY - 10;
+        if (y > 0 && scrollY < y) scrollTo({ top: y, behavior: 'auto' });
+      }, 60);
+    };
+    if (entObs) new MutationObserver(toTop).observe(entObs, { childList: true });
+    addEventListener('hashchange', () => setTimeout(toTop, 0));
+  }
+
   /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
   {
     const wide = () => {
