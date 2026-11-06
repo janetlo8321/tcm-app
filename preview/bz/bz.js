@@ -2029,6 +2029,25 @@
     if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
   }
 
+  /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
+  {
+    const wide = () => {
+      if (innerWidth < 821) return;
+      const seeds = [document.querySelector('.cards'), document.getElementById('entry'), document.getElementById('ver'), document.querySelector('h1')].filter(Boolean);
+      seeds.forEach(el => {
+        for (let n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+          if (n.classList.contains('bz-wide') || n.closest('#bz, .bz-doc, .bz-shl, .bz-ntdoc')) continue;
+          const mw = getComputedStyle(n).maxWidth;
+          if (mw && mw !== 'none' && !mw.endsWith('%') && parseFloat(mw) < innerWidth - 40) n.classList.add('bz-wide');
+        }
+      });
+    };
+    const run = () => { wide(); setTimeout(wide, 500); setTimeout(wide, 1500); };
+    if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+    addEventListener('resize', wide);
+    if (entObs) new MutationObserver(wide).observe(entObs, { childList: true });
+  }
+
   /* ---------- 醫砭方劑內容：紅字藥名旁邊加灰色括號（預設是藥的分類），輕點可以自己改；依「方名｜藥名」存 ----------
    * 存在這台裝置（tcm-hnote-v1），有設定 GitHub 同步時合併到 tcm-notes sync/hnote.json */
   const HNK = 'tcm-hnote-v1', HN_URL = GH_URL.replace('myfx.json', 'hnote.json');

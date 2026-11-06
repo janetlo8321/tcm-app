@@ -1099,3 +1099,8 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-shl .shl-edbtn.on { background: rgba(52,199,89,.18); color: #a7f3b5; border-color: transparent; }
   .bz-shl-back { background: #1d1711; border-color: #3b3127; color: var(--accent); }
 }
+
+/* 電腦版：頁面拓寬到兩邊 */
+@media (min-width: 821px) {
+  .bz-wide { max-width: none !important; }
+}
