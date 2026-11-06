@@ -2161,7 +2161,7 @@
   const COARSE = matchMedia('(pointer: coarse)');
   function hlShow(rect, pend) {
     hlPend = pend; hlPut();
-    if (typeof ntBox !== 'undefined' && !ntBox.hidden && !ntPin) ntClose();   // 選字時先收起註的框，免得遮到綠勾
+    if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
     let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
     if (COARSE.matches) {   // 手機：系統的「複製…」選單在選取範圍上方，綠勾改放到選取範圍下方（避開拖拉把手）
       let bt = rect.bottom, rt = rect.right;
