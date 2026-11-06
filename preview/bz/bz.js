@@ -2619,6 +2619,23 @@
   const NDIMG = 'tcm-ndimg-v1', NDIMG_URL = GH_URL.replace('myfx.json', 'ndimg/');
   const ndImgAll = () => { try { const a = JSON.parse(localStorage.getItem(NDIMG) || '{}'); return a && typeof a === 'object' ? a : {}; } catch (e) { return {}; } };
   const ndImgStore = a => { try { localStorage.setItem(NDIMG, JSON.stringify(a)); return true; } catch (e) { return false; } };
+  // v2.43.5：圖片改存 IndexedDB（容量大很多）；舊的 localStorage 圖片先完整搬過去、確認存好才從 localStorage 移走，一張都不丟
+  let ndDbP = null;
+  const ndDb = () => ndDbP || (ndDbP = new Promise((res, rej) => {
+    try { const q = indexedDB.open('tcm-ndimg', 1); q.onupgradeneeded = () => q.result.createObjectStore('img'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); } catch (e) { rej(e); }
+  }));
+  const ndTx = (mode, fn) => ndDb().then(db => new Promise((res, rej) => { const tx = db.transaction('img', mode), st = tx.objectStore('img'); const r = fn(st); tx.oncomplete = () => res(r && 'result' in r ? r.result : undefined); tx.onerror = tx.onabort = () => rej(tx.error); }));
+  const ndImgGet = async id => { try { const v = await ndTx('readonly', st => st.get(id)); if (v) return v; } catch (e) {} const a = ndImgAll(); return a[id] || null; };
+  const ndImgPut = (id, v) => ndTx('readwrite', st => { st.put(v, id); });
+  const ndImgIds = async () => { let k = []; try { k = await ndTx('readonly', st => st.getAllKeys()); } catch (e) {} return [...new Set([...(k || []), ...Object.keys(ndImgAll())])]; };
+  const ndImgMove = (async () => {   // 搬家：localStorage → IndexedDB
+    const a = ndImgAll(), ids = Object.keys(a); if (!ids.length) return;
+    try {
+      for (const id of ids) { const old = await ndTx('readonly', st => st.get(id)); if (!old || !old.u) await ndImgPut(id, a[id]); }
+      for (const id of ids) { const v = await ndTx('readonly', st => st.get(id)); if (!v || !v.u) return; }   // 每張都確認在了
+      const now = ndImgAll(); if (Object.keys(now).every(id => ids.includes(id))) localStorage.removeItem(NDIMG);
+    } catch (e) {}
+  })();
   const ndEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ND_OK = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, MARK: 1, SPAN: 1, BR: 1, DIV: 1, P: 1, H3: 1, UL: 1, OL: 1, LI: 1, TABLE: 1, TBODY: 1, THEAD: 1, TR: 1, TD: 1, TH: 1, IMG: 1 };
   function ndClean(root) {   // 只留安全的標籤和少數樣式
@@ -2648,33 +2665,32 @@
     return (d.textContent.trim() || d.querySelector('img,table')) ? h : '';
   }
   async function ndImgFill(ed) {   // 圖片從這台裝置拿，沒有的話從雲端拿
-    const a = ndImgAll();
     for (const im of ed.querySelectorAll('img[data-img]')) {
-      const id = im.dataset.img;
-      if (a[id] && a[id].u) { im.src = a[id].u; continue; }
+      const id = im.dataset.img, x = await ndImgGet(id);
+      if (x && x.u) { im.src = x.u; continue; }
       const tok = ghToken(); if (!tok) { im.alt = '（圖片在另一台裝置，設定同步後會出現）'; continue; }
       try {
         const r = await fetch(NDIMG_URL + id + '.json?t=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
         if (!r.ok) continue;
         const j = await r.json(); if (!j.u) continue;
-        im.src = j.u; const b = ndImgAll(); b[id] = { u: j.u, t: Date.now(), up: 1 }; ndImgStore(b);
+        im.src = j.u; ndImgPut(id, { u: j.u, t: Date.now(), up: 1 }).catch(() => {});
       } catch (e) {}
     }
   }
   async function ndImgPush(id) {
     const tok = ghToken(); if (!tok) return false;
-    const a = ndImgAll(), x = a[id]; if (!x || !x.u || x.up) return true;
+    const x = await ndImgGet(id); if (!x || !x.u || x.up) return true;
     try {
       const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
       const r0 = await fetch(NDIMG_URL + id + '.json', { headers: H, cache: 'no-store' }); let sha;
       if (r0.ok) { sha = (await r0.json()).sha; }
       const r = await fetch(NDIMG_URL + id + '.json', { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: '同步延伸筆記圖片', content: b64e(JSON.stringify({ u: x.u })), ...(sha ? { sha } : {}) }) });
-      if (r.ok) { const b = ndImgAll(); if (b[id]) { b[id].up = 1; ndImgStore(b); } return true; }
+      if (r.ok) { try { await ndImgPut(id, { ...x, up: 1 }); } catch (e) {} const b = ndImgAll(); if (b[id]) { b[id].up = 1; ndImgStore(b); } return true; }
     } catch (e) {}
     return false;
   }
-  async function ndImgSync() { if (!ghToken()) return false; for (const id of Object.keys(ndImgAll())) await ndImgPush(id); return true; }
+  async function ndImgSync() { if (!ghToken()) return false; await ndImgMove; for (const id of await ndImgIds()) await ndImgPush(id); return true; }
   function ndShrink(file) {   // 圖片縮到最長邊 1400px、存成 JPEG，免得太大
     return new Promise(res => {
       const fr = new FileReader();
@@ -2710,8 +2726,7 @@
         if (!/^image\//.test(f.type)) continue;
         const u = await ndShrink(f); if (!u) continue;
         const id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-        const a = ndImgAll(); a[id] = { u, t: Date.now() };
-        if (!ndImgStore(a)) { alert('這台裝置的空間滿了，圖片存不下。'); return; }
+        try { await ndImgPut(id, { u, t: Date.now() }); } catch (e) { alert('這台裝置的空間滿了，圖片存不下。'); return; }
         back(); document.execCommand('insertHTML', false, `<img data-img="${id}" src="${u}"><br>`);
         ndImgPush(id);
       }
