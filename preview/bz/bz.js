@@ -2282,7 +2282,7 @@
       <button type="button" data-shlx class="shl-x" title="離開經方頁（回上一頁）" aria-label="離開">✕</button></div><div class="shl-body">`;
     bk.rows.forEach(r => {
       if (r.t === 'a') h += shlLine('shl-a', r);
-      else if (r.t === 'h') h += `<h2 class="shl-h" id="shl-${shlEsc(r.id)}">${shlLine('shl-ht', r)}</h2>`;
+      else if (r.t === 'h') h += `<h2 class="shl-h${/^【/.test(r.x) ? ' shl-sub' : ''}" id="shl-${shlEsc(r.id)}">${shlLine('shl-ht', r)}</h2>`;
       else if (r.t === 'c') h += `<div class="shl-c" data-no="${shlEsc(r.no)}"><span class="shl-no">${shlEsc(r.no)}.</span><div class="shl-cb">${shlLine('shl-t', r)}${r.sub.map(s => shlLine('shl-' + s.t, s)).join('')}</div></div>`;
       else h += shlLine('shl-' + r.t, r);
     });
@@ -2333,11 +2333,12 @@
   function shlDock() {
     const w = document.getElementById('bzShl'), b = w && w.querySelector('.shl-body'), d = w && w.querySelector('.shl-dock');
     if (!b || !d || !w.classList.contains('shl-book')) return;
-    const g = shlGeom(b), n = Math.ceil(g.pages / 2), sp = Array.from({ length: n }, (_, i) => ({ pg: i * 2, ch: '', ci: 0, nos: [] }));
-    let ch = '', ci = -1;
+    const g = shlGeom(b), n = g.pages, sp = Array.from({ length: n }, (_, i) => ({ pg: i - (i % 2), p: i, ch: '', ci: 0, nos: [] }));   // 一格＝一頁，點了翻到那一頁所在的左右兩頁
+    let ch = '', ci = 0;
     const els = [...b.querySelectorAll('.shl-h, .shl-c')].filter(x => !x.hidden);
     els.forEach(x => {
-      const k = Math.min(n - 1, Math.floor(shlPageOf(b, x) / 2));
+      const k = Math.min(n - 1, shlPageOf(b, x));
+      if (x.classList.contains('shl-sub')) return;   // 【附方】不算新的一篇
       if (x.classList.contains('shl-h')) { ch = x.textContent.trim(); ci++; if (!sp[k].nos.length) { sp[k].ch = ch; sp[k].ci = ci; } return; }
       if (!sp[k].ch) { sp[k].ch = ch; sp[k].ci = Math.max(0, ci); }
       sp[k].nos.push(x.dataset.no);
@@ -2345,9 +2346,27 @@
     for (let i = 1; i < n; i++) if (!sp[i].ch) { sp[i].ch = sp[i - 1].ch; sp[i].ci = sp[i - 1].ci; }
     shlSpreads = sp;
     d.innerHTML = sp.map((s, i) => `<i data-pg="${s.pg}" data-k="${i}" class="c${s.ci % 2}${i && s.ci !== sp[i - 1].ci ? ' new' : ''}${s.pg === shlPage ? ' on' : ''}"><b>${shlEsc(s.nos[0] || '')}</b></i>`).join('');
+    // 每一篇上方標簡稱（太陽上、陽明、少陰、痰飲…）
+    const tiles = [...d.children], dr = d.getBoundingClientRect();
+    let html = '';
+    for (let i = 0; i < sp.length;) {
+      let j = i; while (j + 1 < sp.length && sp[j + 1].ci === sp[i].ci) j++;
+      const a = tiles[i].getBoundingClientRect(), z = tiles[j].getBoundingClientRect();
+      html += `<em style="left:${(a.left - dr.left).toFixed(1)}px;width:${(z.right - a.left).toFixed(1)}px">${shlEsc(shlShort(sp[i].ch))}</em>`;
+      i = j + 1;
+    }
+    d.insertAdjacentHTML('beforeend', html);
+  }
+  function shlShort(t) {   // 篇名 → 簡稱
+    t = String(t || '').trim(); if (!t) return '前言';
+    if (/陰陽易|差後/.test(t)) return '差後';
+    const ud = (t.match(/并治([上中下])第/) || [])[1] || '';
+    t = t.replace(/^辨/, '').replace(/^婦人/, '').replace(/(病脈|脈證|病$|病[^脈]).*$/, '');
+    t = t.slice(0, 2); if (t.length < 2) t += '病';
+    return t + ud;
   }
   function shlDockMag(d, x) {   // 放大游標附近的幾格
-    d.querySelectorAll('i').forEach(t => {
+    d.querySelectorAll(':scope > i').forEach(t => {
       const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = x == null ? 1e9 : Math.abs(x - c);
       const s = 1 + 1.6 * Math.max(0, 1 - dist / 90);
       t.style.transform = s > 1.01 ? `scale(${s.toFixed(2)})` : '';
@@ -2359,7 +2378,7 @@
     if (!t) { tip.hidden = true; return; }
     const s = shlSpreads[+t.dataset.k]; if (!s) return;
     const g = shlGeom(w.querySelector('.shl-body')), nos = s.nos;
-    tip.innerHTML = `<b>第 ${s.pg + 1}${s.pg + 2 <= g.pages ? '–' + (s.pg + 2) : ''} 頁</b>　${shlEsc(s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
+    tip.innerHTML = `<b>第 ${s.p + 1} 頁</b>　${shlEsc(s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
     tip.hidden = false;
     const r = t.getBoundingClientRect(), nr = tip.parentNode.getBoundingClientRect();
     tip.style.left = Math.max(8, Math.min(nr.width - tip.offsetWidth - 8, r.left + r.width / 2 - nr.left - tip.offsetWidth / 2)) + 'px';
