@@ -1421,6 +1421,43 @@
       t.appendChild(b); return t.outerHTML;
     }).join('');
   }
+  // 分類比較的表：縱向欄線可以左右拖曳（寬度比例記在這台裝置 tcm-xgw-v1，兩邊的表一起套用）
+  const XGW = 'tcm-xgw-v1';
+  const xgwGet = () => { try { const a = JSON.parse(localStorage.getItem(XGW) || 'null'); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
+  const xgwCols = t => { const rows = [...t.rows]; const n = Math.max(0, ...rows.map(r => [...r.cells].reduce((k, c) => k + (c.colSpan || 1), 0)));
+    let cg = t.querySelector('colgroup'); if (!cg || cg.children.length !== n) { if (cg) cg.remove(); cg = document.createElement('colgroup'); for (let i = 0; i < n; i++) cg.appendChild(document.createElement('col')); t.insertBefore(cg, t.firstChild); }
+    return [...cg.children]; };
+  function xgwApply(root) {
+    const w = xgwGet(); if (!w) return;
+    (root || document).querySelectorAll('.xl-pbody table.xl').forEach(t => { const cols = xgwCols(t); if (cols.length !== w.length) return;
+      t.style.tableLayout = 'fixed'; cols.forEach((c, i) => { c.style.width = (w[i] * 100) + '%'; }); });
+  }
+  let xgwDrag = null;
+  const xgwEdge = (t, x) => {   // 游標靠近哪一條縱線（回傳左邊那一欄的編號）
+    const cols = xgwCols(t), r = t.getBoundingClientRect(); let acc = r.left;
+    const row = [...t.rows].find(rw => rw.cells.length === cols.length); if (!row) return -1;
+    for (let i = 0; i < row.cells.length - 1; i++) { const e = row.cells[i].getBoundingClientRect().right; if (Math.abs(e - x) <= 5) return i; }
+    return -1;
+  };
+  document.addEventListener('mousemove', e => {
+    if (xgwDrag) { const d = xgwDrag, dx = e.clientX - d.x, a = Math.max(24, d.wa + dx), b = Math.max(24, d.wa + d.wb - a);
+      const ws = d.ws.slice(); ws[d.i] = (d.wa + d.wb - b) / d.tw; ws[d.i + 1] = b / d.tw;
+      try { localStorage.setItem(XGW, JSON.stringify(ws)); } catch (er) {} xgwApply(); e.preventDefault(); return; }
+    const t = e.target.closest && e.target.closest('.xl-pbody table.xl'); if (!t) return;
+    t.style.cursor = xgwEdge(t, e.clientX) >= 0 ? 'col-resize' : '';
+  });
+  document.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const t = e.target.closest && e.target.closest('.xl-pbody table.xl'); if (!t) return;
+    const i = xgwEdge(t, e.clientX); if (i < 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const row = [...t.rows].find(rw => rw.cells.length === xgwCols(t).length), tw = t.getBoundingClientRect().width;
+    const px = [...row.cells].map(c => c.getBoundingClientRect().width);
+    xgwDrag = { i, x: e.clientX, tw, wa: px[i], wb: px[i + 1], ws: px.map(v => v / tw) };
+    document.body.style.cursor = 'col-resize';
+  }, true);
+  addEventListener('mouseup', () => { if (xgwDrag) { xgwDrag = null; document.body.style.cursor = ''; } });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xl-pbody table.xl') && document.body.style.cursor === 'col-resize') e.preventDefault(); }, true);
   // 分類標題旁：自己補充的小註記（兩列並排，輕點可改，清空刪掉），最後一個 ＋ 再加
   const XNK = 'tcm-xgnote-v1', XN_URL = GH_URL.replace('myfx.json', 'xgnote.json');
   const xnAll = () => { try { const a = JSON.parse(localStorage.getItem(XNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
@@ -1474,6 +1511,7 @@
     const c = sp.querySelector('.xl-cmp');
     c.querySelector('.xl-pane-p').innerHTML = xgPane('p');
     c.querySelector('.xl-pane-o').innerHTML = xgPane('o');
+    xgwApply(c);
     document.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
   }
   function xgMode(sp, total) {
