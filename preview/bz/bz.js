@@ -478,7 +478,7 @@
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
     const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
-      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ndImgSync()];
+      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
     return n;
@@ -2088,7 +2088,7 @@
       if (clip && sh) { sc.insertBefore(sh, clip); clip.remove(); }
       if (sh) { sh.style.width = ''; sh.style.transform = ''; }
       sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
-    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccUndo = () => { ccNoteClose(); document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
     const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
       const d = document.createElement('span'); d.className = 'bz-ccz';
       d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button>';
@@ -2097,12 +2097,13 @@
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
       const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'); if (!sc) return;
       document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
+      if (ccNoteCur && (ccNoteCur.wrap !== wrap)) ccNoteClose();
       reset(wrap); const sh = sc.firstElementChild; if (!sh) return;
       document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf'); const zb = ccBar(wrap);
-      const W = sc.clientWidth;
-      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
+      const avail = wrap.clientWidth, W = Math.floor(avail - Math.max(320, avail * 0.36) - 14);   // 右邊留給自己的筆記頁
+      sc.style.width = W + 'px'; sh.style.width = '100%';
       let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
-      const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
+      const H = Math.max(240, innerHeight - (sc.getBoundingClientRect().top - wrap.getBoundingClientRect().top + 10) - 16);   // 捲到這一頁頂端之後，畫面剩下的高度
       const fit = Math.min(W / r.width, H / r.height), k = ccZ === 'w' ? W / r.width : fit * ccZ;
       sh.style.width = (shr.width * k) + 'px';
       r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
@@ -2114,6 +2115,9 @@
       sc.style.width = Math.min(W, cw) + 'px'; sc.style.height = (ch + (cw > W ? 16 : 0)) + 'px'; sc.style.overflow = cw > W ? 'auto hidden' : 'hidden';
       sc.scrollLeft = 0; sc.scrollTop = 0;
       const out = zb && zb.querySelector('.bz-ccz output'); if (out) out.textContent = Math.round(k / fit * 100) + '%';
+      const cat = typeof CHART !== 'undefined' && CHART.cats && CHART.cats[ccCur];
+      ccNote(wrap, cat && cat.name ? cat.name : 'cc' + ccCur, (cat ? (cat.no || '') + '、' + cat.name : ''), Math.max(ch, 360));
+      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
     };
     document.addEventListener('click', e => {
       if (innerWidth < 821 || !e.target.closest) return;
@@ -2702,6 +2706,48 @@
   }
   /* 手機（捲動模式）：輕點條號 → 這一條底下的組成、煎服法換成白色編輯頁（和電腦的延伸筆記同一份），再點一下條號收回 */
   const ND_TOOLS = `<span class="bz-nd-tools"><span class="bz-nd-g"><button type="button" data-nd="bold" title="粗體" aria-label="粗體"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button><button type="button" data-nd="underline" title="底線" aria-label="底線"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4"/><path d="M5 20h14"/></svg></button><button type="button" data-nd="hl" title="螢光筆" aria-label="螢光筆"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 4.5 5 5L10 19H5v-5z"/><path d="m12 7 5 5"/><path d="M4 21h16" stroke-width="2.4" stroke="#f5c400"/></svg></button><button type="button" data-nd="h" title="標題" aria-label="標題"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M14 5v14M5 12h9"/><path d="M18 10.5 20 9v10"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="insertUnorderedList" title="條列" aria-label="條列"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="7" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17" r="1.2" fill="currentColor"/><path d="M9.5 7H20M9.5 12H20M9.5 17H20"/></svg></button><button type="button" data-nd="insertOrderedList" title="編號" aria-label="編號"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5 5.5 4.5V10"/><path d="M4 14.5a1.5 1.5 0 0 1 3 .3c0 1-3 2.2-3 3.7h3"/><path d="M10.5 7H20M10.5 12H20M10.5 17H20"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="table" title="插入表格" aria-label="插入表格"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10M15 9.5v10"/></svg></button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）" aria-label="插入圖片（也可以直接貼上或拖進來）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="removeFormat" title="清除格式" aria-label="清除格式"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12M12 5l-3.5 14"/><path d="m14.5 14 5 5M19.5 14l-5 5"/></svg></button></span><span class="bz-nd-tbt bz-nd-g" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span>`;
+  /* ---------- 檢索表（電腦版）：裁切畫面右邊的「分類筆記」頁，和延伸筆記同一種編輯器（粗體、底線、螢光筆、標題、條列、表格、圖片）----------
+   * 依分類名稱存在這台裝置 tcm-ccnote-v1（{分類名: {d: HTML, t}}），有設定 GitHub 同步時合併到 tcm-notes sync/ccnote.json */
+  const CCNK = 'tcm-ccnote-v1', CCN_URL = GH_URL.replace('myfx.json', 'ccnote.json');
+  const ccnAll = () => { try { const a = JSON.parse(localStorage.getItem(CCNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const ccnStore = a => { try { localStorage.setItem(CCNK, JSON.stringify(a)); } catch (e) {} };
+  async function ccnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(CCN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = ccnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      ccnStore(all);
+      if (changed && ccNoteCur && !ccNoteCur.box.contains(document.activeElement)) { const e = all[ccNoteCur.key]; if (e && typeof e.d === 'string') { ccNoteCur.ed.innerHTML = ndToHtml(e.d); ndImgFill(ccNoteCur.ed); } }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(CCN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步檢索表分類筆記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  var ccNoteCur = null;
+  function ccNoteClose() { const c = ccNoteCur; if (!c) return; ccNoteCur = null; c.save(); c.box.remove(); }
+  function ccNote(wrap, key, label, h) {
+    if (ccNoteCur && ccNoteCur.wrap === wrap && ccNoteCur.key === key && ccNoteCur.box.isConnected) { ccNoteCur.box.style.height = h + 'px'; return; }
+    ccNoteClose();
+    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccnote';
+    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.querySelector('.bz-nd-lb').textContent = label;
+    box.style.height = h + 'px';
+    wrap.appendChild(box);
+    const ed = box.querySelector('.bz-nd-ed');
+    const get = () => { const e = ccnAll()[key]; return e && typeof e.d === 'string' ? e.d : ''; };
+    ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
+    let tm = 0;
+    const save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = ccnAll(); a[key] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); } };
+    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(save, 400); });
+    ed.addEventListener('focusout', save);
+    ccNoteCur = { wrap, key, box, ed, save };
+  }
   const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
   const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };
   function ndMarks(w) { w.querySelectorAll('.shl-c[data-no]').forEach(c => c.classList.toggle('has-nd', ndHas(ndKeyOf(c)))); }
