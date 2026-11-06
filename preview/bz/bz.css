@@ -1167,3 +1167,14 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   .cc-idx.bz-ccmin .cc-list { display: none !important; }
 }
 .bz-ccbar { display: none; }
+
+/* 手機脈頁：灰色說明字拿掉；表格工具列縮小一半、排一行、往上靠 */
+@media (max-width: 820px) {
+  html.bz-mai #entry > .meta, html.bz-mai .xh-sec > h2.group .tag, html.bz-mai .xh-sec > .note { display: none !important; }
+  html.bz-mai #entry > .xh-sec { margin-top: 4px; }
+  html.bz-mai .xh-sec > h2.group { padding-bottom: 2px; }
+  html.bz-mai .xh-zoombar { flex-wrap: nowrap !important; gap: 3px !important; padding: 2px 0 !important; font-size: 11px !important; overflow-x: auto; }
+  html.bz-mai .xh-zoombar .pg { display: inline-flex; gap: 3px; margin-right: auto; }
+  html.bz-mai .xh-zoombar button { min-height: 22px !important; min-width: 0 !important; padding: 1px 7px !important; font-size: 11px !important; border-radius: 6px !important; white-space: nowrap; }
+  html.bz-mai .xh-zoombar output { min-width: 2.6em !important; font-size: 11px !important; }
+}
