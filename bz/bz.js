@@ -1474,7 +1474,7 @@
     const c = sp.querySelector('.xl-cmp');
     c.querySelector('.xl-pane-p').innerHTML = xgPane('p');
     c.querySelector('.xl-pane-o').innerHTML = xgPane('o');
-    sp.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
+    document.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
   }
   function xgMode(sp, total) {
     sp.classList.toggle('xl-total', total); sp.classList.remove('xl-picking');
@@ -1503,7 +1503,7 @@
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('[data-xg], [data-xltotal], [data-xlback], [data-xlpick], [data-xlclr]');
     if (!t) return;
-    const sp = t.closest('.xl-split'); if (!sp) return;
+    const sp = t.closest('.xl-split') || (t.closest('.index > .xl-idx') && document.querySelector('#entry .xl-split')); if (!sp) return;
     if (t.dataset.xltotal != null) return xgMode(sp, true);
     if (t.dataset.xlback != null) return xgMode(sp, false);
     if (t.dataset.xlpick != null) { sp.classList.toggle('xl-picking'); return; }
@@ -1525,7 +1525,7 @@
   // 電腦版：溫／寒涼／中性三個下拉直排（手機由 App 內建的下拉處理）
   document.addEventListener('click', e => {
     if (innerWidth <= 820 || !e.target.closest) return;
-    const h = e.target.closest('.xl-split[data-cmp] .xl-gh');
+    const h = e.target.closest('.xl-split[data-cmp] .xl-gh, .index > .xl-idx .xl-gh');
     if (h) { const g = h.parentNode, on = !g.classList.contains('open'); document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open')); g.classList.toggle('open', on); return; }
     if (e.target.closest('.xl-gl') && !e.target.closest('.xl-gl button')) return;
     document.querySelectorAll('.xl-grp.open').forEach(x => x.classList.remove('open'));
@@ -2157,6 +2157,7 @@
       if (!split) return;
       const moved = idx && idx.querySelector(':scope > ' + idxSel);
       if (innerWidth >= 821) {
+        if (splitSel === '.xl-split' && !split.hasAttribute('data-cmp')) { clearTimeout(one.t); one.t = setTimeout(() => one(splitSel, idxSel), 120); return; }   // 等溫／寒涼／中性整理好再搬
         const n = split.querySelector(':scope > ' + idxSel); if (!n || !sw) return;
         n._home = split; sw.insertAdjacentElement('afterend', n); n.classList.add('bz-ccmv');
       } else if (moved && moved._home === split) { split.insertBefore(moved, split.firstChild); moved.classList.remove('bz-ccmv'); }

@@ -1186,3 +1186,23 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 .bz-ntdoc.bz-ccn-ov:not(.bz-ccn-editing) .bz-nd-ed { cursor: default; }
 .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .spot, .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .hw { cursor: pointer; }
 .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .spot:hover, .bz-ntdoc.bz-ccn-ov .bz-ccn-clip .hw:hover { outline: 2px dashed #007aff; outline-offset: 1px; }
+
+/* 藥物總表分類檢索搬到左欄後：溫／寒涼／中性三個直排下拉照舊 */
+@media (min-width: 821px) {
+  .index > .xl-idx.bz-ccmv { height: auto !important; }
+  .index > .xl-idx.bz-ccmv { width: auto; max-width: none; overflow: visible !important; position: relative; z-index: 20; }
+  .index > .xl-idx.bz-ccmv .xl-idx-list.xl-grps { font-size: 14px !important; overflow: visible !important; }
+  .index > .xl-idx.bz-ccmv .xl-grp { position: relative; }
+  .index > .xl-idx.bz-ccmv .xl-grp + .xl-grp { margin-top: 8px; padding-top: 0; border-top: 0; }
+  .index > .xl-idx.bz-ccmv .xl-gh { justify-content: center; min-height: 44px; margin: 0; padding: 0 8px; border-radius: 10px; font-size: 1rem; color: var(--ink, #1b1b1b); background: rgba(120,120,120,.16); cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .index > .xl-idx.bz-ccmv .xl-gh small { display: none; }
+  .index > .xl-idx.bz-ccmv .xl-grp-or .xl-gh { background: #FFE8C7; }
+  .index > .xl-idx.bz-ccmv .xl-grp-bl .xl-gh { background: #DDF1FA; }
+  .index > .xl-idx.bz-ccmv .xl-gh::after { content: "▸"; color: var(--muted, #888); font-size: .8em; margin-left: 4px; }
+  .index > .xl-idx.bz-ccmv .xl-grp.open .xl-gh::after { content: "◂"; }
+  .index > .xl-idx.bz-ccmv .xl-gl { display: none !important; position: absolute; z-index: 25; left: calc(100% + 8px); top: 0; flex-direction: column; gap: 4px; min-width: 11em; max-height: 70vh; overflow-y: auto; padding: 6px; background: rgba(255,255,255,.98); border-radius: 12px; box-shadow: 0 10px 32px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.08); }
+  .index > .xl-idx.bz-ccmv .xl-grp.open .xl-gl { display: flex !important; }
+  .index > .xl-idx.bz-ccmv .xl-gl button { font-size: 14px !important; padding: 6px 10px !important; border-radius: 8px !important; border-width: 0 0 0 4px !important; }
+  .index > .xl-idx.bz-ccmv .xl-gl small { display: inline !important; }
+  .index > .xl-idx.bz-ccmv .xl-gh { min-height: 40px; }
+}
