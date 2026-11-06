@@ -887,3 +887,9 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-ntdoc .bz-nd-l { background: #1c1c1e; border-color: #3a3a3c; }
   .bz-ntdoc .bz-nd-r, .bz-ntdoc .bz-nd-r textarea { background: #fff; color: #1c1c1e; }
 }
+
+/* 延伸筆記（經方）：書縮到左半邊，右半邊是打字頁 */
+.bz-ntdoc.split { left: 50%; grid-template-columns: 1fr; border-left: 1px solid #d9d9de; box-shadow: -8px 0 24px rgba(0,0,0,.08); }
+.bz-shl.shl-book.nd-split { right: 50%; padding-left: 16px; padding-right: 16px; }
+.bz-shl.shl-book.nd-split .shl-body { column-gap: 48px; border-width: 22px 24px; }
+.bz-shl.nd-split:not(.shl-book) { position: fixed; inset: 0 50% 0 0; z-index: 2147483645; margin: 0; max-width: none; overflow: auto; padding: 8px 16px; background: var(--bg, #f2f2f7); }

@@ -2328,11 +2328,22 @@
     const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.parentElement;
     const ov = document.createElement('div'); ov.className = 'bz-ntdoc';
     ov.innerHTML = '<div class="bz-nd-l"></div><div class="bz-nd-r"><textarea placeholder="延伸筆記：直接打字，自動存"></textarea></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>';
-    const L = ov.querySelector('.bz-nd-l'), cl = row.cloneNode(true);
-    cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
-    cl.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
-    L.appendChild(cl);
-    if (h.note && h.note.trim()) { const n = document.createElement('div'); n.className = 'bz-nd-n'; n.textContent = h.note; L.appendChild(n); }
+    const L = ov.querySelector('.bz-nd-l'), W = f.root.closest('#bzShl');
+    // 經方：左半邊就是整本書本身（可以繼續翻、捲、編輯），停在這一條；右半邊是打字頁
+    const toMark = () => {
+      const m = f.root.querySelector(`mark.bz-note[data-hl="${id}"]`); if (!m) return;
+      f.root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
+      if (W.classList.contains('shl-book') && typeof shlGo === 'function') shlGo(shlPageOf(f.root, m)); else m.scrollIntoView({ block: 'center' });
+    };
+    const relayout = () => { if (typeof shlLayout === 'function') shlLayout(); toMark(); };
+    if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); }
+    else {
+      const cl = row.cloneNode(true);
+      cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
+      cl.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
+      L.appendChild(cl);
+      if (h.note && h.note.trim()) { const n = document.createElement('div'); n.className = 'bz-nd-n'; n.textContent = h.note; L.appendChild(n); }
+    }
     const ta = ov.querySelector('textarea'); ta.value = h.doc || '';
     let tm = 0;
     const save = () => {
@@ -2342,7 +2353,10 @@
       it.doc = ta.value; it.dt = Date.now(); pg.t = Date.now(); hlStore(a);
       clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
     };
-    const close = () => { save(); ov.remove(); document.removeEventListener('keydown', esc, true); };
+    const close = () => {
+      save(); ov.remove(); document.removeEventListener('keydown', esc, true);
+      if (W) { W.classList.remove('nd-split'); relayout(); f.root.querySelectorAll('mark.bz-note.cur').forEach(x => x.classList.remove('cur')); }
+    };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
     ta.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(save, 400); });
     ta.addEventListener('keydown', e => e.stopPropagation());
@@ -2350,6 +2364,7 @@
     ov.querySelector('.bz-nd-x').addEventListener('click', close);
     document.addEventListener('keydown', esc, true);
     document.body.appendChild(ov);
+    if (W) relayout();
     setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
   }
   ntBox.querySelector('.bz-nt-ex').addEventListener('mousedown', e => e.preventDefault());
