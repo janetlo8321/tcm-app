@@ -2091,7 +2091,7 @@
     const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
     const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
       const d = document.createElement('span'); d.className = 'bz-ccz';
-      d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button>';
+      d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button><button type="button" data-ccz="note" title="這一類的筆記（也可以游標停在表上按空白鍵）">📝 筆記</button>';
       zb.appendChild(d); return zb; };
     const ccFocus = () => {
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
@@ -2118,6 +2118,7 @@
     document.addEventListener('click', e => {
       if (innerWidth < 821 || !e.target.closest) return;
       const zbtn = e.target.closest('[data-ccz]');
+      if (zbtn && zbtn.dataset.ccz === 'note') { const tb = document.getElementById('cct-' + ccCur), c = tb && ccnFromTb(tb); if (c) ccnOpen(c); return; }
       if (zbtn) { const m = zbtn.dataset.ccz, cur = ccZ === 'w' ? (() => { const tb = document.getElementById('cct-' + ccCur), sc = tb && tb.closest('.sheet-wrap').querySelector('.sheet-scroll'), o = document.querySelector('.bz-ccf .bz-ccz output'); return o ? parseInt(o.textContent) / 100 : 1; })() : ccZ;
         ccZ = m === 'in' ? Math.min(4, cur * 1.25) : m === 'out' ? Math.max(0.3, cur / 1.25) : m === 'one' ? 1 : 'w'; ccFocus(); return; }
       if (e.target.closest('[data-ccall]')) { ccUndo(); return; }
@@ -2742,6 +2743,8 @@
     } catch (e) { return false; }
   }
   // 哪一個分類在這個點上（用每類範圍框的 % 位置算，框本身平常是隱藏的）
+  function ccnFromTb(tb) { const st = tb.style, l = parseFloat(st.left) / 100, t = parseFloat(st.top) / 100, w = parseFloat(st.width) / 100, h = parseFloat(st.height) / 100;
+    return [l, t, w, h].every(isFinite) ? { i: tb.id.slice(4), tb, par: tb.parentElement, l, t, w, h, area: w * h } : null; }
   function ccnCatAt(x, y) {
     let best = null;
     document.querySelectorAll('#entry .cc-main .cc-tbox[id^="cct-"]').forEach(tb => {
