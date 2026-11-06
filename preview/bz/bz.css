@@ -1102,3 +1102,9 @@ html.bz-mai #entry > .meta { display: inline; font-size: 12.5px; margin: 0; }
 html.bz-mai #entry > .xh-sec { margin-top: 10px; }
 html.bz-mai .xh-sec > h2.group { font-size: 14px; margin: 0; padding-bottom: 4px; }
 html.bz-mai .xh-sec > .note { margin: 4px 0 4px !important; font-size: 12px; }
+
+/* 方劑證型檢索表：標題縮小往上，圖的大小不變只是往上移 */
+html.bz-chart #entry > .kind { display: none; }
+html.bz-chart #entry > h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; }
+html.bz-chart #entry > .cc-split { margin-top: 4px; }
+html.bz-chart #entry .cc-main > .sheet-wrap:first-child { margin-top: 0; }

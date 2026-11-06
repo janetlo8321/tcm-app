@@ -2054,9 +2054,9 @@
     if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
   }
 
-  /* ---------- 脈頁：上面的標題區縮成一行（html.bz-mai） ---------- */
+  /* ---------- 脈頁、檢索表頁：上面的標題區縮小（html.bz-mai / html.bz-chart） ---------- */
   {
-    const maiMark = () => document.documentElement.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai');
+    const maiMark = () => { const H = document.documentElement; H.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai'); H.classList.toggle('bz-chart', !!(entObs && entObs.querySelector(':scope > .cc-split'))); };
     maiMark(); addEventListener('hashchange', () => setTimeout(maiMark, 0));
     if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
   }
