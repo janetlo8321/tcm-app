@@ -1075,7 +1075,7 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .cards .chart-link.bz-sn::before, .cards .chart-link.bz-sn::after { display: none !important; }
   .cards .chart-link.bz-sn > :not(.bz-sn-ic) { display: none !important; }
   .cards .chart-link.bz-sn:hover { background: rgba(0,0,0,.05) !important; }
-  .cards .chart-link.bz-sn.bz-sn-on { box-shadow: 0 0 0 2.5px rgba(232,178,80,.8) !important; }
+  .cards .chart-link.bz-sn.bz-sn-on { box-shadow: 0 0 0 2px #1c1c1e !important; }
   .bz-sn-ic { display: flex; align-items: center; justify-content: center; pointer-events: none; }
   .bz-sn-ic svg { width: 26px; height: 26px; display: block; }
   .bz-sn-ic.emo { font-size: 23px; line-height: 1; }

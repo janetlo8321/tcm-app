@@ -1987,15 +1987,15 @@
     if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
   }
 
-  /* ---------- 電腦版左欄：藥・方・脈・經・醫 變成深色圓鈕，字是小篆（藥綠、方亮綠、脈亮紅、經橘黃、醫亮藍）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
+  /* ---------- 電腦版左欄：藥・方・脈・經・醫 圓鈕，字是小篆（藥綠、方墨綠、脈紅、經橘、醫藍）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
   {
     const SV = (c, w, d) => `<svg viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
     const IC = {
-      yao: SV('#7fd39a', 2, '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/><path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/><path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/>'),
-      fang: SV('#3dff6e', 2.4, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'),
-      jing: SV('#f2b250', 2.4, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'),
-      mai: SV('#ff3b3b', 2.4, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'),
-      zz: SV('#4fb3ff', 2.4, '<path d="M14 4q-6 0-7 5v25q0 3 3 3h13"/><path d="M10.5 13.5q2-2 4.5-1.5"/><path d="M9.5 18h7.5"/><path d="M13.2 13v5"/><path d="M9.5 20.5l7.5 8"/><path d="M17 20.5l-7.5 8"/><path d="M22 11q0-6 4-6q3 0 3 4q0 3 5 3"/><path d="M22 19.5h12q-2.5 9-13 16"/><path d="M25.5 21q4 9 12 14"/>')
+      yao: SV('#23803f', 2.3, '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/><path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/><path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/>'),
+      fang: SV('#0f4d2c', 2.6, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'),
+      jing: SV('#e86a00', 2.6, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'),
+      mai: SV('#d4141c', 2.6, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'),
+      zz: SV('#0b62d6', 2.6, '<path d="M14 4q-6 0-7 5v25q0 3 3 3h13"/><path d="M10.5 13.5q2-2 4.5-1.5"/><path d="M9.5 18h7.5"/><path d="M13.2 13v5"/><path d="M9.5 20.5l7.5 8"/><path d="M17 20.5l-7.5 8"/><path d="M22 11q0-6 4-6q3 0 3 4q0 3 5 3"/><path d="M22 19.5h12q-2.5 9-13 16"/><path d="M25.5 21q4 9 12 14"/>')
     };
     const ORD = { yao: 1, fang: 2, mai: 3, jing: 4, zz: 5 };
     const keyOf = a => {
@@ -2024,6 +2024,13 @@
       });
     };
     const run = () => { sealNav(); setTimeout(sealNav, 400); };
+    // 大廳的小篆按鈕（方、脈）傳來 go = 'bz-sn:fang' 之類：直接點左欄那一顆
+    addEventListener('click', e => {
+      const t = e.target && e.target.closest && e.target.closest('a[data-go^="bz-sn:"]'); if (!t) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const k = t.dataset.go.slice(6), a = [...document.querySelectorAll('.cards .chart-link')].find(x => keyOf(x) === k);
+      if (a) a.click();
+    }, true);
     if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
     addEventListener('hashchange', () => setTimeout(sealNav, 0));
     if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
