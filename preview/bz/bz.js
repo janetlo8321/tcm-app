@@ -2080,36 +2080,50 @@
   }
 
   /* ---------- 檢索表（電腦版）：點左邊分類 → 像截圖一樣只裁出那一類的範圍（放大、粗紅框），
-     其他頁和旁邊不相關的部分都不顯示，也不能拖曳；「全部頁」回到原本 ---------- */
+     其他頁和旁邊不相關的部分都不顯示；右上角 －／＋／100%／符合寬度 可放大縮小；「全部頁」回到原本 ---------- */
   {
-    let ccCur = null;
-    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sc || !sh) return;
-      sh.style.width = ''; sh.style.transform = ''; sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
+    let ccCur = null, ccZ = 1;   // ccZ：1 = 剛好整類放進畫面（100%）；'w' = 符合寬度
+    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'); if (!sc) return;
+      const clip = sc.querySelector(':scope > .bz-ccclip'), sh = clip ? clip.firstElementChild : sc.firstElementChild;
+      if (clip && sh) { sc.insertBefore(sh, clip); clip.remove(); }
+      if (sh) { sh.style.width = ''; sh.style.transform = ''; }
+      sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
     const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
+      const d = document.createElement('span'); d.className = 'bz-ccz';
+      d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button>';
+      zb.appendChild(d); return zb; };
     const ccFocus = () => {
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
-      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sh) return;
+      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'); if (!sc) return;
       document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
-      reset(wrap); document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
+      reset(wrap); const sh = sc.firstElementChild; if (!sh) return;
+      document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf'); const zb = ccBar(wrap);
+      const W = sc.clientWidth;
       const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
-      const W = sc.clientWidth, P = 0;
-      sc.style.overflow = 'hidden';
       let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
       const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
-      const k = Math.min((W - 2 * P) / r.width, (H - 2 * P) / r.height);   // 放大到剛好填滿（寬或高先到為準）
+      const fit = Math.min(W / r.width, H / r.height), k = ccZ === 'w' ? W / r.width : fit * ccZ;
       sh.style.width = (shr.width * k) + 'px';
       r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
-      sh.style.transform = `translate(${-(r.left - shr.left) + P}px, ${-(r.top - shr.top) + P}px)`;
-      sc.style.width = Math.ceil(r.width + 2 * P) + 'px'; sc.style.height = Math.ceil(r.height + 2 * P) + 'px';
+      sh.style.transform = `translate(${-(r.left - shr.left)}px, ${-(r.top - shr.top)}px)`;
+      const cw = Math.ceil(r.width), ch = Math.ceil(r.height);
+      const clip = document.createElement('div'); clip.className = 'bz-ccclip';   // 只留這一類的範圍，其他裁掉
+      clip.style.cssText = `width:${cw}px;height:${ch}px;overflow:hidden;position:relative`;
+      sc.insertBefore(clip, sh); clip.appendChild(sh);
+      sc.style.width = Math.min(W, cw) + 'px'; sc.style.height = (ch + (cw > W ? 16 : 0)) + 'px'; sc.style.overflow = cw > W ? 'auto hidden' : 'hidden';
       sc.scrollLeft = 0; sc.scrollTop = 0;
+      const out = zb && zb.querySelector('.bz-ccz output'); if (out) out.textContent = Math.round(k / fit * 100) + '%';
     };
     document.addEventListener('click', e => {
       if (innerWidth < 821 || !e.target.closest) return;
+      const zbtn = e.target.closest('[data-ccz]');
+      if (zbtn) { const m = zbtn.dataset.ccz, cur = ccZ === 'w' ? (() => { const tb = document.getElementById('cct-' + ccCur), sc = tb && tb.closest('.sheet-wrap').querySelector('.sheet-scroll'), o = document.querySelector('.bz-ccf .bz-ccz output'); return o ? parseInt(o.textContent) / 100 : 1; })() : ccZ;
+        ccZ = m === 'in' ? Math.min(4, cur * 1.25) : m === 'out' ? Math.max(0.3, cur / 1.25) : m === 'one' ? 1 : 'w'; ccFocus(); return; }
       if (e.target.closest('[data-ccall]')) { ccUndo(); return; }
       const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
-      ccCur = j.dataset.jump.slice(3); setTimeout(ccFocus, 30);
+      ccCur = j.dataset.jump.slice(3); ccZ = 1; setTimeout(ccFocus, 30);
     });
-    document.addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.bz-ccf .sheet-scroll') && !e.ctrlKey) { const sc = e.target.closest('.sheet-scroll'); requestAnimationFrame(() => { sc.scrollLeft = 0; sc.scrollTop = 0; }); } }, { passive: true });
     addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
     if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
   }

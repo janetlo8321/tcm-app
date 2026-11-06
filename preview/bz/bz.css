@@ -1124,5 +1124,15 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { margin: 0 auto; }
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar { display: flex !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz button, body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz output { display: inline-block !important; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll > * { transform-origin: 0 0; }
+}
+
+.bz-ccz { display: none; }
+
+/* 電腦版左欄：拿掉 病證／方劑／藥材 切換和下面的清單（留印章鈕和搜尋） */
+@media (min-width: 821px) {
+  .index > #tabs, .index > .list-head, .index > #list { display: none !important; }
 }
