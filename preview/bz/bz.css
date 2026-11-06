@@ -1108,3 +1108,10 @@ html.bz-chart #entry > .kind { display: none; }
 html.bz-chart #entry > h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; }
 html.bz-chart #entry > .cc-split { margin-top: 4px; }
 html.bz-chart #entry .cc-main > .sheet-wrap:first-child { margin-top: 0; }
+
+/* 藥物總表：標題、顏色說明、說明文字擠成一行 */
+html.bz-sheet #entry > .kind { display: none; }
+html.bz-sheet #entry > h1 { display: inline-block; font-size: 22px; line-height: 1.3; margin: 0 14px 0 0; vertical-align: middle; }
+html.bz-sheet #entry > .xl-legend { display: inline-flex; flex-wrap: wrap; margin: 0 14px 0 0; vertical-align: middle; font-size: 12px; }
+html.bz-sheet #entry > .note { display: inline; margin: 0; font-size: 11.5px; vertical-align: middle; }
+html.bz-sheet #entry > .xl-split { margin-top: 8px; }

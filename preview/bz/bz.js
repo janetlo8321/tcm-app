@@ -2056,7 +2056,7 @@
 
   /* ---------- 脈頁、檢索表頁：上面的標題區縮小（html.bz-mai / html.bz-chart） ---------- */
   {
-    const maiMark = () => { const H = document.documentElement; H.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai'); H.classList.toggle('bz-chart', !!(entObs && entObs.querySelector(':scope > .cc-split'))); };
+    const maiMark = () => { const H = document.documentElement; H.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai'); H.classList.toggle('bz-chart', !!(entObs && entObs.querySelector(':scope > .cc-split'))); H.classList.toggle('bz-sheet', !!(entObs && entObs.querySelector(':scope > .xl-legend'))); };
     maiMark(); addEventListener('hashchange', () => setTimeout(maiMark, 0));
     if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
   }
