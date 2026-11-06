@@ -629,8 +629,7 @@ section.zz-sys .nb-grid li > a > b { font-size: 14px; }
 /* 電腦版：藥物總表、全部病證改成右上角銅人下面的圓鈕；左邊那兩張卡片藏起來 */
 .bz-fab { display: none; }
 @media (min-width: 821px) {
-  .cards #sheetLink, .cards #zzLink { display: none !important; }
-  .bz-fab { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; top: calc(56px + 44px + 10px + env(safe-area-inset-top, 0px)); z-index: 2147483644; }
+  .bz-fab.bz-fab-old { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; top: calc(56px + 44px + 10px + env(safe-area-inset-top, 0px)); z-index: 2147483644; }
   .bz-fab button { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgba(214,166,107,.55); background: rgba(28,20,12,.82); font-size: 22px; line-height: 1; box-shadow: 0 2px 12px rgba(0,0,0,.3); cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   .bz-fab button:hover { background: rgba(60,44,26,.9); }
   .bz-fab button.on { box-shadow: 0 0 0 3px rgba(255,214,120,.75), 0 2px 12px rgba(0,0,0,.3); }
@@ -1066,4 +1065,18 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-shl .bz-nd-inl .bz-nd-top { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .1); }
   .bz-shl .bz-nd-inl .bz-nd-g { background: rgba(255, 255, 255, .08); box-shadow: none; }
   .bz-shl .bz-nd-inl .bz-nd-ed { color: #f2f2f7; }
+}
+
+/* 電腦版左欄：藥・方・經・脈・👩🏻‍⚕️ 深色圓鈕＋小篆字（取代右上角 🌿/👩🏻‍⚕️） */
+.bz-sn-ic { display: none; }
+@media (min-width: 821px) {
+  .cards.bz-sn-cards { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 12px !important; background: none !important; border: 0 !important; box-shadow: none !important; padding: 4px 0 !important; overflow: visible !important; }
+  .cards .chart-link.bz-sn { display: flex !important; flex: none !important; align-items: center !important; justify-content: center !important; width: 46px !important; height: 46px !important; min-height: 46px !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; gap: 0 !important; font-size: 0 !important; border-radius: 50% !important; border: 1px solid rgba(214,166,107,.55) !important; background: rgba(28,20,12,.88) !important; box-shadow: 0 2px 10px rgba(0,0,0,.22) !important; cursor: pointer; transition: background .15s, box-shadow .15s; }
+  .cards .chart-link.bz-sn::before, .cards .chart-link.bz-sn::after { display: none !important; }
+  .cards .chart-link.bz-sn > :not(.bz-sn-ic) { display: none !important; }
+  .cards .chart-link.bz-sn:hover { background: rgba(60,44,26,.94) !important; }
+  .cards .chart-link.bz-sn.bz-sn-on { box-shadow: 0 0 0 3px rgba(255,214,120,.75), 0 2px 10px rgba(0,0,0,.22) !important; }
+  .bz-sn-ic { display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .bz-sn-ic svg { width: 26px; height: 26px; display: block; }
+  .bz-sn-ic.emo { font-size: 23px; line-height: 1; }
 }

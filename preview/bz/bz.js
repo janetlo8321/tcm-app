@@ -1987,6 +1987,48 @@
     if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 電腦版左欄：藥・方・經・脈・👩🏻‍⚕️ 變成深色圓鈕，字是小篆（藥綠、方亮綠、經橘黃、脈亮紅）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
+  {
+    const SV = (c, w, d) => `<svg viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const IC = {
+      yao: SV('#7fd39a', 2, '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/><path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/><path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/>'),
+      fang: SV('#3dff6e', 2.4, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'),
+      jing: SV('#f2b250', 2.4, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'),
+      mai: SV('#ff3b3b', 2.4, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'),
+      zz: '👩🏻‍⚕️'
+    };
+    const ORD = { yao: 1, fang: 2, jing: 3, mai: 4, zz: 5 };
+    const keyOf = a => {
+      if (a.id === 'sheetLink') return 'yao'; if (a.id === 'zzLink') return 'zz';
+      if (a.id === 'jkLink') return 'jing'; if (a.id === 'maiLink') return 'mai';
+      const b = a.querySelector('b'), t = (b ? b.textContent : '').trim(), sl = a.querySelector('.seal');
+      if (t === '方' || (sl && sl.textContent.trim() === '檢')) return 'fang';
+      if (t === '經方') return 'jing'; if (t === '脈') return 'mai';
+      return '';
+    };
+    const goOf = a => a.dataset.go || decodeURIComponent((a.getAttribute('href') || '').replace(/^#/, ''));
+    const sealNav = () => {
+      document.querySelectorAll('.cards .chart-link').forEach(a => {
+        if (!a.classList.contains('bz-sn')) {
+          const k = keyOf(a); if (!k) return;
+          const b = a.querySelector('b'), t = b ? b.textContent.trim() : '';
+          const nm = { yao: '藥物總表', zz: '全部病證' }[k] || t;
+          a.classList.add('bz-sn', 'bz-sn-' + k); a.style.order = ORD[k];
+          if (nm) { a.title = nm; a.setAttribute('aria-label', nm); }
+          const ic = document.createElement('span'); ic.className = 'bz-sn-ic' + (k === 'zz' ? ' emo' : ''); ic.setAttribute('aria-hidden', 'true');
+          ic.innerHTML = IC[k]; a.appendChild(ic);
+          a.closest('.cards').classList.add('bz-sn-cards');
+        }
+        const cur = typeof state !== 'undefined' ? state.cur : '';
+        a.classList.toggle('bz-sn-on', !!cur && goOf(a) === cur);
+      });
+    };
+    const run = () => { sealNav(); setTimeout(sealNav, 400); };
+    if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+    addEventListener('hashchange', () => setTimeout(sealNav, 0));
+    if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
+  }
+
   /* ---------- 醫砭方劑內容：紅字藥名旁邊加灰色括號（預設是藥的分類），輕點可以自己改；依「方名｜藥名」存 ----------
    * 存在這台裝置（tcm-hnote-v1），有設定 GitHub 同步時合併到 tcm-notes sync/hnote.json */
   const HNK = 'tcm-hnote-v1', HN_URL = GH_URL.replace('myfx.json', 'hnote.json');
