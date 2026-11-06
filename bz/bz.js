@@ -1056,6 +1056,19 @@
     } catch (e) { return false; }
   }
   const xhOK = () => typeof XH !== 'undefined' && typeof xhOrder !== 'undefined';
+  // 條文欄：預設收起，點標頭（或收起的格子）才展開；再點標頭收起。只記在這台裝置
+  const xhTW = () => { try { return XH.cols.findIndex(c => c.h === '條文'); } catch (e) { return -1; } };
+  const xhTWOpen = () => { try { return localStorage.getItem('tcm-xh-tw') === '1'; } catch (e) { return false; } };
+  document.addEventListener('click', e => {
+    if (!xhOK() || !e.target.closest || e.target.closest('.xh-rs, .xh-c.editing')) return;
+    const tw = xhTW(); if (tw < 0) return;
+    const h = e.target.closest(`.xh-h[data-xhc="${tw}"], [data-xhtw]`), c = e.target.closest(`.xh-g.tw-off .xh-c[data-c="${tw}"]`);
+    if (!h && !c) return;
+    e.stopPropagation();
+    if (c && e.target.closest('a')) e.preventDefault();
+    try { localStorage.setItem('tcm-xh-tw', xhTWOpen() ? '0' : '1'); } catch (er) {}
+    window.xhApply();
+  }, true);
   if (typeof xhApply === 'function' && xhOK()) {
     // 不再調換欄位：一律照原表順序
     try { xhOrder = XH_DEF.slice(); localStorage.removeItem('xhOrder'); } catch (e) {}
@@ -1063,7 +1076,10 @@
     window.xhApply = function () {
       const st = document.getElementById('xhCss'), g = document.querySelector('.xh-g'); if (!st || !g) return;
       xhOrder = XH_DEF.slice();
-      g.style.gridTemplateColumns = xhOrder.map(i => ((XS.w[i] && XS.w[i].v) || XH.cols[i].w) + 'em').join(' ');
+      const tw = xhTW(), off = tw >= 0 && !xhTWOpen();
+      g.classList.toggle('tw-off', off); g.dataset.tw = tw;
+      document.querySelectorAll('[data-xhtw]').forEach(b => { b.textContent = off ? '▸ 展開條文' : '◂ 收起條文'; b.setAttribute('aria-pressed', String(!off)); });
+      g.style.gridTemplateColumns = xhOrder.map(i => (i === tw && off ? 4.5 : ((XS.w[i] && XS.w[i].v) || XH.cols[i].w)) + 'em').join(' ');
       st.textContent = xhOrder.map((c, p) => `.xh-g [data-c="${c}"]{grid-column:${p + 1}}`).join('');
     };
     const _init = window.xhInit;
@@ -1073,8 +1089,10 @@
     const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
     const sec = g.closest('.xh-sec');
     if (sec) {
-      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。紅字、藍字照原表。方名可以點。';
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
       const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
+      const pg = sec.querySelector('.xh-zoombar .pg');
+      if (pg && xhTW() >= 0 && !pg.querySelector('[data-xhtw]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhtw = ''; b.className = 'bz-xhtw'; pg.appendChild(b); }
     }
     g.querySelectorAll('.xh-h').forEach(h => {
       h.removeAttribute('draggable'); h.removeAttribute('title');
@@ -1987,6 +2005,134 @@
     if (entObs) new MutationObserver(mark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 電腦版左欄：藥・方・脈・經・醫 圓鈕，字是小篆（藥綠、方墨綠、脈紅、經橘、醫藍）；右上角 🌿/👩🏻‍⚕️ 圓鈕不用了 ---------- */
+  {
+    const SV = (c, w, d) => `<svg viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const IC = {
+      yao: SV('#23803f', 2.3, '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/><path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/><path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/>'),
+      fang: SV('#0f4d2c', 2.6, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'),
+      jing: SV('#e86a00', 2.6, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'),
+      mai: SV('#d4141c', 2.6, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'),
+      zz: SV('#0b62d6', 2.6, '<path d="M14 4q-6 0-7 5v25q0 3 3 3h13"/><path d="M10.5 13.5q2-2 4.5-1.5"/><path d="M9.5 18h7.5"/><path d="M13.2 13v5"/><path d="M9.5 20.5l7.5 8"/><path d="M17 20.5l-7.5 8"/><path d="M22 11q0-6 4-6q3 0 3 4q0 3 5 3"/><path d="M22 19.5h12q-2.5 9-13 16"/><path d="M25.5 21q4 9 12 14"/>')
+    };
+    const ORD = { yao: 1, fang: 2, mai: 3, jing: 4, zz: 5 };
+    const keyOf = a => {
+      if (a.id === 'sheetLink') return 'yao'; if (a.id === 'zzLink') return 'zz';
+      if (a.id === 'jkLink') return 'jing'; if (a.id === 'maiLink') return 'mai';
+      const b = a.querySelector('b'), t = (b ? b.textContent : '').trim(), sl = a.querySelector('.seal');
+      if (t === '方' || (sl && sl.textContent.trim() === '檢')) return 'fang';
+      if (t === '經方') return 'jing'; if (t === '脈') return 'mai';
+      return '';
+    };
+    const goOf = a => a.dataset.go || decodeURIComponent((a.getAttribute('href') || '').replace(/^#/, ''));
+    const sealNav = () => {
+      document.querySelectorAll('.cards .chart-link').forEach(a => {
+        if (!a.classList.contains('bz-sn')) {
+          const k = keyOf(a); if (!k) return;
+          const b = a.querySelector('b'), t = b ? b.textContent.trim() : '';
+          const nm = { yao: '藥物總表', zz: '全部病證' }[k] || t;
+          a.classList.add('bz-sn', 'bz-sn-' + k); a.style.order = ORD[k];
+          if (nm) { a.title = nm; a.setAttribute('aria-label', nm); }
+          const ic = document.createElement('span'); ic.className = 'bz-sn-ic'; ic.setAttribute('aria-hidden', 'true');
+          ic.innerHTML = IC[k]; a.appendChild(ic);
+          a.closest('.cards').classList.add('bz-sn-cards');
+        }
+        const cur = typeof state !== 'undefined' ? state.cur : '';
+        a.classList.toggle('bz-sn-on', !!cur && goOf(a) === cur);
+      });
+    };
+    const run = () => { sealNav(); setTimeout(sealNav, 400); };
+    // 大廳的小篆按鈕（方、脈）傳來 go = 'bz-sn:fang' 之類：直接點左欄那一顆
+    addEventListener('click', e => {
+      const t = e.target && e.target.closest && e.target.closest('a[data-go^="bz-sn:"]'); if (!t) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const k = t.dataset.go.slice(6), a = [...document.querySelectorAll('.cards .chart-link')].find(x => keyOf(x) === k);
+      if (a) a.click();
+    }, true);
+    if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+    addEventListener('hashchange', () => setTimeout(sealNav, 0));
+    if (entObs) new MutationObserver(sealNav).observe(entObs, { childList: true });
+  }
+
+  /* ---------- 脈頁、檢索表頁：上面的標題區縮小（html.bz-mai / html.bz-chart） ---------- */
+  {
+    const maiMark = () => { const H = document.documentElement; H.classList.toggle('bz-mai', typeof state !== 'undefined' && state.cur === 'mai'); H.classList.toggle('bz-chart', !!(entObs && entObs.querySelector(':scope > .cc-split'))); H.classList.toggle('bz-sheet', !!(entObs && entObs.querySelector(':scope > .xl-legend'))); };
+    maiMark(); addEventListener('hashchange', () => setTimeout(maiMark, 0));
+    if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
+  }
+
+  /* ---------- 電腦版：每次點進一頁，自動捲到那一頁的標題，上面的資料庫標題列先藏在畫面上方（往上拖還是看得到） ---------- */
+  {
+    let last = null;
+    const toTop = () => {
+      if (innerWidth < 821 || !entObs || typeof state === 'undefined') return;
+      const cur = state.cur; if (cur === last) return; last = cur;
+      if (!cur || cur === 'jk') return;
+      setTimeout(() => {
+        const t = [...entObs.children].find(e => e.offsetHeight > 0 && getComputedStyle(e).display !== 'none' && !e.matches('.back, style, script'));
+        if (!t) return;
+        const y = t.getBoundingClientRect().top + scrollY - 10;
+        if (y > 0 && scrollY < y) scrollTo({ top: y, behavior: 'auto' });
+      }, 60);
+    };
+    if (entObs) new MutationObserver(toTop).observe(entObs, { childList: true });
+    addEventListener('hashchange', () => setTimeout(toTop, 0));
+  }
+
+  /* ---------- 檢索表（電腦版）：點左邊分類 → 像截圖一樣只裁出那一類的範圍（放大、粗紅框），
+     其他頁和旁邊不相關的部分都不顯示，也不能拖曳；「全部頁」回到原本 ---------- */
+  {
+    let ccCur = null;
+    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sc || !sh) return;
+      sh.style.width = ''; sh.style.transform = ''; sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
+    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccFocus = () => {
+      const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
+      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sh) return;
+      document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
+      reset(wrap); document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
+      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
+      const W = sc.clientWidth, P = 0;
+      sc.style.overflow = 'hidden';
+      let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
+      const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
+      const k = Math.min((W - 2 * P) / r.width, (H - 2 * P) / r.height);   // 放大到剛好填滿（寬或高先到為準）
+      sh.style.width = (shr.width * k) + 'px';
+      r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
+      sh.style.transform = `translate(${-(r.left - shr.left) + P}px, ${-(r.top - shr.top) + P}px)`;
+      sc.style.width = Math.ceil(r.width + 2 * P) + 'px'; sc.style.height = Math.ceil(r.height + 2 * P) + 'px';
+      sc.scrollLeft = 0; sc.scrollTop = 0;
+    };
+    document.addEventListener('click', e => {
+      if (innerWidth < 821 || !e.target.closest) return;
+      if (e.target.closest('[data-ccall]')) { ccUndo(); return; }
+      const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
+      ccCur = j.dataset.jump.slice(3); setTimeout(ccFocus, 30);
+    });
+    document.addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.bz-ccf .sheet-scroll') && !e.ctrlKey) { const sc = e.target.closest('.sheet-scroll'); requestAnimationFrame(() => { sc.scrollLeft = 0; sc.scrollTop = 0; }); } }, { passive: true });
+    addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
+    if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
+  }
+
+  /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
+  {
+    const wide = () => {
+      if (innerWidth < 821) return;
+      const seeds = [document.querySelector('.cards'), document.getElementById('entry'), document.getElementById('ver'), document.querySelector('h1')].filter(Boolean);
+      seeds.forEach(el => {
+        for (let n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+          if (n.classList.contains('bz-wide') || n.closest('#bz, .bz-doc, .bz-shl, .bz-ntdoc')) continue;
+          const mw = getComputedStyle(n).maxWidth;
+          if (mw && mw !== 'none' && !mw.endsWith('%') && parseFloat(mw) < innerWidth - 40) n.classList.add('bz-wide');
+        }
+      });
+    };
+    const run = () => { wide(); setTimeout(wide, 500); setTimeout(wide, 1500); };
+    if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+    addEventListener('resize', wide);
+    if (entObs) new MutationObserver(wide).observe(entObs, { childList: true });
+  }
+
   /* ---------- 醫砭方劑內容：紅字藥名旁邊加灰色括號（預設是藥的分類），輕點可以自己改；依「方名｜藥名」存 ----------
    * 存在這台裝置（tcm-hnote-v1），有設定 GitHub 同步時合併到 tcm-notes sync/hnote.json */
   const HNK = 'tcm-hnote-v1', HN_URL = GH_URL.replace('myfx.json', 'hnote.json');
@@ -2331,7 +2477,7 @@
     if (!ntBox.hidden) ntClose();
     const W = o.W, ov = document.createElement('div'); ov.className = 'bz-ntdoc';
     ov.innerHTML = `<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-top"><div class="bz-nd-lb"></div>${ND_TOOLS}</div>
-<div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、貼圖片，自動存"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
+<div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>`;
     ov.querySelector('.bz-nd-lb').textContent = o.label || '';
     const L = ov.querySelector('.bz-nd-l');
     let curEls = [];

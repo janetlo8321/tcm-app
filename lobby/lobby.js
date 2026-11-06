@@ -11,9 +11,9 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v2.32.1';
-  const UPDATED = '11/06 17:12';
-  const FIX_NO = 83;
+  const VERSION = 'v2.38.3';
+  const UPDATED = '11/06 18:43';
+  const FIX_NO = 100;
 
   const $ = id => document.getElementById(id);
   const stage = $('stage'), wrap = $('canvas-wrap'), labelsEl = $('labels');
@@ -585,23 +585,18 @@
   let chipT = 0;
   function collapseChips() { stage.classList.remove('chips-open'); chipTog.setAttribute('aria-expanded', 'false'); }
   canvas.addEventListener('pointerdown', collapseChips);   // 點畫面其他地方也收合
-  // « 下面再放兩顆：🌿 直接到藥物總表、👩🏻‍⚕️ 直接到全部病證
-  // 第一顆是綠色小篆「藥」：藥物總表
-  const SEAL_YAO = '<svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="#7fd39a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/>'
-    + '<path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/>'
-    + '<path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/>'
-    + '<path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/></svg>';
-  // 中間那顆是橘黃色小篆「經」：直接到經方（傷寒論・金匱要略）
-  const SEAL_JING = '<svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="#f2b250" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/>'
-    + '<path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/>'
-    + '<path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/></svg>';
-  [['sheet', SEAL_YAO, '藥物總表'], ['jk', SEAL_JING, '經方（傷寒論・金匱要略）'], ['zz', '👩🏻‍⚕️', '全部病證']].forEach(([go, ic, t], i) => {
+  // 病證小人下面：小篆 藥・方・脈・經・醫（跟資料庫左欄一樣），點了直接進資料庫那一頁
+  const SV = (c, w, d) => '<svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  [
+    ['sheet', SV('#7fd39a', 2, '<path d="M12.5 1v8M9 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M27.5 1v8M24 3.2v1.8q0 2.8 3.5 2.8q3.5 0 3.5-2.8V3.2"/><path d="M20 9v-1"/><ellipse cx="20" cy="15.5" rx="3.3" ry="5.6"/><path d="M16.7 15.5h6.6"/><path d="M7.5 11v-1M32.5 11v-1"/><circle cx="7.5" cy="14" r="2.2"/><circle cx="7.5" cy="20.8" r="2.2"/><circle cx="32.5" cy="14" r="2.2"/><circle cx="32.5" cy="20.8" r="2.2"/><path d="M7.5 23v3.4q0 2.4 3 2.4h19q3 0 3-2.4V23"/><path d="M20 21.1v17.9"/><path d="M20 29.5q-7.5 1.5-8.5 9M20 29.5q7.5 1.5 8.5 9"/>'), '藥物總表'],
+    ['bz-sn:fang', SV('#3dff6e', 2.4, '<path d="M14 4q-2.5 7 1 13"/><path d="M8 15.5l25 3"/><path d="M23 7q0 9-6.5 16"/><path d="M16.5 23q8-2.5 8.5 4q0.5 6-8 12"/>'), '方劑'],
+    ['bz-sn:mai', SV('#ff4d4d', 2.4, '<path d="M5.5 37q-1-14 3-28q5 1 6 6q1 11-1 23"/><path d="M8.5 18l5 2.5"/><path d="M8 26l5.5 2.5"/><path d="M21 8q-3 8 0 15q3 8-1 15"/><path d="M27 3q-3 9 0 17q3 9-1 18"/><path d="M33 5q-2.5 7 0.5 13q2.5 8-1 18"/><path d="M33.5 12l3.5-2.5"/><path d="M34 19l3.5-1.5"/>'), '脈'],
+    ['jk', SV('#f2b250', 2.4, '<path d="M11 3c-5 3 5 6 0 9c-5 3 5 6 0 9"/><path d="M11 21v16"/><path d="M6 33l5-6l5 6"/><path d="M19 5.5h16"/><path d="M21.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M27 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M32.5 8.5q-2.5 3 0 6q2.5 3 0 6"/><path d="M19.5 25h15"/><path d="M27 25v10"/><path d="M18.5 35.5h17"/>'), '經方（傷寒論・金匱要略）'],
+    ['zz', SV('#4fb3ff', 2.4, '<path d="M14 4q-6 0-7 5v25q0 3 3 3h13"/><path d="M10.5 13.5q2-2 4.5-1.5"/><path d="M9.5 18h7.5"/><path d="M13.2 13v5"/><path d="M9.5 20.5l7.5 8"/><path d="M17 20.5l-7.5 8"/><path d="M22 11q0-6 4-6q3 0 3 4q0 3 5 3"/><path d="M22 19.5h12q-2.5 9-13 16"/><path d="M25.5 21q4 9 12 14"/>'), '全部病證']
+  ].forEach(([go, ic, t], i) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip-tog lb-jump lb-jump' + i + (ic[0] === '<' ? ' lb-seal' : '');
-    if (ic[0] === '<') b.innerHTML = ic; else b.textContent = ic;
-    b.title = t; b.setAttribute('aria-label', t);
+    b.type = 'button'; b.className = 'chip-tog lb-jump lb-seal lb-jump' + i;
+    b.innerHTML = ic; b.title = t; b.setAttribute('aria-label', t);
     b.addEventListener('click', () => { if (window.parent !== window) window.parent.postMessage({ type: 'tcm-enter', go, bz: false }, '*'); });
     stage.appendChild(b);
   });

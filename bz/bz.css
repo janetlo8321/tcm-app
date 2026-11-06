@@ -629,8 +629,7 @@ section.zz-sys .nb-grid li > a > b { font-size: 14px; }
 /* 電腦版：藥物總表、全部病證改成右上角銅人下面的圓鈕；左邊那兩張卡片藏起來 */
 .bz-fab { display: none; }
 @media (min-width: 821px) {
-  .cards #sheetLink, .cards #zzLink { display: none !important; }
-  .bz-fab { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; top: calc(56px + 44px + 10px + env(safe-area-inset-top, 0px)); z-index: 2147483644; }
+  .bz-fab.bz-fab-old { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; top: calc(56px + 44px + 10px + env(safe-area-inset-top, 0px)); z-index: 2147483644; }
   .bz-fab button { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgba(214,166,107,.55); background: rgba(28,20,12,.82); font-size: 22px; line-height: 1; box-shadow: 0 2px 12px rgba(0,0,0,.3); cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   .bz-fab button:hover { background: rgba(60,44,26,.9); }
   .bz-fab button.on { box-shadow: 0 0 0 3px rgba(255,214,120,.75), 0 2px 12px rgba(0,0,0,.3); }
@@ -1066,4 +1065,64 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
   .bz-shl .bz-nd-inl .bz-nd-top { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .1); }
   .bz-shl .bz-nd-inl .bz-nd-g { background: rgba(255, 255, 255, .08); box-shadow: none; }
   .bz-shl .bz-nd-inl .bz-nd-ed { color: #f2f2f7; }
+}
+
+/* 電腦版左欄：藥・方・脈・經・醫 圓鈕（底同背景白）＋小篆字（取代右上角 🌿/👩🏻‍⚕️） */
+.bz-sn-ic { display: none; }
+@media (min-width: 821px) {
+  .cards.bz-sn-cards { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 12px !important; background: none !important; border: 0 !important; box-shadow: none !important; padding: 4px 0 !important; overflow: visible !important; }
+  .cards .chart-link.bz-sn { display: flex !important; flex: none !important; align-items: center !important; justify-content: center !important; width: 46px !important; height: 46px !important; min-height: 46px !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; gap: 0 !important; font-size: 0 !important; border-radius: 50% !important; border: 0 !important; background: transparent !important; box-shadow: none !important; cursor: pointer; transition: background .15s, box-shadow .15s; }
+  .cards .chart-link.bz-sn::before, .cards .chart-link.bz-sn::after { display: none !important; }
+  .cards .chart-link.bz-sn > :not(.bz-sn-ic) { display: none !important; }
+  .cards .chart-link.bz-sn:hover { background: rgba(0,0,0,.05) !important; }
+  .cards .chart-link.bz-sn.bz-sn-on { box-shadow: 0 0 0 2px #1c1c1e !important; }
+  .bz-sn-ic { display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .bz-sn-ic svg { width: 26px; height: 26px; display: block; }
+  .bz-sn-ic.emo { font-size: 23px; line-height: 1; }
+}
+
+/* 電腦版：頁面拓寬到兩邊 */
+@media (min-width: 821px) {
+  .bz-wide { max-width: none !important; }
+}
+
+/* 脈證處方表：條文欄收起時只留窄欄，點標頭展開 */
+.xh-g .xh-h[data-xhc="8"] { cursor: pointer !important; }
+.xh-g .xh-h[data-xhc="8"] > span::after { content: " 條文 ◂"; font-weight: 600; color: #1a4fd6; }
+.xh-g.tw-off .xh-h[data-xhc="8"] > span::after { content: " 條文 ▸"; }
+.xh-g.tw-off .xh-c[data-c="8"] > div { display: none; }
+.xh-g.tw-off .xh-c[data-c="8"]:not(.e) { cursor: pointer; background-image: repeating-linear-gradient(135deg, rgba(26,79,214,.07) 0 6px, transparent 6px 12px) !important; }
+.xh-zoombar .pg .bz-xhtw { margin-left: 8px; font-weight: 600; color: #1a4fd6; }
+.xh-zoombar .pg .bz-xhtw[aria-pressed="true"] { background: #e3efff; }
+
+/* 脈頁：標題區縮小成一行 */
+html.bz-mai #entry > .kind { display: none; }
+html.bz-mai #entry > h1 { display: inline-block; font-size: 22px; line-height: 1.3; margin: 0 14px 0 0; vertical-align: baseline; }
+html.bz-mai #entry > .meta { display: inline; font-size: 12.5px; margin: 0; }
+html.bz-mai #entry > .xh-sec { margin-top: 10px; }
+html.bz-mai .xh-sec > h2.group { font-size: 14px; margin: 0; padding-bottom: 4px; }
+html.bz-mai .xh-sec > .note { margin: 4px 0 4px !important; font-size: 12px; }
+
+/* 方劑證型檢索表：標題縮小往上，圖的大小不變只是往上移 */
+html.bz-chart #entry > .kind { display: none; }
+html.bz-chart #entry > h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; }
+html.bz-chart #entry > .cc-split { margin-top: 4px; }
+html.bz-chart #entry .cc-main > .sheet-wrap:first-child { margin-top: 0; }
+
+/* 藥物總表：標題、顏色說明、說明文字擠成一行 */
+html.bz-sheet #entry > .kind { display: none; }
+html.bz-sheet #entry > h1 { display: inline-block; font-size: 22px; line-height: 1.3; margin: 0 14px 0 0; vertical-align: middle; }
+html.bz-sheet #entry > .xl-legend { display: inline-flex; flex-wrap: wrap; margin: 0 14px 0 0; vertical-align: middle; font-size: 12px; }
+html.bz-sheet #entry > .note { display: inline; margin: 0; font-size: 11.5px; vertical-align: middle; }
+html.bz-sheet #entry > .xl-split { margin-top: 8px; }
+
+/* 檢索表：點分類 → 只顯示那一類 */
+@media (min-width: 821px) {
+  body.bz-ccfocus .cc-main .sheet-wrap:not(.bz-ccf) { display: none !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox { display: none !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { display: block !important; border: 6px solid #e0302a !important; border-radius: 4px; }
+  body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { margin: 0 auto; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll > * { transform-origin: 0 0; }
 }
