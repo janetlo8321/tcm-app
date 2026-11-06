@@ -2550,21 +2550,13 @@
     const open = cb.querySelector('.bz-nd-inl');
     const W = cEl.closest('#bzShl');
     if (open) {   // 收回：其他條文回來，回到原本捲到的位置
-      open._save(); open.remove(); cEl.classList.remove('nd-in'); W.classList.remove('nd-solo'); document.documentElement.classList.remove('bz-nd-lock');
-      ndMarks(W);
-      const y = +W.dataset.ndY; if (!isNaN(y)) window.scrollTo(0, y);
+      open._save(); open.remove(); cEl.classList.remove('nd-in'); ndMarks(W);
       return;
     }
-    W.querySelectorAll('.bz-nd-inl').forEach(x => { x._save && x._save(); const c = x.closest('.shl-c'); x.remove(); if (c) c.classList.remove('nd-in'); });
-    W.dataset.ndY = String(scrollY);
+
     const box = document.createElement('div'); box.className = 'bz-nd-inl';
     box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph=""></div><input type="file" accept="image/*" multiple hidden>`;
     cb.appendChild(box); cEl.classList.add('nd-in');
-    // 定格：只留這一條和編輯頁，整頁不能再往下拉
-    W.classList.add('nd-solo'); document.documentElement.classList.add('bz-nd-lock');
-    window.scrollTo(0, 0);
-    const bar = W.querySelector('.shl-bar'), bb = bar ? bar.getBoundingClientRect().bottom : 0, ct = cEl.getBoundingClientRect().top;
-    if (ct < bb + 4) window.scrollTo(0, Math.max(0, scrollY + ct - bb - 4)); else if (ct > bb + 8) window.scrollTo(0, scrollY + ct - bb - 8);
     const ed = box.querySelector('.bz-nd-ed');
     const get = () => { const e = shlAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
     ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
@@ -2572,12 +2564,11 @@
     box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = shlAll(); a[k] = { d: v, t: Date.now() }; shlStore(a); clearTimeout(shlSync.t); shlSync.t = setTimeout(() => shlSync(true), 1500); } };
     ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
     ed.addEventListener('focusout', () => box._save());
-    // 框的底剛好到手機畫面底（底下分頁列的上面），不要往下多出來；字多了在框裡面捲
+    // 整個框最多半個手機畫面高；字多了在框裡面捲
     const fit = () => {
       if (!box.isConnected) { removeEventListener('resize', fit); return; }
-      const tb = document.querySelector('.tabbar'), tbH = tb && tb.offsetParent ? tb.getBoundingClientRect().height : 0;
-      const top = ed.getBoundingClientRect().top;   // 目前畫面上的位置
-      ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight - tbH - top - 12) + 'px';
+      const top = box.querySelector('.bz-nd-top'), th = top ? top.getBoundingClientRect().height : 0;
+      ed.style.minHeight = '0'; ed.style.height = Math.max(120, innerHeight * 0.5 - th - 2) + 'px';
     };
     fit(); requestAnimationFrame(fit); setTimeout(fit, 300); addEventListener('resize', fit);
   }
