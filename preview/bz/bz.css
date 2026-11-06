@@ -896,3 +896,9 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 
 /* 綠勾、藍色註永遠在註的框上面 */
 .bz-hl-ok { z-index: 2147483647; }
+
+/* 延伸筆記：右頁上方小字標示是哪一條／哪個註；左邊書裡那一條淡藍底 */
+.bz-ntdoc .bz-nd-r { flex-direction: column; }
+.bz-ntdoc .bz-nd-lb { flex: none; padding: 18px 48px 0; font-size: 13px; color: #8a8a8e; min-height: 20px; }
+.bz-ntdoc .bz-nd-r textarea { padding-top: 18px; }
+.bz-shl .shl-c.nd-cur { background: rgba(0, 122, 255, .07); border-radius: 6px; box-shadow: -6px 0 0 rgba(0, 122, 255, .07); }

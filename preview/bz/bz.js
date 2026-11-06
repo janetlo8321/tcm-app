@@ -2323,41 +2323,34 @@
     if (f) { const sel = getSelection(); if (sel && !sel.isCollapsed) return; e.preventDefault(); ntOpen(f.root, f.key, f.m.dataset.hl, true); return; }
     if (ntPin && !ntBox.contains(e.target) && !hlNt.contains(e.target)) ntClose();
   });
-  /* 延伸筆記：註的框右上按「⤢」 → 左頁是原文，右頁是空白的打字頁；存在同一個註裡（doc） */
-  function ndOpen(f) {
-    const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
+  /* 延伸筆記：註的框右上按「⤢」，或游標停在條文上按空白鍵（電腦） → 經方書縮到左半邊（整本都在、停在那一條），右半邊是白色打字頁
+   * 註的延伸筆記存在註裡（tcm-hl-v1 的 doc）；條文的延伸筆記存在 tcm-shl-v1 的「nd:書:條號」（{d,t}，和條文修改一起同步） */
+  let ndCloseCur = null;
+  function ndShow(o) {   // o: { root, W, label, target(), get(), set(v) }
+    if (ndCloseCur) ndCloseCur();
     if (!ntBox.hidden) ntClose();
-    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.parentElement;
-    const ov = document.createElement('div'); ov.className = 'bz-ntdoc';
-    ov.innerHTML = '<div class="bz-nd-l"></div><div class="bz-nd-r"><textarea placeholder="延伸筆記：直接打字，自動存"></textarea></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>';
-    const L = ov.querySelector('.bz-nd-l'), W = f.root.closest('#bzShl');
-    // 經方：左半邊就是整本書本身（可以繼續翻、捲、編輯），停在這一條；右半邊是打字頁
-    const toMark = () => {
-      const m = f.root.querySelector(`mark.bz-note[data-hl="${id}"]`); if (!m) return;
-      f.root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
-      if (W.classList.contains('shl-book') && typeof shlGo === 'function') shlGo(shlPageOf(f.root, m)); else m.scrollIntoView({ block: 'center' });
+    const W = o.W, ov = document.createElement('div'); ov.className = 'bz-ntdoc';
+    ov.innerHTML = '<div class="bz-nd-l"></div><div class="bz-nd-r"><div class="bz-nd-lb"></div><textarea placeholder="延伸筆記：直接打字，自動存"></textarea></div><button type="button" class="bz-nd-x" title="關閉（Esc）">✕</button>';
+    ov.querySelector('.bz-nd-lb').textContent = o.label || '';
+    const L = ov.querySelector('.bz-nd-l');
+    let curEls = [];
+    const toTarget = () => {
+      curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
+      const t = o.target(); curEls = t.els || []; curEls.forEach(x => x.classList.add(t.cls));
+      const m = curEls[0]; if (!m || !W) return;
+      if (W.classList.contains('shl-book') && typeof shlGo === 'function') shlGo(shlPageOf(o.root, m)); else m.scrollIntoView({ block: 'center' });
     };
-    const relayout = () => { if (typeof shlLayout === 'function') shlLayout(); toMark(); };
+    const relayout = () => { if (typeof shlLayout === 'function') shlLayout(); toTarget(); };
     if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); }
-    else {
-      const cl = row.cloneNode(true);
-      cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
-      cl.querySelectorAll(`mark.bz-note[data-hl="${id}"]`).forEach(x => x.classList.add('cur'));
-      L.appendChild(cl);
-      if (h.note && h.note.trim()) { const n = document.createElement('div'); n.className = 'bz-nd-n'; n.textContent = h.note; L.appendChild(n); }
-    }
-    const ta = ov.querySelector('textarea'); ta.value = h.doc || '';
+    else if (o.clone) L.appendChild(o.clone());
+    const ta = ov.querySelector('textarea'); ta.value = o.get() || '';
     let tm = 0;
-    const save = () => {
-      clearTimeout(tm);
-      const a = hlAll(), pg = a[c.key]; if (!pg) return;
-      const it = (pg.list || []).find(x => x.id === id); if (!it || (it.doc || '') === ta.value) return;
-      it.doc = ta.value; it.dt = Date.now(); pg.t = Date.now(); hlStore(a);
-      clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
-    };
+    const save = () => { clearTimeout(tm); if ((o.get() || '') !== ta.value) o.set(ta.value); };
     const close = () => {
+      ndCloseCur = null;
       save(); ov.remove(); document.removeEventListener('keydown', esc, true);
-      if (W) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); f.root.querySelectorAll('mark.bz-note.cur').forEach(x => x.classList.remove('cur')); }
+      if (W) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); }
+      curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
     };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
     ta.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(save, 400); });
@@ -2366,9 +2359,53 @@
     ov.querySelector('.bz-nd-x').addEventListener('click', close);
     document.addEventListener('keydown', esc, true);
     document.body.appendChild(ov);
+    ndCloseCur = close;
     if (W) relayout();
     setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 0);
   }
+  function ndOpen(f) {   // 註的延伸筆記
+    const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
+    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.parentElement;
+    ndShow({
+      root: f.root, W: f.root.closest('#bzShl'), label: '註：' + (h.x || '').replace(/\s+/g, ' ').slice(0, 30),
+      target: () => ({ els: [...f.root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`)], cls: 'cur' }),
+      clone: () => { const d = document.createElement('div'), cl = row.cloneNode(true); cl.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); d.appendChild(cl); return d; },
+      get: () => { const it = ntItem(c); return it ? it.doc || '' : ''; },
+      set: v => {
+        const a = hlAll(), pg = a[c.key]; if (!pg) return;
+        const it = (pg.list || []).find(x => x.id === id); if (!it) return;
+        it.doc = v; it.dt = Date.now(); pg.t = Date.now(); hlStore(a);
+        clearTimeout(hlSync.t); hlSync.t = setTimeout(() => hlSync(true), 1500);
+      }
+    });
+  }
+  function ndOpenClause(cEl) {   // 條文的延伸筆記
+    const W = cEl.closest('#bzShl'), root = W && W.querySelector('.shl-body'); if (!root || !W.dataset.bk) return;
+    const no = cEl.dataset.no, k = 'nd:' + W.dataset.bk + ':' + no;
+    const bkName = (W.querySelector('[data-shlbk].on') || {}).textContent || '';
+    ndShow({
+      root, W, label: (bkName ? bkName + '　' : '') + '第 ' + no + ' 條',
+      target: () => ({ els: [...root.querySelectorAll(`.shl-c[data-no="${CSS.escape(no)}"]`)], cls: 'nd-cur' }),
+      get: () => { const e = shlAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; },
+      set: v => {
+        const a = shlAll(); a[k] = { d: v, t: Date.now() }; shlStore(a);
+        clearTimeout(shlSync.t); shlSync.t = setTimeout(() => shlSync(true), 1500);
+      }
+    });
+  }
+  // 電腦：游標停在條文（或註）上按空白鍵 → 打開延伸筆記；原文鎖住時才接，正在打字時不接
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input,textarea,select,[contenteditable="true"]') || t.isContentEditable)) return;
+    const W = document.getElementById('bzShl'); if (!W || W.hidden || !W.dataset.bk) return;
+    const hv = [...W.querySelectorAll('mark.bz-note:hover')].pop(), f = hv && ntFind(hv);
+    const c = [...W.querySelectorAll('.shl-body .shl-c:hover')].pop();
+    if (!f && !c) return;
+    e.preventDefault(); e.stopPropagation();
+    if (f) ndOpen(f); else ndOpenClause(c);
+  }, true);
   ntBox.querySelector('.bz-nt-ex').addEventListener('mousedown', e => e.preventDefault());
   ntBox.querySelector('.bz-nt-ex').addEventListener('click', e => {   // 框右上的「⤢」：打開延伸筆記
     e.preventDefault(); e.stopPropagation();
