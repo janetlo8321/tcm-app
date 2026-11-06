@@ -2088,7 +2088,7 @@
       if (clip && sh) { sc.insertBefore(sh, clip); clip.remove(); }
       if (sh) { sh.style.width = ''; sh.style.transform = ''; }
       sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
-    const ccUndo = () => { ccNoteClose(); document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
     const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
       const d = document.createElement('span'); d.className = 'bz-ccz';
       d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button>';
@@ -2097,11 +2097,9 @@
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
       const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'); if (!sc) return;
       document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
-      if (ccNoteCur && (ccNoteCur.wrap !== wrap)) ccNoteClose();
       reset(wrap); const sh = sc.firstElementChild; if (!sh) return;
       document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf'); const zb = ccBar(wrap);
-      const avail = wrap.clientWidth, W = Math.floor(avail - Math.max(320, avail * 0.36) - 14);   // 右邊留給自己的筆記頁
-      sc.style.width = W + 'px'; sh.style.width = '100%';
+      const W = sc.clientWidth;
       let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
       const H = Math.max(240, innerHeight - (sc.getBoundingClientRect().top - wrap.getBoundingClientRect().top + 10) - 16);   // 捲到這一頁頂端之後，畫面剩下的高度
       const fit = Math.min(W / r.width, H / r.height), k = ccZ === 'w' ? W / r.width : fit * ccZ;
@@ -2115,8 +2113,6 @@
       sc.style.width = Math.min(W, cw) + 'px'; sc.style.height = (ch + (cw > W ? 16 : 0)) + 'px'; sc.style.overflow = cw > W ? 'auto hidden' : 'hidden';
       sc.scrollLeft = 0; sc.scrollTop = 0;
       const out = zb && zb.querySelector('.bz-ccz output'); if (out) out.textContent = Math.round(k / fit * 100) + '%';
-      const cat = typeof CHART !== 'undefined' && CHART.cats && CHART.cats[ccCur];
-      ccNote(wrap, cat && cat.name ? cat.name : 'cc' + ccCur, (cat ? (cat.no || '') + '、' + cat.name : ''), Math.max(ch, 360));
       const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
     };
     document.addEventListener('click', e => {
@@ -2130,6 +2126,23 @@
     });
     addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
     if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
+  }
+
+  /* ---------- 檢索表（電腦版）：「分類檢索」搬到左欄搜尋框下面，表可以用整個寬度；手機放回原位 ---------- */
+  {
+    const ccMove = () => {
+      const idx = document.querySelector('.index'), sw = idx && idx.querySelector('.search-wrap');
+      document.querySelectorAll('.index > .cc-idx').forEach(n => { if (!n._home || !n._home.isConnected) n.remove(); });   // 換頁後留下的舊的拿掉
+      const split = document.querySelector('#entry .cc-split');
+      if (!split) return;
+      const moved = idx && idx.querySelector(':scope > .cc-idx');
+      if (innerWidth >= 821) {
+        const n = split.querySelector(':scope > .cc-idx'); if (!n || !sw) return;
+        n._home = split; sw.insertAdjacentElement('afterend', n); n.classList.add('bz-ccmv');
+      } else if (moved && moved._home === split) { split.insertBefore(moved, split.firstChild); moved.classList.remove('bz-ccmv'); }
+    };
+    if (entObs) new MutationObserver(ccMove).observe(entObs, { childList: true });
+    addEventListener('resize', ccMove); setTimeout(ccMove, 0);
   }
 
   /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
@@ -2706,7 +2719,7 @@
   }
   /* 手機（捲動模式）：輕點條號 → 這一條底下的組成、煎服法換成白色編輯頁（和電腦的延伸筆記同一份），再點一下條號收回 */
   const ND_TOOLS = `<span class="bz-nd-tools"><span class="bz-nd-g"><button type="button" data-nd="bold" title="粗體" aria-label="粗體"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button><button type="button" data-nd="underline" title="底線" aria-label="底線"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4"/><path d="M5 20h14"/></svg></button><button type="button" data-nd="hl" title="螢光筆" aria-label="螢光筆"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 4.5 5 5L10 19H5v-5z"/><path d="m12 7 5 5"/><path d="M4 21h16" stroke-width="2.4" stroke="#f5c400"/></svg></button><button type="button" data-nd="h" title="標題" aria-label="標題"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M14 5v14M5 12h9"/><path d="M18 10.5 20 9v10"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="insertUnorderedList" title="條列" aria-label="條列"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="7" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17" r="1.2" fill="currentColor"/><path d="M9.5 7H20M9.5 12H20M9.5 17H20"/></svg></button><button type="button" data-nd="insertOrderedList" title="編號" aria-label="編號"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5 5.5 4.5V10"/><path d="M4 14.5a1.5 1.5 0 0 1 3 .3c0 1-3 2.2-3 3.7h3"/><path d="M10.5 7H20M10.5 12H20M10.5 17H20"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="table" title="插入表格" aria-label="插入表格"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10M15 9.5v10"/></svg></button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）" aria-label="插入圖片（也可以直接貼上或拖進來）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="removeFormat" title="清除格式" aria-label="清除格式"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12M12 5l-3.5 14"/><path d="m14.5 14 5 5M19.5 14l-5 5"/></svg></button></span><span class="bz-nd-tbt bz-nd-g" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span>`;
-  /* ---------- 檢索表（電腦版）：裁切畫面右邊的「分類筆記」頁，和延伸筆記同一種編輯器（粗體、底線、螢光筆、標題、條列、表格、圖片）----------
+  /* ---------- 檢索表的分類筆記：電腦游標停在某一類上按空白鍵（和經方一樣左表右筆記）；手機輕點那一類，頁面下面出現筆記框 ----------
    * 依分類名稱存在這台裝置 tcm-ccnote-v1（{分類名: {d: HTML, t}}），有設定 GitHub 同步時合併到 tcm-notes sync/ccnote.json */
   const CCNK = 'tcm-ccnote-v1', CCN_URL = GH_URL.replace('myfx.json', 'ccnote.json');
   const ccnAll = () => { try { const a = JSON.parse(localStorage.getItem(CCNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
@@ -2722,32 +2735,81 @@
       Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
       const changed = JSON.stringify(all) !== JSON.stringify(mine);
       ccnStore(all);
-      if (changed && ccNoteCur && !ccNoteCur.box.contains(document.activeElement)) { const e = all[ccNoteCur.key]; if (e && typeof e.d === 'string') { ccNoteCur.ed.innerHTML = ndToHtml(e.d); ndImgFill(ccNoteCur.ed); } }
       if (push && JSON.stringify(all) !== JSON.stringify(remote))
         await fetch(CCN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: '同步檢索表分類筆記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
       return true;
     } catch (e) { return false; }
   }
-  var ccNoteCur = null;
-  function ccNoteClose() { const c = ccNoteCur; if (!c) return; ccNoteCur = null; c.save(); c.box.remove(); }
-  function ccNote(wrap, key, label, h) {
-    if (ccNoteCur && ccNoteCur.wrap === wrap && ccNoteCur.key === key && ccNoteCur.box.isConnected) { ccNoteCur.box.style.height = h + 'px'; return; }
-    ccNoteClose();
-    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccnote';
-    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
-    box.querySelector('.bz-nd-lb').textContent = label;
-    box.style.height = h + 'px';
-    wrap.appendChild(box);
-    const ed = box.querySelector('.bz-nd-ed');
-    const get = () => { const e = ccnAll()[key]; return e && typeof e.d === 'string' ? e.d : ''; };
-    ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
-    let tm = 0;
-    const save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = ccnAll(); a[key] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); } };
-    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(save, 400); });
-    ed.addEventListener('focusout', save);
-    ccNoteCur = { wrap, key, box, ed, save };
+  // 哪一個分類在這個點上（用每類範圍框的 % 位置算，框本身平常是隱藏的）
+  function ccnCatAt(x, y) {
+    let best = null;
+    document.querySelectorAll('#entry .cc-main .cc-tbox[id^="cct-"]').forEach(tb => {
+      const par = tb.parentElement, pr = par && par.getBoundingClientRect(); if (!pr || !pr.width) return;
+      const st = tb.style, l = parseFloat(st.left) / 100, t = parseFloat(st.top) / 100, w = parseFloat(st.width) / 100, h = parseFloat(st.height) / 100;
+      if (![l, t, w, h].every(isFinite)) return;
+      const x0 = pr.left + l * pr.width, y0 = pr.top + t * pr.height;
+      if (x < x0 || y < y0 || x > x0 + w * pr.width || y > y0 + h * pr.height) return;
+      const area = w * h; if (!best || area < best.area) best = { i: tb.id.slice(4), tb, par, l, t, w, h, area };
+    });
+    return best;
   }
+  const ccnCat = i => (typeof CHART !== 'undefined' && CHART.cats && CHART.cats[i]) || null;
+  const ccnKey = i => { const c = ccnCat(i); return c && c.name ? c.name : 'cc' + i; };
+  const ccnLabel = i => { const c = ccnCat(i); return c ? (c.no ? c.no + '、' : '') + c.name : ''; };
+  const ccnGet = i => { const e = ccnAll()[ccnKey(i)]; return e && typeof e.d === 'string' ? e.d : ''; };
+  const ccnSet = (i, v) => { const a = ccnAll(); a[ccnKey(i)] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); };
+  // 電腦：左半邊是這一類裁出來的表，右半邊是筆記（和經方的延伸筆記一樣）
+  function ccnOpen(c) {
+    const box = document.createElement('div'); box.className = 'bz-ccn-clip';
+    const cl = c.par.cloneNode(true); cl.querySelectorAll('.cc-tbox,.anchor').forEach(x => x.remove()); cl.removeAttribute('id');
+    cl.style.cssText += ';position:absolute;left:0;top:0;margin:0;transform-origin:0 0';
+    box.appendChild(cl);
+    const ratio = c.par.offsetHeight / c.par.offsetWidth;
+    const fit = () => { if (!box.isConnected) return; const pw = box.parentElement.clientWidth - 96, ph = box.parentElement.clientHeight - 112;
+      let sw = pw / c.w; if (sw * ratio * c.h > ph) sw = ph / (ratio * c.h);
+      cl.style.width = sw + 'px'; box.style.width = (sw * c.w) + 'px'; box.style.height = (sw * ratio * c.h) + 'px';
+      cl.style.transform = `translate(${-c.l * sw}px, ${-c.t * sw * ratio}px)`; };
+    ndShow({ label: '檢索表　' + ccnLabel(c.i), clone: () => box, target: () => ({ els: [], cls: 'nd-cur' }), get: () => ccnGet(c.i), set: v => ccnSet(c.i, v) });
+    requestAnimationFrame(fit); setTimeout(fit, 200);
+  }
+  let ccnXY = null;
+  document.addEventListener('mousemove', e => { ccnXY = [e.clientX, e.clientY]; }, { passive: true });
+  document.addEventListener('mouseover', e => {
+    const a = document.activeElement; if (!a || a.tagName !== 'IFRAME') return;
+    if (!(e.target.closest && e.target.closest('#entry .cc-main'))) return;
+    try { a.blur(); window.focus(); } catch (er) {}
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || !ccnXY) return;
+    if (!document.querySelector('#entry .cc-split') || document.querySelector('.bz-ntdoc')) return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input,textarea,[contenteditable="true"]') || t.isContentEditable)) return;
+    const c = ccnCatAt(ccnXY[0], ccnXY[1]); if (!c) return;
+    e.preventDefault(); e.stopPropagation();
+    if (t && t.closest('select,button') && t.blur) t.blur();
+    ccnOpen(c);
+  }, true);
+  // 手機：輕點表上某一類（不是點方名）→ 這一頁下面打開筆記框，再點同一類收回
+  document.addEventListener('click', e => {
+    if (innerWidth > 820 || !e.target.closest) return;
+    const sh = e.target.closest('#entry .cc-main .sheet-scroll'); if (!sh || e.target.closest('a,[data-go],button')) return;
+    const c = ccnCatAt(e.clientX, e.clientY); if (!c) return;
+    const wrap = sh.closest('.sheet-wrap'), open = wrap.querySelector(':scope > .bz-ccn-inl');
+    if (open) { open._save(); open.remove(); if (open.dataset.i === c.i) return; }
+    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccn-inl'; box.dataset.i = c.i;
+    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.querySelector('.bz-nd-lb').textContent = ccnLabel(c.i);
+    sh.insertAdjacentElement('afterend', box);
+    const ed = box.querySelector('.bz-nd-ed'); ed.innerHTML = ndToHtml(ccnGet(c.i)); ndImgFill(ed);
+    let tm = 0;
+    box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (ccnGet(c.i) !== v) ccnSet(c.i, v); };
+    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
+    ed.addEventListener('focusout', () => box._save());
+    ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight * 0.45) + 'px';
+    box.scrollIntoView({ block: 'nearest' });
+  });
   const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
   const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };
   function ndMarks(w) { w.querySelectorAll('.shl-c[data-no]').forEach(c => c.classList.toggle('has-nd', ndHas(ndKeyOf(c)))); }

@@ -1123,12 +1123,7 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { display: block !important; border: 6px solid #e0302a !important; border-radius: 4px; }
   body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
-  body.bz-ccfocus .cc-main .sheet-wrap.bz-ccf { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 14px; }
-  body.bz-ccfocus .cc-main .bz-ccf > .zoombar { flex: 0 0 100%; }
-  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { margin: 0; flex: none; }
-  body.bz-ccfocus .cc-main .bz-ccf .bz-ccnote { flex: 1 1 0; min-width: 300px; margin: 0; display: flex; flex-direction: column; }
-  body.bz-ccfocus .cc-main .bz-ccf .bz-ccnote .bz-nd-ed { min-height: 0; flex: 1; overflow: auto; }
-  body.bz-ccfocus .cc-main .bz-ccf .bz-ccnote .bz-nd-lb { font-size: 13px; color: #8e8e93; margin-right: 4px; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { margin: 0 auto; }
   body.bz-ccfocus .cc-main .bz-ccf .zoombar { display: flex !important; }
   body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
   body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz button, body.bz-ccfocus .cc-main .bz-ccf .zoombar .bz-ccz output { display: inline-block !important; }
@@ -1140,4 +1135,13 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 /* 電腦版左欄：拿掉 病證／方劑／藥材 切換和下面的清單（留印章鈕和搜尋） */
 @media (min-width: 821px) {
   .index > #tabs, .index > .list-head, .index > #list { display: none !important; }
+}
+
+/* 檢索表分類筆記：左邊裁出來的那一類 */
+.bz-ntdoc .bz-nd-l .bz-ccn-clip { position: relative; overflow: hidden; margin: 0 auto; background: #fff; }
+.bz-ccn-inl .bz-nd-lb { font-size: 13px; color: #8e8e93; margin-right: 4px; }
+
+/* 分類檢索搬到左欄 */
+@media (min-width: 821px) {
+  .index > .cc-idx.bz-ccmv { position: static !important; max-height: none !important; margin: 10px 0 0; box-shadow: none; }
 }
