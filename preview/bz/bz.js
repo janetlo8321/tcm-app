@@ -2079,30 +2079,29 @@
     addEventListener('hashchange', () => setTimeout(toTop, 0));
   }
 
-  /* ---------- 檢索表（電腦版）：點左邊分類 → 像藥物總表一樣，那一類放大停在框的左上角（不加紅框），
-     其他頁不顯示；框內可以拖曳或捲動看同一頁的其他部分；「全部頁」回到原本 ---------- */
+  /* ---------- 檢索表（電腦版）：點左邊分類 → 像截圖一樣只裁出那一類的範圍（放大、粗紅框），
+     其他頁和旁邊不相關的部分都不顯示，也不能拖曳；「全部頁」回到原本 ---------- */
   {
-    let ccCur = null, drag = null;
+    let ccCur = null;
     const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sc || !sh) return;
-      sh.style.paddingRight = ''; sh.style.paddingBottom = ''; sh.style.boxSizing = ''; sh.style.width = ''; sc.style.height = ''; sc.style.overflow = ''; };
+      sh.style.width = ''; sh.style.transform = ''; sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
     const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
     const ccFocus = () => {
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
       const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sh) return;
       document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
-      document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
+      reset(wrap); document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
       const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
-      const W = sc.clientWidth;
+      const W = sc.clientWidth, P = 0;
+      sc.style.overflow = 'hidden';
+      let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
       const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
-      sc.style.height = H + 'px'; sc.style.overflow = 'auto';
-      sh.style.width = W + 'px'; sh.style.boxSizing = 'content-box';
-      const r0 = tb.getBoundingClientRect();   // 放大到這一類剛好填滿框的寬度（字跟之前一樣大），太高就以高度為準
-      let k = Math.min((W - 12) / r0.width, (H - 12) / r0.height); k = Math.max(1, k);
-      sh.style.width = Math.round(W * k) + 'px';
-      sh.style.paddingRight = W + 'px'; sh.style.paddingBottom = H + 'px';   // 右下留白，讓任何分類都能停在左上角
+      const k = Math.min((W - 2 * P) / r.width, (H - 2 * P) / r.height);   // 放大到剛好填滿（寬或高先到為準）
+      sh.style.width = (shr.width * k) + 'px';
+      r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
+      sh.style.transform = `translate(${-(r.left - shr.left) + P}px, ${-(r.top - shr.top) + P}px)`;
+      sc.style.width = Math.ceil(r.width + 2 * P) + 'px'; sc.style.height = Math.ceil(r.height + 2 * P) + 'px';
       sc.scrollLeft = 0; sc.scrollTop = 0;
-      const r = tb.getBoundingClientRect(), b = sc.getBoundingClientRect();
-      sc.scrollLeft = Math.max(0, r.left - b.left - 6); sc.scrollTop = Math.max(0, r.top - b.top - 6);
     };
     document.addEventListener('click', e => {
       if (innerWidth < 821 || !e.target.closest) return;
@@ -2110,11 +2109,7 @@
       const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
       ccCur = j.dataset.jump.slice(3); setTimeout(ccFocus, 30);
     });
-    // 框內用滑鼠拖曳移動
-    document.addEventListener('mousedown', e => { if (e.button !== 0 || !e.target.closest) return; const sc = e.target.closest('.bz-ccf .sheet-scroll'); if (!sc || e.target.closest('a,button')) return;
-      drag = { sc, x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop }; sc.style.cursor = 'grabbing'; e.preventDefault(); });
-    addEventListener('mousemove', e => { if (!drag) return; drag.sc.scrollLeft = drag.l - (e.clientX - drag.x); drag.sc.scrollTop = drag.t - (e.clientY - drag.y); });
-    addEventListener('mouseup', () => { if (drag) { drag.sc.style.cursor = ''; drag = null; } });
+    document.addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.bz-ccf .sheet-scroll') && !e.ctrlKey) { const sc = e.target.closest('.sheet-scroll'); requestAnimationFrame(() => { sc.scrollLeft = 0; sc.scrollTop = 0; }); } }, { passive: true });
     addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
     if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
   }

@@ -1123,5 +1123,6 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   body.bz-ccfocus .cc-main .bz-ccf .cc-tbox.on { display: block !important; border: 6px solid #e0302a !important; border-radius: 4px; }
   body.bz-ccfocus .cc-all { display: flex !important; background: var(--accent, #007aff) !important; color: #fff !important; }
   body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { background: #fff; }
-  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { cursor: grab; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll { margin: 0 auto; }
+  body.bz-ccfocus .cc-main .bz-ccf .sheet-scroll > * { transform-origin: 0 0; }
 }
