@@ -1062,8 +1062,9 @@
   document.addEventListener('click', e => {
     if (!xhOK() || !e.target.closest || e.target.closest('.xh-rs, .xh-c.editing')) return;
     const tw = xhTW(); if (tw < 0) return;
-    const h = e.target.closest(`.xh-h[data-xhc="${tw}"]`), c = e.target.closest(`.xh-g.tw-off .xh-c[data-c="${tw}"]`);
+    const h = e.target.closest(`.xh-h[data-xhc="${tw}"], [data-xhtw]`), c = e.target.closest(`.xh-g.tw-off .xh-c[data-c="${tw}"]`);
     if (!h && !c) return;
+    e.stopPropagation();
     if (c && e.target.closest('a')) e.preventDefault();
     try { localStorage.setItem('tcm-xh-tw', xhTWOpen() ? '0' : '1'); } catch (er) {}
     window.xhApply();
@@ -1077,6 +1078,7 @@
       xhOrder = XH_DEF.slice();
       const tw = xhTW(), off = tw >= 0 && !xhTWOpen();
       g.classList.toggle('tw-off', off); g.dataset.tw = tw;
+      document.querySelectorAll('[data-xhtw]').forEach(b => { b.textContent = off ? '▸ 展開條文' : '◂ 收起條文'; b.setAttribute('aria-pressed', String(!off)); });
       g.style.gridTemplateColumns = xhOrder.map(i => (i === tw && off ? 4.5 : ((XS.w[i] && XS.w[i].v) || XH.cols[i].w)) + 'em').join(' ');
       st.textContent = xhOrder.map((c, p) => `.xh-g [data-c="${c}"]{grid-column:${p + 1}}`).join('');
     };
@@ -1087,8 +1089,10 @@
     const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
     const sec = g.closest('.xh-sec');
     if (sec) {
-      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，點 I 欄標頭展開或收起。紅字、藍字照原表。方名可以點。';
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
       const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
+      const pg = sec.querySelector('.xh-zoombar .pg');
+      if (pg && xhTW() >= 0 && !pg.querySelector('[data-xhtw]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhtw = ''; b.className = 'bz-xhtw'; pg.appendChild(b); }
     }
     g.querySelectorAll('.xh-h').forEach(h => {
       h.removeAttribute('draggable'); h.removeAttribute('title');

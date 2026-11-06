@@ -1092,3 +1092,5 @@ mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note.cur { background: rgba(0, 122, 255, 
 .xh-g.tw-off .xh-h[data-xhc="8"] > span::after { content: " 條文 ▸"; }
 .xh-g.tw-off .xh-c[data-c="8"] > div { display: none; }
 .xh-g.tw-off .xh-c[data-c="8"]:not(.e) { cursor: pointer; background-image: repeating-linear-gradient(135deg, rgba(26,79,214,.07) 0 6px, transparent 6px 12px) !important; }
+.xh-zoombar .pg .bz-xhtw { margin-left: 8px; font-weight: 600; color: #1a4fd6; }
+.xh-zoombar .pg .bz-xhtw[aria-pressed="true"] { background: #e3efff; }
