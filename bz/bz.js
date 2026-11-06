@@ -478,7 +478,7 @@
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
     const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
-      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ndImgSync()];
+      ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
     return n;
@@ -2080,38 +2080,88 @@
   }
 
   /* ---------- 檢索表（電腦版）：點左邊分類 → 像截圖一樣只裁出那一類的範圍（放大、粗紅框），
-     其他頁和旁邊不相關的部分都不顯示，也不能拖曳；「全部頁」回到原本 ---------- */
+     其他頁和旁邊不相關的部分都不顯示；右上角 －／＋／100%／符合寬度 可放大縮小；「全部頁」回到原本 ---------- */
   {
-    let ccCur = null;
-    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sc || !sh) return;
-      sh.style.width = ''; sh.style.transform = ''; sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
-    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    let ccCur = null, ccZ = 1;   // ccZ：1 = 剛好整類放進畫面（100%）；'w' = 符合寬度
+    const reset = w => { w.classList.remove('bz-ccf'); const sc = w.querySelector('.sheet-scroll'); if (!sc) return;
+      const clip = sc.querySelector(':scope > .bz-ccclip'), sh = clip ? clip.firstElementChild : sc.firstElementChild;
+      if (clip && sh) { sc.insertBefore(sh, clip); clip.remove(); }
+      if (sh) { sh.style.width = ''; sh.style.transform = ''; }
+      sc.style.height = ''; sc.style.width = ''; sc.style.overflow = ''; };
+    const ccUndo = () => { document.body.classList.remove('bz-ccfocus'); ccCur = null; ccBarSet(null); document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(reset); };
+    const ccBar = wrap => { const zb = wrap.querySelector('.zoombar'); if (!zb || zb.querySelector('.bz-ccz')) return zb;
+      const d = document.createElement('span'); d.className = 'bz-ccz';
+      d.innerHTML = '<button type="button" data-ccz="out" aria-label="縮小">－</button><output>100%</output><button type="button" data-ccz="in" aria-label="放大">＋</button><button type="button" data-ccz="one">100%</button><button type="button" data-ccz="fit">符合寬度</button><button type="button" data-ccz="note" title="這一類的筆記（也可以游標停在表上按空白鍵）">📝 筆記</button>';
+      zb.appendChild(d); return zb; };
     const ccFocus = () => {
       const tb = ccCur && document.getElementById('cct-' + ccCur); if (!tb) return;
-      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'), sh = sc && sc.firstElementChild; if (!sh) return;
+      const wrap = tb.closest('.sheet-wrap'), sc = wrap && wrap.querySelector('.sheet-scroll'); if (!sc) return;
       document.querySelectorAll('.sheet-wrap.bz-ccf').forEach(w => { if (w !== wrap) reset(w); });
-      reset(wrap); document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf');
-      const top = wrap.getBoundingClientRect().top + scrollY - 10; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
-      const W = sc.clientWidth, P = 0;
-      sc.style.overflow = 'hidden';
+      reset(wrap); const sh = sc.firstElementChild; if (!sh) return;
+      document.body.classList.add('bz-ccfocus'); wrap.classList.add('bz-ccf'); const zb = ccBar(wrap);
+      const W = sc.clientWidth;
       let r = tb.getBoundingClientRect(), shr = sh.getBoundingClientRect();
-      const H = Math.max(240, innerHeight - sc.getBoundingClientRect().top - 16);
-      const k = Math.min((W - 2 * P) / r.width, (H - 2 * P) / r.height);   // 放大到剛好填滿（寬或高先到為準）
+      const phone = innerWidth <= 820;
+      if (phone) ccBarSet(ccCur, true);
+      const idx = document.querySelector('.cc-idx'), tbar = document.querySelector('.tabbar');
+      const topOff = phone && idx ? idx.getBoundingClientRect().height + (parseFloat(getComputedStyle(idx).top) || 0) + 6 : 10;
+      const botOff = phone && tbar && tbar.offsetHeight ? tbar.offsetHeight + 8 : 16;
+      const H = Math.max(200, innerHeight - (sc.getBoundingClientRect().top - wrap.getBoundingClientRect().top + topOff) - botOff);   // 捲到這一頁頂端之後，畫面剩下的高度
+      const fit = Math.min(W / r.width, H / r.height), k = ccZ === 'w' ? W / r.width : fit * ccZ;
       sh.style.width = (shr.width * k) + 'px';
       r = tb.getBoundingClientRect(); shr = sh.getBoundingClientRect();
-      sh.style.transform = `translate(${-(r.left - shr.left) + P}px, ${-(r.top - shr.top) + P}px)`;
-      sc.style.width = Math.ceil(r.width + 2 * P) + 'px'; sc.style.height = Math.ceil(r.height + 2 * P) + 'px';
+      sh.style.transform = `translate(${-(r.left - shr.left)}px, ${-(r.top - shr.top)}px)`;
+      const cw = Math.ceil(r.width), ch = Math.ceil(r.height);
+      const clip = document.createElement('div'); clip.className = 'bz-ccclip';   // 只留這一類的範圍，其他裁掉
+      clip.style.cssText = `width:${cw}px;height:${ch}px;overflow:hidden;position:relative`;
+      sc.insertBefore(clip, sh); clip.appendChild(sh);
+      sc.style.width = Math.min(W, cw) + 'px'; sc.style.height = (ch + (cw > W ? 16 : 0)) + 'px'; sc.style.overflow = cw > W ? 'auto hidden' : 'hidden';
       sc.scrollLeft = 0; sc.scrollTop = 0;
+      const out = zb && zb.querySelector('.bz-ccz output'); if (out) out.textContent = Math.round(k / fit * 100) + '%';
+      const top = wrap.getBoundingClientRect().top + scrollY - topOff; if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: 'auto' });
     };
     document.addEventListener('click', e => {
-      if (innerWidth < 821 || !e.target.closest) return;
+      if (!e.target.closest) return;
+      const zbtn = e.target.closest('[data-ccz]');
+      if (zbtn && zbtn.dataset.ccz === 'note') { const tb = document.getElementById('cct-' + ccCur), c = tb && ccnFromTb(tb); if (c) ccnOpen(c); return; }
+      if (zbtn) { const m = zbtn.dataset.ccz, cur = ccZ === 'w' ? (() => { const tb = document.getElementById('cct-' + ccCur), sc = tb && tb.closest('.sheet-wrap').querySelector('.sheet-scroll'), o = document.querySelector('.bz-ccf .bz-ccz output'); return o ? parseInt(o.textContent) / 100 : 1; })() : ccZ;
+        ccZ = m === 'in' ? Math.min(4, cur * 1.25) : m === 'out' ? Math.max(0.3, cur / 1.25) : m === 'one' ? 1 : 'w'; ccFocus(); return; }
       if (e.target.closest('[data-ccall]')) { ccUndo(); return; }
       const j = e.target.closest('[data-ccon][data-jump^="cc-"]'); if (!j) return;
-      ccCur = j.dataset.jump.slice(3); setTimeout(ccFocus, 30);
+      ccCur = j.dataset.jump.slice(3); ccZ = 1; setTimeout(ccFocus, 30);
     });
-    document.addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.bz-ccf .sheet-scroll') && !e.ctrlKey) { const sc = e.target.closest('.sheet-scroll'); requestAnimationFrame(() => { sc.scrollLeft = 0; sc.scrollTop = 0; }); } }, { passive: true });
-    addEventListener('resize', () => { if (ccCur) { if (innerWidth < 821) ccUndo(); else ccFocus(); } });
+    addEventListener('resize', () => { if (ccCur) ccFocus(); });
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1 && e.target.closest && e.target.closest('.bz-ccf .sheet-scroll')) e.stopPropagation(); }, { capture: true, passive: true });
+    // 手機：分類清單點完收成一小條（目前分類＋右上 v），按 v 拉開／收起
+    function ccBarSet(i, collapse) {
+      const idx = document.querySelector('#entry .cc-idx, .index > .cc-idx'); if (!idx) return;
+      let bar = idx.querySelector(':scope > .bz-ccbar');
+      if (i == null) { if (bar) bar.remove(); idx.classList.remove('bz-ccmin'); return; }
+      if (!bar) { bar = document.createElement('div'); bar.className = 'bz-ccbar'; bar.innerHTML = '<b></b><button type="button" data-ccbar aria-label="展開分類">⌄</button>'; idx.insertBefore(bar, idx.firstChild); }
+      const cat = typeof CHART !== 'undefined' && CHART.cats[i]; bar.querySelector('b').textContent = cat ? (cat.no ? cat.no + '、' : '') + cat.name : '';
+      if (collapse) idx.classList.add('bz-ccmin');
+      bar.querySelector('button').textContent = idx.classList.contains('bz-ccmin') ? '⌄' : '⌃';
+    }
+    document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-ccbar]'); if (!b) return; e.preventDefault(); e.stopPropagation();
+      const idx = b.closest('.cc-idx'); idx.classList.toggle('bz-ccmin'); b.textContent = idx.classList.contains('bz-ccmin') ? '⌄' : '⌃'; }, true);
     if (entObs) new MutationObserver(() => { if (ccCur && !document.getElementById('cct-' + ccCur)) ccUndo(); }).observe(entObs, { childList: true });
+  }
+
+  /* ---------- 檢索表（電腦版）：「分類檢索」搬到左欄搜尋框下面，表可以用整個寬度；手機放回原位 ---------- */
+  {
+    const ccMove = () => {
+      const idx = document.querySelector('.index'), sw = idx && idx.querySelector('.search-wrap');
+      document.querySelectorAll('.index > .cc-idx').forEach(n => { if (!n._home || !n._home.isConnected) n.remove(); });   // 換頁後留下的舊的拿掉
+      const split = document.querySelector('#entry .cc-split');
+      if (!split) return;
+      const moved = idx && idx.querySelector(':scope > .cc-idx');
+      if (innerWidth >= 821) {
+        const n = split.querySelector(':scope > .cc-idx'); if (!n || !sw) return;
+        n._home = split; sw.insertAdjacentElement('afterend', n); n.classList.add('bz-ccmv');
+      } else if (moved && moved._home === split) { split.insertBefore(moved, split.firstChild); moved.classList.remove('bz-ccmv'); }
+    };
+    if (entObs) new MutationObserver(ccMove).observe(entObs, { childList: true });
+    addEventListener('resize', ccMove); setTimeout(ccMove, 0);
   }
 
   /* ---------- 電腦版：整個頁面拓寬到兩邊（把外層容器的最大寬度拿掉） ---------- */
@@ -2688,6 +2738,139 @@
   }
   /* 手機（捲動模式）：輕點條號 → 這一條底下的組成、煎服法換成白色編輯頁（和電腦的延伸筆記同一份），再點一下條號收回 */
   const ND_TOOLS = `<span class="bz-nd-tools"><span class="bz-nd-g"><button type="button" data-nd="bold" title="粗體" aria-label="粗體"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button><button type="button" data-nd="underline" title="底線" aria-label="底線"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4"/><path d="M5 20h14"/></svg></button><button type="button" data-nd="hl" title="螢光筆" aria-label="螢光筆"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 4.5 5 5L10 19H5v-5z"/><path d="m12 7 5 5"/><path d="M4 21h16" stroke-width="2.4" stroke="#f5c400"/></svg></button><button type="button" data-nd="h" title="標題" aria-label="標題"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M14 5v14M5 12h9"/><path d="M18 10.5 20 9v10"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="insertUnorderedList" title="條列" aria-label="條列"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="7" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17" r="1.2" fill="currentColor"/><path d="M9.5 7H20M9.5 12H20M9.5 17H20"/></svg></button><button type="button" data-nd="insertOrderedList" title="編號" aria-label="編號"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5 5.5 4.5V10"/><path d="M4 14.5a1.5 1.5 0 0 1 3 .3c0 1-3 2.2-3 3.7h3"/><path d="M10.5 7H20M10.5 12H20M10.5 17H20"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="table" title="插入表格" aria-label="插入表格"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10M15 9.5v10"/></svg></button><button type="button" data-nd="img" title="插入圖片（也可以直接貼上或拖進來）" aria-label="插入圖片（也可以直接貼上或拖進來）"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5L20 17"/></svg></button></span><span class="bz-nd-g"><button type="button" data-nd="removeFormat" title="清除格式" aria-label="清除格式"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12M12 5l-3.5 14"/><path d="m14.5 14 5 5M19.5 14l-5 5"/></svg></button></span><span class="bz-nd-tbt bz-nd-g" hidden><button type="button" data-nd="row+" title="下面加一列">＋列</button><button type="button" data-nd="col+" title="右邊加一欄">＋欄</button><button type="button" data-nd="row-" title="刪掉這一列">－列</button><button type="button" data-nd="col-" title="刪掉這一欄">－欄</button></span></span>`;
+  /* ---------- 檢索表的分類筆記：電腦游標停在某一類上按空白鍵（和經方一樣左表右筆記）；手機輕點那一類，頁面下面出現筆記框 ----------
+   * 依分類名稱存在這台裝置 tcm-ccnote-v1（{分類名: {d: HTML, t}}），有設定 GitHub 同步時合併到 tcm-notes sync/ccnote.json */
+  const CCNK = 'tcm-ccnote-v1', CCN_URL = GH_URL.replace('myfx.json', 'ccnote.json');
+  const ccnAll = () => { try { const a = JSON.parse(localStorage.getItem(CCNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const ccnStore = a => { try { localStorage.setItem(CCNK, JSON.stringify(a)); } catch (e) {} };
+  async function ccnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(CCN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = ccnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      ccnStore(all);
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(CCN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步檢索表分類筆記', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  // 哪一個分類在這個點上（用每類範圍框的 % 位置算，框本身平常是隱藏的）
+  function ccnFromTb(tb) { const st = tb.style, l = parseFloat(st.left) / 100, t = parseFloat(st.top) / 100, w = parseFloat(st.width) / 100, h = parseFloat(st.height) / 100;
+    return [l, t, w, h].every(isFinite) ? { i: tb.id.slice(4), tb, par: tb.parentElement, l, t, w, h, area: w * h } : null; }
+  function ccnCatAt(x, y) {
+    let best = null;
+    document.querySelectorAll('#entry .cc-main .cc-tbox[id^="cct-"]').forEach(tb => {
+      const par = tb.parentElement, pr = par && par.getBoundingClientRect(); if (!pr || !pr.width) return;
+      const st = tb.style, l = parseFloat(st.left) / 100, t = parseFloat(st.top) / 100, w = parseFloat(st.width) / 100, h = parseFloat(st.height) / 100;
+      if (![l, t, w, h].every(isFinite)) return;
+      const x0 = pr.left + l * pr.width, y0 = pr.top + t * pr.height;
+      if (x < x0 || y < y0 || x > x0 + w * pr.width || y > y0 + h * pr.height) return;
+      const area = w * h; if (!best || area < best.area) best = { i: tb.id.slice(4), tb, par, l, t, w, h, area };
+    });
+    return best;
+  }
+  const ccnCat = i => (typeof CHART !== 'undefined' && CHART.cats && CHART.cats[i]) || null;
+  const ccnKey = i => { const c = ccnCat(i); return c && c.name ? c.name : 'cc' + i; };
+  const ccnLabel = i => { const c = ccnCat(i); return c ? (c.no ? c.no + '、' : '') + c.name : ''; };
+  const ccnGet = i => { const e = ccnAll()[ccnKey(i)]; return e && typeof e.d === 'string' ? e.d : ''; };
+  const ccnSet = (i, v) => { const a = ccnAll(); a[ccnKey(i)] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); };
+  // 電腦：左半邊是這一類裁出來的表，右半邊是筆記（和經方的延伸筆記一樣）
+  function ccnOpen(c, f) {   // f：單一個方 { name, el }，沒有就是整類的筆記
+    const box = document.createElement('div'); box.className = 'bz-ccn-clip';
+    if (f && f.el) f.el.classList.add('bz-ccn-cur');
+    const cl = c.par.cloneNode(true); cl.querySelectorAll('.cc-tbox,.anchor').forEach(x => x.remove()); cl.removeAttribute('id');
+    if (f && f.el) f.el.classList.remove('bz-ccn-cur');
+    cl.style.cssText += ';position:absolute;left:0;top:0;margin:0;transform-origin:0 0';
+    box.appendChild(cl);
+    const ratio = c.par.offsetHeight / c.par.offsetWidth;
+    const fit = () => { if (!box.isConnected) return; const pw = box.parentElement.clientWidth - 96, ph = box.parentElement.clientHeight - 112;
+      let sw = pw / c.w; if (sw * ratio * c.h > ph) sw = ph / (ratio * c.h);
+      cl.style.width = sw + 'px'; box.style.width = (sw * c.w) + 'px'; box.style.height = (sw * ratio * c.h) + 'px';
+      cl.style.transform = `translate(${-c.l * sw}px, ${-c.t * sw * ratio}px)`; };
+    const k = f ? 'f:' + f.name : ccnKey(c.i);
+    const get = () => { const e = ccnAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
+    const set = v => { const a = ccnAll(); a[k] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); setTimeout(ccnMarks, 0); };
+    ndShow({ label: f ? f.name + '　' + ccnLabel(c.i) : '檢索表　' + ccnLabel(c.i), clone: () => box, target: () => ({ els: [], cls: 'nd-cur' }), get, set });
+    requestAnimationFrame(fit); setTimeout(fit, 200);
+  }
+  // 表上的一個方（黃色方名框或藍色手寫方）→ 方名
+  function ccnFormula(el) {
+    const a = el && el.closest && el.closest('#entry .cc-main .spot, #entry .cc-main .hw'); if (!a) return null;
+    let name = '';
+    if (a.classList.contains('hw')) name = (a.getAttribute('title') || '').split('（')[0];
+    else { const sh = a.closest('.sheet'), sc = a.closest('.sheet-scroll'), pi = sc && +sc.dataset.pi, pg = typeof CHART !== 'undefined' && CHART.pages[pi];
+      const idx = [...sh.querySelectorAll(':scope > .spot')].indexOf(a); name = pg && pg.spots[idx] ? pg.spots[idx].f : ''; }
+    return name ? { name, el: a } : null;
+  }
+  function ccnMarks() {
+    const all = ccnAll(), has = n => { const e = all['f:' + n]; return !!(e && typeof e.d === 'string' && e.d.replace(/<[^>]*>|&nbsp;|\s/g, '')); };
+    document.querySelectorAll('#entry .cc-main .spot, #entry .cc-main .hw').forEach(a => { const f = ccnFormula(a); a.classList.toggle('bz-hasn', !!(f && has(f.name))); });
+  }
+  if (entObs) new MutationObserver(() => { if (document.querySelector('#entry .cc-split')) ccnMarks(); }).observe(entObs, { childList: true });
+  setTimeout(() => { if (document.querySelector('#entry .cc-split')) ccnMarks(); }, 0);
+  const ccnCatOf = (f, x, y) => { const r = f.el.getBoundingClientRect(); return ccnCatAt(r.left + r.width / 2, r.top + r.height / 2) || ccnCatAt(x, y) || (() => { const sh = f.el.closest('.sheet'), pr = sh.getBoundingClientRect();
+    return { i: '', par: sh, l: Math.max(0, (r.left - pr.left) / pr.width - 0.1), t: Math.max(0, (r.top - pr.top) / pr.height - 0.1), w: Math.min(1, r.width / pr.width + 0.2), h: Math.min(1, r.height / pr.height + 0.2) }; })(); };
+  let ccnXY = null;
+  document.addEventListener('mousemove', e => { ccnXY = [e.clientX, e.clientY]; }, { passive: true });
+  document.addEventListener('mouseover', e => {
+    const a = document.activeElement; if (!a || a.tagName !== 'IFRAME') return;
+    if (!(e.target.closest && e.target.closest('#entry .cc-main'))) return;
+    try { a.blur(); window.focus(); } catch (er) {}
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    if (e.repeat || e.isComposing || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || !ccnXY) return;
+    if (!document.querySelector('#entry .cc-split') || document.querySelector('.bz-ntdoc')) return;
+    const t = e.target && e.target.nodeType === 1 ? e.target : null;
+    if (t && (t.closest('input,textarea,[contenteditable="true"]') || t.isContentEditable)) return;
+    const f = ccnFormula(document.elementFromPoint(ccnXY[0], ccnXY[1]));
+    const c = f ? ccnCatOf(f, ccnXY[0], ccnXY[1]) : ccnCatAt(ccnXY[0], ccnXY[1]); if (!c) return;
+    e.preventDefault(); e.stopPropagation();
+    if (t && t.closest('select,button') && t.blur) t.blur();
+    ccnOpen(c, f);
+  }, true);
+  // 手機：長按表上的一個方 → 這一頁下面打開這個方的筆記框（和經方一樣的白色編輯框）
+  let ccnLP = null, ccnLPfired = 0;
+  document.addEventListener('touchstart', e => {
+    if (innerWidth > 820 || e.touches.length !== 1) return;
+    const f = ccnFormula(e.target); if (!f) return;
+    const t0 = e.touches[0], x = t0.clientX, y = t0.clientY;
+    clearTimeout(ccnLP); ccnLP = setTimeout(() => { ccnLPfired = Date.now(); ccnInline(f.el.closest('.sheet-scroll'), 'f:' + f.name, f.name); }, 550);
+    const cancel = () => { clearTimeout(ccnLP); removeEventListener('touchmove', mv); };
+    const mv = ev => { const p = ev.touches[0]; if (Math.hypot(p.clientX - x, p.clientY - y) > 10) cancel(); };
+    addEventListener('touchmove', mv, { passive: true }); addEventListener('touchend', cancel, { once: true });
+  }, { passive: true });
+  document.addEventListener('click', e => { if (Date.now() - ccnLPfired < 800 && ccnFormula(e.target)) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener('contextmenu', e => { if (innerWidth <= 820 && ccnFormula(e.target)) e.preventDefault(); });
+  function ccnInline(sh, k, label) {
+    const wrap = sh.closest('.sheet-wrap'), open = wrap.querySelector(':scope > .bz-ccn-inl');
+    if (open) { open._save(); open.remove(); if (open.dataset.k === k) return; }
+    const box = document.createElement('div'); box.className = 'bz-nd-inl bz-ccn-inl'; box.dataset.k = k;
+    box.innerHTML = `<div class="bz-nd-top"><span class="bz-nd-lb"></span>${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.querySelector('.bz-nd-lb').textContent = label;
+    sh.insertAdjacentElement('afterend', box);
+    const get = () => { const e = ccnAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
+    const ed = box.querySelector('.bz-nd-ed'); ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
+    let tm = 0;
+    box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = ccnAll(); a[k] = { d: v, t: Date.now() }; ccnStore(a); clearTimeout(ccnSync.t); ccnSync.t = setTimeout(() => ccnSync(true), 1500); ccnMarks(); } };
+    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
+    ed.addEventListener('focusout', () => box._save());
+    ed.style.minHeight = '0'; ed.style.height = Math.max(160, innerHeight * 0.45) + 'px';
+    box.scrollIntoView({ block: 'nearest' });
+  }
+  // 手機：輕點表上某一類（不是點方名）→ 這一頁下面打開筆記框，再點同一類收回
+  document.addEventListener('click', e => {
+    if (innerWidth > 820 || !e.target.closest) return;
+    const sh = e.target.closest('#entry .cc-main .sheet-scroll'); if (!sh || e.target.closest('a,[data-go],button')) return;
+    const c = ccnCatAt(e.clientX, e.clientY); if (!c) return;
+    ccnInline(sh, ccnKey(c.i), ccnLabel(c.i));
+  });
   const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
   const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };
   function ndMarks(w) { w.querySelectorAll('.shl-c[data-no]').forEach(c => c.classList.toggle('has-nd', ndHas(ndKeyOf(c)))); }
