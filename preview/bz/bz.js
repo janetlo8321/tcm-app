@@ -2550,7 +2550,7 @@
     const open = cb.querySelector('.bz-nd-inl');
     if (open) { open._save(); open.remove(); cEl.classList.remove('nd-in'); ndMarks(cEl.closest('#bzShl')); return; }
     const box = document.createElement('div'); box.className = 'bz-nd-inl';
-    box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、圖片，自動存（電腦按空白鍵看到的是同一份）"></div><input type="file" accept="image/*" multiple hidden>`;
+    box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph=""></div><input type="file" accept="image/*" multiple hidden>`;
     cb.appendChild(box); cEl.classList.add('nd-in');
     const ed = box.querySelector('.bz-nd-ed');
     const get = () => { const e = shlAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
