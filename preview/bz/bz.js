@@ -2094,7 +2094,7 @@
   const HLK = 'tcm-hl-v1', HL_URL = GH_URL.replace('myfx.json', 'hl.json');
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
-  const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx';
+  const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx,.bz-nd-inl';
   const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
@@ -2163,11 +2163,12 @@
     hlPend = pend; hlPut();
     if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
     let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
-    if (COARSE.matches) {   // 手機：系統的「複製…」選單在選取範圍上方，綠勾改放到選取範圍下方（避開拖拉把手）
-      let bt = rect.bottom, rt = rect.right;
-      try { const b = getSelection().getRangeAt(0).getBoundingClientRect(); if (b.height) { bt = b.bottom; rt = Math.max(rt, b.right); } } catch (er) {}
-      x = Math.min(innerWidth - 46, Math.max(6, rt - 20)); y = bt + 30;
-      if (y + 44 > innerHeight) y = Math.max(6, rect.top - 96);
+    if (COARSE.matches) {   // 手機：系統的「拷貝／查詢…」選單會出現在選取範圍上面或下面，綠勾改放到螢幕的另一半（右側），完全避開
+      let tp = rect.top, bt = rect.bottom;
+      try { const b = getSelection().getRangeAt(0).getBoundingClientRect(); if (b.height) { tp = b.top; bt = b.bottom; } } catch (er) {}
+      const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vt = vv ? vv.offsetTop : 0;
+      x = innerWidth - 100;
+      y = (tp + bt) / 2 - vt < vh / 2 ? vt + vh - 150 : vt + 96;   // 選在上半 → 放下面（底下分頁列的上方）；選在下半 → 放上面
     }
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
@@ -2369,6 +2370,7 @@
       save(); ov.remove(); document.removeEventListener('keydown', esc, true); removeEventListener('resize', onRs); if (book) o.root.removeEventListener('scroll', onFlip);
       if (W && !book) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); }
       curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
+      if (W) try { ndMarks(W); } catch (er) {}
     };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
     ov.addEventListener('wheel', e => e.stopPropagation());
@@ -2536,6 +2538,32 @@
       im.style.width = im.style.width === '50%' ? '' : '50%'; changed();
     });
   }
+  /* 手機（捲動模式）：輕點條號 → 這一條底下的組成、煎服法換成白色編輯頁（和電腦的延伸筆記同一份），再點一下條號收回 */
+  const ND_TOOLS = `<span class="bz-nd-tools">
+<button type="button" data-nd="bold" title="粗體"><b>B</b></button><button type="button" data-nd="underline" title="底線"><u>U</u></button><button type="button" data-nd="hl" title="螢光筆">🖍</button><button type="button" data-nd="h" title="標題">標</button><button type="button" data-nd="insertUnorderedList" title="條列">•</button><button type="button" data-nd="insertOrderedList" title="編號">1.</button><button type="button" data-nd="table" title="插入表格">▦</button><button type="button" data-nd="img" title="插入圖片">🖼</button><button type="button" data-nd="removeFormat" title="清除格式">⌫</button>
+<span class="bz-nd-tbt" hidden><button type="button" data-nd="row+">＋列</button><button type="button" data-nd="col+">＋欄</button><button type="button" data-nd="row-">－列</button><button type="button" data-nd="col-">－欄</button></span></span>`;
+  const ndKeyOf = cEl => { const W = cEl.closest('#bzShl'); return W && W.dataset.bk ? 'nd:' + W.dataset.bk + ':' + cEl.dataset.no : ''; };
+  const ndHas = k => { const e = shlAll()[k]; return !!(e && typeof e.d === 'string' && e.d.trim()); };
+  function ndMarks(w) { w.querySelectorAll('.shl-c[data-no]').forEach(c => c.classList.toggle('has-nd', ndHas(ndKeyOf(c)))); }
+  function ndInline(cEl) {
+    const k = ndKeyOf(cEl), cb = cEl.querySelector('.shl-cb'); if (!k || !cb) return;
+    const open = cb.querySelector('.bz-nd-inl');
+    if (open) { open._save(); open.remove(); cEl.classList.remove('nd-in'); ndMarks(cEl.closest('#bzShl')); return; }
+    const box = document.createElement('div'); box.className = 'bz-nd-inl';
+    box.innerHTML = `<div class="bz-nd-top">${ND_TOOLS}</div><div class="bz-nd-ed" contenteditable="true" spellcheck="false" data-ph="延伸筆記：直接打字，可以插表格、圖片，自動存（電腦按空白鍵看到的是同一份）"></div><input type="file" accept="image/*" multiple hidden>`;
+    cb.appendChild(box); cEl.classList.add('nd-in');
+    const ed = box.querySelector('.bz-nd-ed');
+    const get = () => { const e = shlAll()[k]; return e && typeof e.d === 'string' ? e.d : ''; };
+    ed.innerHTML = ndToHtml(get()); ndImgFill(ed);
+    let tm = 0;
+    box._save = () => { clearTimeout(tm); const v = ndFromEd(ed); if (get() !== v) { const a = shlAll(); a[k] = { d: v, t: Date.now() }; shlStore(a); clearTimeout(shlSync.t); shlSync.t = setTimeout(() => shlSync(true), 1500); } };
+    ndEditor(box, ed, () => { clearTimeout(tm); tm = setTimeout(box._save, 400); });
+    ed.addEventListener('focusout', () => box._save());
+  }
+  document.addEventListener('click', e => {
+    const n = e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-c > .shl-no'); if (!n) return;
+    e.preventDefault(); ndInline(n.parentElement);
+  });
   function ndOpen(f) {   // 註的延伸筆記
     const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
     const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.parentElement;
@@ -2816,6 +2844,7 @@
     w.innerHTML = shlHtml(bk); w.dataset.bk = bk.key;
     shlEdApply(w);
     const b = w.querySelector('.shl-body'); if (b) try { hlApply(b); } catch (e) {}
+    try { ndMarks(w); } catch (e) {}
     if (!w.hidden) setTimeout(shlLayout, 0);
   }
   function shlCheck() {
