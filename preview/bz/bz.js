@@ -2334,22 +2334,36 @@
     ov.querySelector('.bz-nd-lb').textContent = o.label || '';
     const L = ov.querySelector('.bz-nd-l');
     let curEls = [];
+    const book = !!(W && W.classList.contains('shl-book'));
     const toTarget = () => {
       curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
       const t = o.target(); curEls = t.els || []; curEls.forEach(x => x.classList.add(t.cls));
-      const m = curEls[0]; if (!m || !W) return;
-      if (W.classList.contains('shl-book') && typeof shlGo === 'function') shlGo(shlPageOf(o.root, m)); else m.scrollIntoView({ block: 'center' });
+      const m = curEls[0]; if (!m || !W || book) return;
+      m.scrollIntoView({ block: 'center' });
     };
-    const relayout = () => { if (typeof shlLayout === 'function') shlLayout(); toTarget(); };
-    if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); }
+    // 翻書：書完全不動；條文在左頁 → 空白頁蓋在右頁，條文在右頁 → 蓋在左頁
+    const place = () => {
+      const b = o.root, m = curEls[0]; if (!b) return;
+      const r = b.getBoundingClientRect(), half = r.width / 2;
+      const side = m && typeof shlPageOf === 'function' ? shlPageOf(b, m) % 2 : 0;
+      Object.assign(ov.style, { top: r.top + 'px', height: r.height + 'px', left: (side ? r.left : r.left + half) + 'px', width: half + 'px' });
+      ov.classList.toggle('on-left', !!side);
+    };
+    const relayout = () => { if (book) { toTarget(); place(); return; } if (typeof shlLayout === 'function') shlLayout(); toTarget(); };
+    if (book) { ov.classList.add('page'); L.remove(); }
+    else if (W) { ov.classList.add('split'); L.remove(); W.classList.add('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); }
     else if (o.clone) L.appendChild(o.clone());
+    const onRs = () => { if (book) place(); };
+    addEventListener('resize', onRs);
+    const onFlip = () => { if (book && ov.isConnected) close(); };   // 翻到別頁就收起來（已自動存）
+    if (book) o.root.addEventListener('scroll', onFlip);
     const ta = ov.querySelector('textarea'); ta.value = o.get() || '';
     let tm = 0;
     const save = () => { clearTimeout(tm); if ((o.get() || '') !== ta.value) o.set(ta.value); };
     const close = () => {
       ndCloseCur = null;
-      save(); ov.remove(); document.removeEventListener('keydown', esc, true);
-      if (W) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); }
+      save(); ov.remove(); document.removeEventListener('keydown', esc, true); removeEventListener('resize', onRs); if (book) o.root.removeEventListener('scroll', onFlip);
+      if (W && !book) { W.classList.remove('nd-split'); if (typeof shlEdApply === 'function') shlEdApply(W); relayout(); }
       curEls.forEach(x => x.classList.remove('cur', 'nd-cur'));
     };
     const esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
