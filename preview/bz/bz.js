@@ -2423,8 +2423,12 @@
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
-      const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && (startEl.closest('mark.bz-hl:not(.bz-note)') || startEl.closest('mark.bz-hl'));   // 黃底和註疊在一起時，綠勾只管黃底
-      const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && (endEl.closest('mark.bz-hl:not(.bz-note)') || endEl.closest('mark.bz-hl'));
+      const tsx = hlTexts(root), ix = n => tsx.findIndex(t => t.n === n);   // 端點剛好在標記外那一格時往標記裡挪
+      let sn = r.startContainer, en = r.endContainer;
+      if (sn.nodeType === 3 && r.startOffset === sn.data.length && tsx[ix(sn) + 1]) sn = tsx[ix(sn) + 1].n;
+      if (en.nodeType === 3 && r.endOffset === 0 && ix(en) > 0) en = tsx[ix(en) - 1].n;
+      const startEl = (sn.nodeType === 1 ? sn : sn.parentElement), mk = startEl && startEl.closest('mark.bz-hl:not(.bz-note)');   // 綠勾只管黃底；註只能從註的框刪
+      const endEl = (en.nodeType === 1 ? en : en.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl:not(.bz-note)');
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
         // 黃底上也可以加註（黃底留著，加藍色底線）：註用選到的那段字
@@ -2456,7 +2460,7 @@
     if (p.act === 'add') pg.list.push({ id: 'h' + Date.now().toString(36), s: p.s, e: p.e, x: p.x });
     else {
       const it = pg.list.find(h => h.id === p.id);
-      if (it && it.k === 'n' && !confirm('要刪除這個註嗎？（註裡打的字也會一起刪掉）')) { hlHide(); return; }
+      if (!it || it.k === 'n') { hlHide(); return; }   // 綠勾絕不刪註
       pg.list = pg.list.filter(h => h.id !== p.id);
       if (ntCur && ntCur.id === p.id) { ntCur = null; ntBox.hidden = true; ntPin = false; }
     }
@@ -2486,7 +2490,7 @@
   const ntBox = document.createElement('div');
   ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
   ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea><button type="button" class="bz-nt-rm" title="刪掉這個註" hidden>－</button><button type="button" class="bz-nt-ex" title="延伸筆記（左頁原文、右頁打字）">⤢</button>';
-  const ntRm = () => { const ta = ntBox.querySelector('textarea'); ntBox.querySelector('.bz-nt-rm').hidden = !!ta.value.trim(); };
+  const ntRm = () => { ntBox.querySelector('.bz-nt-rm').hidden = false; };   // 「－」一直都在：刪註只能從註的框
   let ntCur = null, ntPin = false, ntHideT = 0;
   const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
   const ntItem = c => c && (((hlAll()[c.key] || {}).list) || []).find(h => h.id === c.id);
@@ -2531,8 +2535,7 @@
     if (!ntCur) return;
     const c = ntCur, a = hlAll(), pg = a[c.key]; if (!pg) return;
     const h = (pg.list || []).find(x => x.id === c.id); if (!h) return;
-    if (ntBox.querySelector('textarea').value.trim()) return;
-    if (h.doc && h.doc.trim() && !confirm('這個註的延伸筆記還有字，也一起刪掉嗎？')) return;
+    if ((ntBox.querySelector('textarea').value.trim() || (h.doc && h.doc.trim())) && !confirm('要刪除這個註嗎？（註裡打的字和延伸筆記也會一起刪掉）')) return;
     pg.list = pg.list.filter(x => x.id !== c.id); pg.t = Date.now(); hlStore(a);
     ntBox.hidden = true; ntPin = false; ntCur = null;
     hlApply(c.root);
