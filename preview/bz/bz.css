@@ -1211,3 +1211,4 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
 .bz-ntdoc { grid-template-rows: minmax(0, 1fr); }
 .bz-ntdoc .bz-nd-r { min-height: 0; overflow: hidden; }
 .bz-ntdoc .bz-nd-ed { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.bz-shl .shl-dock > i.big { z-index: 2; }

@@ -3207,13 +3207,14 @@
     t = t.slice(0, 2); if (t.length < 2) t += '病';
     return t + ud;
   }
-  function shlDockMag(d, x) {   // 放大游標附近的幾格
-    d.querySelectorAll(':scope > i').forEach(t => {
-      const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = x == null ? 1e9 : Math.abs(x - c);
-      const s = 1 + 1.6 * Math.max(0, 1 - dist / 90);
-      t.style.transform = s > 1.01 ? `scale(${s.toFixed(2)})` : '';
-      t.classList.toggle('big', s > 1.5);
+  function shlDockMag(d, x) {   // 只放大游標正在上面的那一格（v2.44.2）
+    const ts = [...d.querySelectorAll(':scope > i')]; let best = null, bd = 1e9;
+    if (x != null) ts.forEach(t => {   // 找中心離游標最近的那一格
+      const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = Math.abs(x - c);   // 從底部中間放大，中心不會動
+      if (dist < bd) { bd = dist; best = t; }
     });
+    if (best && bd > best.offsetWidth * 1.5 + 6) best = null;
+    ts.forEach(t => { const on = t === best; t.style.transform = on ? 'scale(2.6)' : ''; t.classList.toggle('big', on); });
   }
   function shlTip(w, t) {
     const tip = w.querySelector('.shl-tip'); if (!tip) return;
