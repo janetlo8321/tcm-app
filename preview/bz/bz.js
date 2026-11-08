@@ -3214,13 +3214,21 @@
       if (dist < bd) { bd = dist; best = t; }
     });
     if (best && bd > best.offsetWidth * 1.5 + 6) best = null;
-    // 左右兩頁（同一個跨頁）一起凸起：左格往左長、右格往右長，中間貼在一起
+    // 左右兩頁（同一個跨頁）一起凸起：格子本身不放大（字才不會被切），在上面浮出一張精緻的小卡，兩頁並排、數字置中
     const pair = best ? ts.filter(t => t.dataset.pg === best.dataset.pg) : [];
-    ts.forEach(t => {
-      const k = pair.indexOf(t), on = k >= 0;
-      t.style.transformOrigin = on && pair.length > 1 ? (k === 0 ? '100% 100%' : '0% 100%') : '';
-      t.style.transform = on ? 'scale(2.6)' : ''; t.classList.toggle('big', on);
-    });
+    ts.forEach(t => { t.style.transform = ''; t.style.transformOrigin = ''; t.classList.toggle('big', pair.includes(t)); });
+    let pop = d.querySelector(':scope > .shl-dk-pop');
+    if (!pair.length) { if (pop) pop.classList.remove('show'); return; }
+    if (!pop) { pop = document.createElement('div'); pop.className = 'shl-dk-pop'; d.appendChild(pop); }
+    const key = pair.map(t => t.dataset.k).join(',');
+    if (pop.dataset.k !== key) {
+      pop.dataset.k = key;
+      pop.innerHTML = pair.map(t => `<span class="${t.classList.contains('on') ? 'on' : t.classList.contains('c1') ? 'c1' : 'c0'}">${shlEsc(t.textContent.trim() || '·')}</span>`).join('');
+    }
+    const dr = d.getBoundingClientRect(), a = pair[0].getBoundingClientRect(), z = pair[pair.length - 1].getBoundingClientRect();
+    const pw = pop.offsetWidth || 80, cx = (a.left + z.right) / 2 - dr.left;   // 靠邊時不要超出頁面列
+    pop.style.left = Math.max(pw / 2 + 2, Math.min(dr.width - pw / 2 - 2, cx)) + 'px';
+    pop.classList.add('show');
   }
   function shlTip(w, t) {
     const tip = w.querySelector('.shl-tip'); if (!tip) return;
