@@ -1232,3 +1232,10 @@ html.bz-sheet #entry > .xl-split { margin-top: 8px; }
   .bz-shl .shl-dk-pop { background: rgba(44,44,46,.82); }
   .bz-shl .shl-dk-pop span { background: #3a4a62; color: #e8eef7; } .bz-shl .shl-dk-pop span.c1 { background: #5a4a33; color: #f3e6cf; }
 }
+
+/* v2.44.5：頁面列上方的提示框改成淡灰半透明毛玻璃，深色字 */
+.bz-shl .shl-tip { background: rgba(242,242,247,.78); color: #3a3a3c; -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,.08), inset 0 0 0 .5px rgba(0,0,0,.08); border-radius: 10px; }
+.bz-shl .shl-tip b { color: #1c1c1e; }
+@media (prefers-color-scheme: dark) { .bz-shl .shl-tip { background: rgba(58,58,60,.6); color: #e5e5ea; } .bz-shl .shl-tip b { color: #fff; } }
+.bz-shl .shl-tip { padding: 3px 9px; font-size: 11px; line-height: 1.45; border-radius: 8px; bottom: 58px; }
