@@ -3214,16 +3214,24 @@
       if (dist < bd) { bd = dist; best = t; }
     });
     if (best && bd > best.offsetWidth * 1.5 + 6) best = null;
-    ts.forEach(t => { const on = t === best; t.style.transform = on ? 'scale(2.6)' : ''; t.classList.toggle('big', on); });
+    // 左右兩頁（同一個跨頁）一起凸起：左格往左長、右格往右長，中間貼在一起
+    const pair = best ? ts.filter(t => t.dataset.pg === best.dataset.pg) : [];
+    ts.forEach(t => {
+      const k = pair.indexOf(t), on = k >= 0;
+      t.style.transformOrigin = on && pair.length > 1 ? (k === 0 ? '100% 100%' : '0% 100%') : '';
+      t.style.transform = on ? 'scale(2.6)' : ''; t.classList.toggle('big', on);
+    });
   }
   function shlTip(w, t) {
     const tip = w.querySelector('.shl-tip'); if (!tip) return;
     if (!t) { tip.hidden = true; return; }
     const s = shlSpreads[+t.dataset.k]; if (!s) return;
-    const g = shlGeom(w.querySelector('.shl-body')), nos = s.nos;
-    tip.innerHTML = `<b>第 ${s.p + 1} 頁</b>　${shlEsc(s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
+    const two = shlSpreads.filter(x => x.pg === s.pg), nos = two.flatMap(x => x.nos);   // 左右兩頁一起
+    const ps = two.map(x => x.p + 1);
+    tip.innerHTML = `<b>第 ${ps.length > 1 ? ps[0] + '–' + ps[ps.length - 1] : ps[0]} 頁</b>　${shlEsc(two[0].ch || s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
     tip.hidden = false;
-    const r = t.getBoundingClientRect(), nr = tip.parentNode.getBoundingClientRect();
+    const rs = [...t.parentNode.querySelectorAll(`:scope > i[data-pg="${t.dataset.pg}"]`)].map(x => x.getBoundingClientRect());
+    const r = { left: Math.min(...rs.map(x => x.left)), width: Math.max(...rs.map(x => x.right)) - Math.min(...rs.map(x => x.left)) }, nr = tip.parentNode.getBoundingClientRect();
     tip.style.left = Math.max(8, Math.min(nr.width - tip.offsetWidth - 8, r.left + r.width / 2 - nr.left - tip.offsetWidth / 2)) + 'px';
   }
   document.addEventListener('mousemove', e => {
