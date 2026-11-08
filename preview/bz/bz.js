@@ -3236,7 +3236,7 @@
     const s = shlSpreads[+t.dataset.k]; if (!s) return;
     const two = shlSpreads.filter(x => x.pg === s.pg), nos = two.flatMap(x => x.nos);   // 左右兩頁一起
     const ps = two.map(x => x.p + 1);
-    tip.innerHTML = `<b>第 ${ps.length > 1 ? ps[0] + '–' + ps[ps.length - 1] : ps[0]} 頁</b>　${shlEsc(two[0].ch || s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
+    tip.innerHTML = `<b>第 ${ps.length > 1 ? ps[0] + '–' + ps[ps.length - 1] : ps[0]} 頁</b>　${shlEsc(two[0].ch || s.ch)}${nos.length ? `　第 ${shlEsc(nos[0])}${nos.length > 1 ? '–' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
     tip.hidden = false;
     const rs = [...t.parentNode.querySelectorAll(`:scope > i[data-pg="${t.dataset.pg}"]`)].map(x => x.getBoundingClientRect());
     const r = { left: Math.min(...rs.map(x => x.left)), width: Math.max(...rs.map(x => x.right)) - Math.min(...rs.map(x => x.left)) }, nr = tip.parentNode.getBoundingClientRect();
