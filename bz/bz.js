@@ -1421,6 +1421,43 @@
       t.appendChild(b); return t.outerHTML;
     }).join('');
   }
+  // 分類比較的表：縱向欄線可以左右拖曳（寬度比例記在這台裝置 tcm-xgw-v1，兩邊的表一起套用）
+  const XGW = 'tcm-xgw-v1';
+  const xgwGet = () => { try { const a = JSON.parse(localStorage.getItem(XGW) || 'null'); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
+  const xgwCols = t => { const rows = [...t.rows]; const n = Math.max(0, ...rows.map(r => [...r.cells].reduce((k, c) => k + (c.colSpan || 1), 0)));
+    let cg = t.querySelector('colgroup'); if (!cg || cg.children.length !== n) { if (cg) cg.remove(); cg = document.createElement('colgroup'); for (let i = 0; i < n; i++) cg.appendChild(document.createElement('col')); t.insertBefore(cg, t.firstChild); }
+    return [...cg.children]; };
+  function xgwApply(root) {
+    const w = xgwGet(); if (!w) return;
+    (root || document).querySelectorAll('.xl-pbody table.xl').forEach(t => { const cols = xgwCols(t); if (cols.length !== w.length) return;
+      t.style.tableLayout = 'fixed'; cols.forEach((c, i) => { c.style.width = (w[i] * 100) + '%'; }); });
+  }
+  let xgwDrag = null;
+  const xgwEdge = (t, x) => {   // 游標靠近哪一條縱線（回傳左邊那一欄的編號）
+    const cols = xgwCols(t), r = t.getBoundingClientRect(); let acc = r.left;
+    const row = [...t.rows].find(rw => rw.cells.length === cols.length); if (!row) return -1;
+    for (let i = 0; i < row.cells.length - 1; i++) { const e = row.cells[i].getBoundingClientRect().right; if (Math.abs(e - x) <= 5) return i; }
+    return -1;
+  };
+  document.addEventListener('mousemove', e => {
+    if (xgwDrag) { const d = xgwDrag, dx = e.clientX - d.x, a = Math.max(24, d.wa + dx), b = Math.max(24, d.wa + d.wb - a);
+      const ws = d.ws.slice(); ws[d.i] = (d.wa + d.wb - b) / d.tw; ws[d.i + 1] = b / d.tw;
+      try { localStorage.setItem(XGW, JSON.stringify(ws)); } catch (er) {} xgwApply(); e.preventDefault(); return; }
+    const t = e.target.closest && e.target.closest('.xl-pbody table.xl'); if (!t) return;
+    t.style.cursor = xgwEdge(t, e.clientX) >= 0 ? 'col-resize' : '';
+  });
+  document.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const t = e.target.closest && e.target.closest('.xl-pbody table.xl'); if (!t) return;
+    const i = xgwEdge(t, e.clientX); if (i < 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const row = [...t.rows].find(rw => rw.cells.length === xgwCols(t).length), tw = t.getBoundingClientRect().width;
+    const px = [...row.cells].map(c => c.getBoundingClientRect().width);
+    xgwDrag = { i, x: e.clientX, tw, wa: px[i], wb: px[i + 1], ws: px.map(v => v / tw) };
+    document.body.style.cursor = 'col-resize';
+  }, true);
+  addEventListener('mouseup', () => { if (xgwDrag) { xgwDrag = null; document.body.style.cursor = ''; } });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xl-pbody table.xl') && document.body.style.cursor === 'col-resize') e.preventDefault(); }, true);
   // 分類標題旁：自己補充的小註記（兩列並排，輕點可改，清空刪掉），最後一個 ＋ 再加
   const XNK = 'tcm-xgnote-v1', XN_URL = GH_URL.replace('myfx.json', 'xgnote.json');
   const xnAll = () => { try { const a = JSON.parse(localStorage.getItem(XNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
@@ -1474,6 +1511,7 @@
     const c = sp.querySelector('.xl-cmp');
     c.querySelector('.xl-pane-p').innerHTML = xgPane('p');
     c.querySelector('.xl-pane-o').innerHTML = xgPane('o');
+    xgwApply(c);
     document.querySelectorAll('[data-xg]').forEach(b => { b.classList.toggle('on', b.dataset.xg === xgSt.p); b.classList.toggle('cmp', b.dataset.xg === xgSt.o); });
   }
   function xgMode(sp, total) {
@@ -2385,13 +2423,17 @@
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
-      const startEl = (r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement), mk = startEl && startEl.closest('mark.bz-hl');
-      const endEl = (r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl');
+      const tsx = hlTexts(root), ix = n => tsx.findIndex(t => t.n === n);   // 端點剛好在標記外那一格時往標記裡挪
+      let sn = r.startContainer, en = r.endContainer;
+      if (sn.nodeType === 3 && r.startOffset === sn.data.length && tsx[ix(sn) + 1]) sn = tsx[ix(sn) + 1].n;
+      if (en.nodeType === 3 && r.endOffset === 0 && ix(en) > 0) en = tsx[ix(en) - 1].n;
+      const startEl = (sn.nodeType === 1 ? sn : sn.parentElement), mk = startEl && startEl.closest('mark.bz-hl:not(.bz-note)');   // 綠勾只管黃底；註只能從註的框刪
+      const endEl = (en.nodeType === 1 ? en : en.parentElement), mk2 = endEl && endEl.closest('mark.bz-hl:not(.bz-note)');
       if (mk && mk2 && mk.dataset.hl === mk2.dataset.hl) {   // 在黃底裡長按：確認去掉
         const ms = root.querySelectorAll(`mark.bz-hl[data-hl="${mk.dataset.hl}"]`), rc = ms[0].getBoundingClientRect(), last = ms[ms.length - 1].getBoundingClientRect();
         // 黃底上也可以加註（黃底留著，加藍色底線）：註用選到的那段字
         let nt = null;
-        if (!mk.classList.contains('bz-note')) {
+        if (!mk.classList.contains('bz-note') && !startEl.closest('mark.bz-note')) {
           const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
           const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
           if (x.trim()) nt = { s, e, x };
@@ -2418,7 +2460,7 @@
     if (p.act === 'add') pg.list.push({ id: 'h' + Date.now().toString(36), s: p.s, e: p.e, x: p.x });
     else {
       const it = pg.list.find(h => h.id === p.id);
-      if (it && it.k === 'n' && !confirm('要刪除這個註嗎？（註裡打的字也會一起刪掉）')) { hlHide(); return; }
+      if (!it || it.k === 'n') { hlHide(); return; }   // 綠勾絕不刪註
       pg.list = pg.list.filter(h => h.id !== p.id);
       if (ntCur && ntCur.id === p.id) { ntCur = null; ntBox.hidden = true; ntPin = false; }
     }
@@ -2448,7 +2490,7 @@
   const ntBox = document.createElement('div');
   ntBox.className = 'bz-ntbox'; ntBox.hidden = true;
   ntBox.innerHTML = '<textarea class="bz-nt-t" placeholder="打字，自動存"></textarea><button type="button" class="bz-nt-rm" title="刪掉這個註" hidden>－</button><button type="button" class="bz-nt-ex" title="延伸筆記（左頁原文、右頁打字）">⤢</button>';
-  const ntRm = () => { const ta = ntBox.querySelector('textarea'); ntBox.querySelector('.bz-nt-rm').hidden = !!ta.value.trim(); };
+  const ntRm = () => { ntBox.querySelector('.bz-nt-rm').hidden = false; };   // 「－」一直都在：刪註只能從註的框
   let ntCur = null, ntPin = false, ntHideT = 0;
   const ntPut = () => { if (document.body && !ntBox.isConnected) document.body.appendChild(ntBox); };
   const ntItem = c => c && (((hlAll()[c.key] || {}).list) || []).find(h => h.id === c.id);
@@ -2493,8 +2535,7 @@
     if (!ntCur) return;
     const c = ntCur, a = hlAll(), pg = a[c.key]; if (!pg) return;
     const h = (pg.list || []).find(x => x.id === c.id); if (!h) return;
-    if (ntBox.querySelector('textarea').value.trim()) return;
-    if (h.doc && h.doc.trim() && !confirm('這個註的延伸筆記還有字，也一起刪掉嗎？')) return;
+    if ((ntBox.querySelector('textarea').value.trim() || (h.doc && h.doc.trim())) && !confirm('要刪除這個註嗎？（註裡打的字和延伸筆記也會一起刪掉）')) return;
     pg.list = pg.list.filter(x => x.id !== c.id); pg.t = Date.now(); hlStore(a);
     ntBox.hidden = true; ntPin = false; ntCur = null;
     hlApply(c.root);
@@ -2581,6 +2622,23 @@
   const NDIMG = 'tcm-ndimg-v1', NDIMG_URL = GH_URL.replace('myfx.json', 'ndimg/');
   const ndImgAll = () => { try { const a = JSON.parse(localStorage.getItem(NDIMG) || '{}'); return a && typeof a === 'object' ? a : {}; } catch (e) { return {}; } };
   const ndImgStore = a => { try { localStorage.setItem(NDIMG, JSON.stringify(a)); return true; } catch (e) { return false; } };
+  // v2.43.5：圖片改存 IndexedDB（容量大很多）；舊的 localStorage 圖片先完整搬過去、確認存好才從 localStorage 移走，一張都不丟
+  let ndDbP = null;
+  const ndDb = () => ndDbP || (ndDbP = new Promise((res, rej) => {
+    try { const q = indexedDB.open('tcm-ndimg', 1); q.onupgradeneeded = () => q.result.createObjectStore('img'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); } catch (e) { rej(e); }
+  }));
+  const ndTx = (mode, fn) => ndDb().then(db => new Promise((res, rej) => { const tx = db.transaction('img', mode), st = tx.objectStore('img'); const r = fn(st); tx.oncomplete = () => res(r && 'result' in r ? r.result : undefined); tx.onerror = tx.onabort = () => rej(tx.error); }));
+  const ndImgGet = async id => { try { const v = await ndTx('readonly', st => st.get(id)); if (v) return v; } catch (e) {} const a = ndImgAll(); return a[id] || null; };
+  const ndImgPut = (id, v) => ndTx('readwrite', st => { st.put(v, id); });
+  const ndImgIds = async () => { let k = []; try { k = await ndTx('readonly', st => st.getAllKeys()); } catch (e) {} return [...new Set([...(k || []), ...Object.keys(ndImgAll())])]; };
+  const ndImgMove = (async () => {   // 搬家：localStorage → IndexedDB
+    const a = ndImgAll(), ids = Object.keys(a); if (!ids.length) return;
+    try {
+      for (const id of ids) { const old = await ndTx('readonly', st => st.get(id)); if (!old || !old.u) await ndImgPut(id, a[id]); }
+      for (const id of ids) { const v = await ndTx('readonly', st => st.get(id)); if (!v || !v.u) return; }   // 每張都確認在了
+      const now = ndImgAll(); if (Object.keys(now).every(id => ids.includes(id))) localStorage.removeItem(NDIMG);
+    } catch (e) {}
+  })();
   const ndEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ND_OK = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, MARK: 1, SPAN: 1, BR: 1, DIV: 1, P: 1, H3: 1, UL: 1, OL: 1, LI: 1, TABLE: 1, TBODY: 1, THEAD: 1, TR: 1, TD: 1, TH: 1, IMG: 1 };
   function ndClean(root) {   // 只留安全的標籤和少數樣式
@@ -2610,33 +2668,32 @@
     return (d.textContent.trim() || d.querySelector('img,table')) ? h : '';
   }
   async function ndImgFill(ed) {   // 圖片從這台裝置拿，沒有的話從雲端拿
-    const a = ndImgAll();
     for (const im of ed.querySelectorAll('img[data-img]')) {
-      const id = im.dataset.img;
-      if (a[id] && a[id].u) { im.src = a[id].u; continue; }
+      const id = im.dataset.img, x = await ndImgGet(id);
+      if (x && x.u) { im.src = x.u; continue; }
       const tok = ghToken(); if (!tok) { im.alt = '（圖片在另一台裝置，設定同步後會出現）'; continue; }
       try {
         const r = await fetch(NDIMG_URL + id + '.json?t=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
         if (!r.ok) continue;
         const j = await r.json(); if (!j.u) continue;
-        im.src = j.u; const b = ndImgAll(); b[id] = { u: j.u, t: Date.now(), up: 1 }; ndImgStore(b);
+        im.src = j.u; ndImgPut(id, { u: j.u, t: Date.now(), up: 1 }).catch(() => {});
       } catch (e) {}
     }
   }
   async function ndImgPush(id) {
     const tok = ghToken(); if (!tok) return false;
-    const a = ndImgAll(), x = a[id]; if (!x || !x.u || x.up) return true;
+    const x = await ndImgGet(id); if (!x || !x.u || x.up) return true;
     try {
       const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
       const r0 = await fetch(NDIMG_URL + id + '.json', { headers: H, cache: 'no-store' }); let sha;
       if (r0.ok) { sha = (await r0.json()).sha; }
       const r = await fetch(NDIMG_URL + id + '.json', { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: '同步延伸筆記圖片', content: b64e(JSON.stringify({ u: x.u })), ...(sha ? { sha } : {}) }) });
-      if (r.ok) { const b = ndImgAll(); if (b[id]) { b[id].up = 1; ndImgStore(b); } return true; }
+      if (r.ok) { try { await ndImgPut(id, { ...x, up: 1 }); } catch (e) {} const b = ndImgAll(); if (b[id]) { b[id].up = 1; ndImgStore(b); } return true; }
     } catch (e) {}
     return false;
   }
-  async function ndImgSync() { if (!ghToken()) return false; for (const id of Object.keys(ndImgAll())) await ndImgPush(id); return true; }
+  async function ndImgSync() { if (!ghToken()) return false; await ndImgMove; for (const id of await ndImgIds()) await ndImgPush(id); return true; }
   function ndShrink(file) {   // 圖片縮到最長邊 1400px、存成 JPEG，免得太大
     return new Promise(res => {
       const fr = new FileReader();
@@ -2672,8 +2729,7 @@
         if (!/^image\//.test(f.type)) continue;
         const u = await ndShrink(f); if (!u) continue;
         const id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-        const a = ndImgAll(); a[id] = { u, t: Date.now() };
-        if (!ndImgStore(a)) { alert('這台裝置的空間滿了，圖片存不下。'); return; }
+        try { await ndImgPut(id, { u, t: Date.now() }); } catch (e) { alert('這台裝置的空間滿了，圖片存不下。'); return; }
         back(); document.execCommand('insertHTML', false, `<img data-img="${id}" src="${u}"><br>`);
         ndImgPush(id);
       }
@@ -3151,22 +3207,39 @@
     t = t.slice(0, 2); if (t.length < 2) t += '病';
     return t + ud;
   }
-  function shlDockMag(d, x) {   // 放大游標附近的幾格
-    d.querySelectorAll(':scope > i').forEach(t => {
-      const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = x == null ? 1e9 : Math.abs(x - c);
-      const s = 1 + 1.6 * Math.max(0, 1 - dist / 90);
-      t.style.transform = s > 1.01 ? `scale(${s.toFixed(2)})` : '';
-      t.classList.toggle('big', s > 1.5);
+  function shlDockMag(d, x) {   // 只放大游標正在上面的那一格（v2.44.2）
+    const ts = [...d.querySelectorAll(':scope > i')]; let best = null, bd = 1e9;
+    if (x != null) ts.forEach(t => {   // 找中心離游標最近的那一格
+      const r = t.getBoundingClientRect(), c = r.left + r.width / 2, dist = Math.abs(x - c);   // 從底部中間放大，中心不會動
+      if (dist < bd) { bd = dist; best = t; }
     });
+    if (best && bd > best.offsetWidth * 1.5 + 6) best = null;
+    // 左右兩頁（同一個跨頁）一起凸起：格子本身不放大（字才不會被切），在上面浮出一張精緻的小卡，兩頁並排、數字置中
+    const pair = best ? ts.filter(t => t.dataset.pg === best.dataset.pg) : [];
+    ts.forEach(t => { t.style.transform = ''; t.style.transformOrigin = ''; t.classList.toggle('big', pair.includes(t)); });
+    let pop = d.querySelector(':scope > .shl-dk-pop');
+    if (!pair.length) { if (pop) pop.classList.remove('show'); return; }
+    if (!pop) { pop = document.createElement('div'); pop.className = 'shl-dk-pop'; d.appendChild(pop); }
+    const key = pair.map(t => t.dataset.k).join(',');
+    if (pop.dataset.k !== key) {
+      pop.dataset.k = key;
+      pop.innerHTML = pair.map(t => `<span class="${t.classList.contains('on') ? 'on' : t.classList.contains('c1') ? 'c1' : 'c0'}">${shlEsc(t.textContent.trim() || '·')}</span>`).join('');
+    }
+    const dr = d.getBoundingClientRect(), a = pair[0].getBoundingClientRect(), z = pair[pair.length - 1].getBoundingClientRect();
+    const pw = pop.offsetWidth || 80, cx = (a.left + z.right) / 2 - dr.left;   // 靠邊時不要超出頁面列
+    pop.style.left = Math.max(pw / 2 + 2, Math.min(dr.width - pw / 2 - 2, cx)) + 'px';
+    pop.classList.add('show');
   }
   function shlTip(w, t) {
     const tip = w.querySelector('.shl-tip'); if (!tip) return;
     if (!t) { tip.hidden = true; return; }
     const s = shlSpreads[+t.dataset.k]; if (!s) return;
-    const g = shlGeom(w.querySelector('.shl-body')), nos = s.nos;
-    tip.innerHTML = `<b>第 ${s.p + 1} 頁</b>　${shlEsc(s.ch)}${nos.length ? `<br>第 ${shlEsc(nos[0])}${nos.length > 1 ? ' – ' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
+    const two = shlSpreads.filter(x => x.pg === s.pg), nos = two.flatMap(x => x.nos);   // 左右兩頁一起
+    const ps = two.map(x => x.p + 1);
+    tip.innerHTML = `<b>第 ${ps.length > 1 ? ps[0] + '–' + ps[ps.length - 1] : ps[0]} 頁</b>　${shlEsc(two[0].ch || s.ch)}${nos.length ? `　第 ${shlEsc(nos[0])}${nos.length > 1 ? '–' + shlEsc(nos[nos.length - 1]) : ''} 條` : ''}`;
     tip.hidden = false;
-    const r = t.getBoundingClientRect(), nr = tip.parentNode.getBoundingClientRect();
+    const rs = [...t.parentNode.querySelectorAll(`:scope > i[data-pg="${t.dataset.pg}"]`)].map(x => x.getBoundingClientRect());
+    const r = { left: Math.min(...rs.map(x => x.left)), width: Math.max(...rs.map(x => x.right)) - Math.min(...rs.map(x => x.left)) }, nr = tip.parentNode.getBoundingClientRect();
     tip.style.left = Math.max(8, Math.min(nr.width - tip.offsetWidth - 8, r.left + r.width / 2 - nr.left - tip.offsetWidth / 2)) + 'px';
   }
   document.addEventListener('mousemove', e => {

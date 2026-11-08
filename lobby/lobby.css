@@ -1089,3 +1089,11 @@ body { display: grid; place-items: center; }
 /* 行間筆記也用在表格（五輸天干表、五門十變…）：每一列下面空出一行 */
 .an-on .ip-body .wx-hh:has(thead) td { padding-bottom: 1.55em !important; vertical-align: top; }   /* 只有五門十變合化表撐開 */
 .ip-shu-m { margin-top: 14px; }
+
+/* v2.44.0：銅人頁的「註」：淡藍底＋藍底線（暗底上也看得清楚）；黃底上的註留黃底、加藍底線 */
+.ip mark.bz-hl.bz-note, .xue mark.bz-hl.bz-note { background: rgba(64, 156, 255, .28); color: inherit; border-bottom: 2px solid #4da3ff; border-radius: 2px; cursor: pointer; }
+.ip mark.bz-hl.bz-note.cur, .xue mark.bz-hl.bz-note.cur { background: rgba(64, 156, 255, .45); }
+.ip mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note, .xue mark.bz-hl:not(.bz-note) mark.bz-hl.bz-note,
+.ip mark.bz-hl.bz-note:has(mark.bz-hl:not(.bz-note)), .xue mark.bz-hl.bz-note:has(mark.bz-hl:not(.bz-note)) { background: transparent; }
+.ip mark.bz-hl.bz-note mark.bz-hl:not(.bz-note), .xue mark.bz-hl.bz-note mark.bz-hl:not(.bz-note) { border-bottom: 2px solid #4da3ff; }
+.lb-ntbox { z-index: 2147483646; }
