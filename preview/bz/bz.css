@@ -1434,3 +1434,5 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-tb th + th, .bz-lec-tb td + td { border-left: 1px solid #edf3f9; }
 .bz-lec-tb th, .bz-lec-tb td { overflow-wrap: anywhere; }
 .bz-lec-tb[style*="fixed"] th { white-space: normal; }
+/* v2.45.13 📍 提醒框：純寶寶藍、不要左邊線條 */
+.bz-lec-note { background: #e3f1fc; border-left: 0; }
