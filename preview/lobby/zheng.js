@@ -155,7 +155,10 @@
     h.style.setProperty('--c', COLOR[cur]);
     h.innerHTML = `${cur}<small>${nDz(s)} 個病證・點病名開始辨證</small>`;
     listEl.appendChild(h);
-    s.diseases.concat(dzOf(cur).map(x => ({ id: x.id, name: x.name, mine: true }))).forEach(d => {
+    // 資料庫病證清單裡拖拉排好的順序（tcm-zzord-v1）
+    const ord = (() => { try { const a = JSON.parse(localStorage.getItem('tcm-zzord-v1') || '{}'); return a[cur] && Array.isArray(a[cur].o) ? a[cur].o : []; } catch (e) { return []; } })();
+    const rk = id => { const i = ord.indexOf(id); return i < 0 ? 1e6 : i; };
+    s.diseases.concat(dzOf(cur).map(x => ({ id: x.id, name: x.name, mine: true }))).map((d, i) => ({ d, i })).sort((x, y) => rk(x.d.id) - rk(y.d.id) || x.i - y.i).map(x => x.d).forEach(d => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'zz-dz';

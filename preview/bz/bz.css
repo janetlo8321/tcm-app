@@ -1439,3 +1439,15 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 /* v2.45.14 左邊分類欄也有 ︿（回到最上面），捲動時停在上方 */
 .bz-lec-navtop { position: sticky; top: 0; z-index: 1; margin: 0 0 6px 10px; width: 26px; height: 26px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 @media (max-width: 820px) { .bz-lec-navtop { position: sticky; top: auto; left: 0; margin: 0; align-self: center; } }
+
+/* 病證清單：拖拉調換順序 */
+section.zz-sys h2.group .bz-zo-btn { margin-left: 8px; padding: 2px 9px; border: 1px solid #cfe0f2; border-radius: 999px; background: #eef6fd; color: #2b6cb0; font-size: 12px; font-weight: 500; cursor: pointer; vertical-align: middle; }
+section.zz-sys.bz-zo-on h2.group .bz-zo-btn { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+.zz-sys .nb-grid li > .bz-zo-h { display: none; }
+section.zz-sys.bz-zo-on .nb-grid li:not(.bz-dzadd) { position: relative; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+section.zz-sys.bz-zo-on .nb-grid li:not(.bz-dzadd) > a { pointer-events: none; outline: 1.5px dashed #9cc3e8; outline-offset: -2px; }
+section.zz-sys.bz-zo-on .nb-grid li > .bz-zo-h { display: flex; align-items: center; position: absolute; top: 0; bottom: 0; right: 2px; z-index: 3; padding: 0 10px; background: inherit; color: #2b6cb0; font-size: 18px; pointer-events: none; }
+section.zz-sys.bz-zo-on .nb-grid li:not(.bz-dzadd) { background: var(--surface, #fff); }
+section.zz-sys.bz-zo-on .nb-grid li.bz-zo-drag { opacity: .75; cursor: grabbing; z-index: 5; }
+section.zz-sys.bz-zo-on .nb-grid li.bz-zo-drag > a { outline: 2px solid #2b6cb0; background: #eaf4fd !important; }
+section.zz-sys.bz-zo-on .nb-grid li.bz-dzadd { display: none; }

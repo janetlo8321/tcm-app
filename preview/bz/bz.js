@@ -477,7 +477,7 @@
   async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
-    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
+    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true),
       ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
@@ -1847,6 +1847,95 @@
   if (dzEnt) new MutationObserver(() => { if (typeof state !== 'undefined' && state.cur !== 'zz') document.body.classList.remove('bz-zd-on'); zdDecorate(); }).observe(dzEnt, { childList: true });
   zdDecorate();
 
+  /* ---------- 病證清單：每一系可以自己拖拉調換病名順序（系標題旁「⇅ 排序」，按住右邊 ≡ 拖） ----------
+   * 存在這台裝置（tcm-zzord-v1，{系名: {o: [病 id…], t}}），有設定 GitHub 同步時合併到 tcm-notes sync/zzord.json；大廳的病證清單也照這個順序 */
+  const ZOK = 'tcm-zzord-v1', ZO_URL = GH_URL.replace('myfx.json', 'zzord.json');
+  const zoAll = () => { try { const a = JSON.parse(localStorage.getItem(ZOK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const zoStore = a => { try { localStorage.setItem(ZOK, JSON.stringify(a)); } catch (e) {} };
+  const zoSys = sec => { const h = sec.querySelector('h2.group'); return h && h.firstChild ? h.firstChild.textContent.trim() : ''; };
+  function zoApply() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined' || state.cur !== 'zz') return;
+    const a = zoAll();
+    ent.querySelectorAll('section.zz-sys').forEach(sec => {
+      const h2 = sec.querySelector('h2.group'), ul = sec.querySelector('ul.nb-grid'); if (!h2 || !ul) return;
+      if (!h2.querySelector('.bz-zo-btn')) h2.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-btn" title="拖拉調換這一系的病名順序">⇅ 排序</button>');
+      const lis = [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd'));
+      lis.forEach(li => { if (!li.querySelector(':scope > .bz-zo-h')) li.insertAdjacentHTML('beforeend', '<span class="bz-zo-h" aria-hidden="true">≡</span>'); });
+      const o = a[zoSys(sec)] && a[zoSys(sec)].o; if (!Array.isArray(o) || !o.length) return;
+      const rank = id => { const i = o.indexOf(id); return i < 0 ? 1e6 : i; };
+      const sorted = lis.map((li, i) => ({ li, i, r: rank(zdId(li)) })).sort((x, y) => x.r - y.r || x.i - y.i).map(x => x.li);
+      if (sorted.every((li, i) => li === lis[i])) return;
+      const add = ul.querySelector(':scope > .bz-dzadd');
+      sorted.forEach(li => ul.insertBefore(li, add));
+    });
+  }
+  function zoSave(sec) {
+    const ul = sec.querySelector('ul.nb-grid'), a = zoAll();
+    a[zoSys(sec)] = { o: [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd')).map(zdId).filter(Boolean), t: Date.now() };
+    zoStore(a);
+    clearTimeout(zoSave.t); zoSave.t = setTimeout(() => zoSync(true), 1200);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.bz-zo-btn');
+    if (b) {
+      e.preventDefault(); e.stopPropagation();
+      const sec = b.closest('section.zz-sys'), on = !sec.classList.contains('bz-zo-on');
+      document.querySelectorAll('section.zz-sys.bz-zo-on').forEach(x => { x.classList.remove('bz-zo-on'); const y = x.querySelector('.bz-zo-btn'); if (y) y.textContent = '⇅ 排序'; });
+      if (on) { sec.classList.add('bz-zo-on'); b.textContent = '✓ 完成'; }
+      return;
+    }
+    if (e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li')) { e.preventDefault(); e.stopPropagation(); }   // 排序中點病名不打開
+  }, true);
+  // 拖拉：滑鼠和手指都用 pointer 事件；按住整格（排序中）上下移動，放開就存
+  let zoDrag = null;
+  document.addEventListener('pointerdown', e => {
+    const li = e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li:not(.bz-dzadd)'); if (!li || e.button > 0) return;
+    if (e.target.closest('.bz-zd-ck')) return;
+    e.preventDefault();
+    zoDrag = { li, ul: li.parentNode, sec: li.closest('section.zz-sys'), id: e.pointerId, moved: false };
+    li.classList.add('bz-zo-drag');
+    try { li.setPointerCapture(e.pointerId); } catch (x) {}
+  });
+  document.addEventListener('pointermove', e => {
+    if (!zoDrag || e.pointerId !== zoDrag.id) return;
+    e.preventDefault();
+    const { li, ul } = zoDrag;
+    const over = [...ul.children].find(x => x !== li && x.tagName === 'LI' && !x.classList.contains('bz-dzadd') && (() => { const r = x.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; })());
+    if (!over) return;
+    const r = over.getBoundingClientRect(), wide = r.width > r.height * 2.2 && ul.clientWidth - r.width < 40;
+    const after = wide ? e.clientY > r.top + r.height / 2 : (e.clientY > r.bottom - r.height / 3 || (e.clientY >= r.top + r.height / 3 && e.clientX > r.left + r.width / 2));
+    const ref = after ? over.nextSibling : over;
+    if (ref !== li && li.nextSibling !== ref) { ul.insertBefore(li, ref); zoDrag.moved = true; }
+  }, { passive: false });
+  const zoEnd = e => {
+    if (!zoDrag || e.pointerId !== zoDrag.id) return;
+    zoDrag.li.classList.remove('bz-zo-drag');
+    if (zoDrag.moved) zoSave(zoDrag.sec);
+    zoDrag = null;
+  };
+  document.addEventListener('pointerup', zoEnd); document.addEventListener('pointercancel', zoEnd);
+  async function zoSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(ZO_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = zoAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      zoStore(all);
+      if (changed) zoApply();
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(ZO_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步病證清單順序', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  if (dzEnt) new MutationObserver(() => { if (!zoDrag) zoApply(); }).observe(dzEnt, { childList: true });
+  zoApply();
+
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
    * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
@@ -3083,7 +3172,7 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] },
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] },
     // 一份講義分到好幾個病證頁：pages = { 病名: 章 id 或 [章 id…] }，病證頁只列那幾章的段落
     { key: 'ped-infect', pages: { 上呼吸道感染: 'uri', 流行性感冒: 'flu', 鼻竇炎: 'sinus', 扁桃腺炎: 'tonsil', 流行性腮腺炎: 'mumps', 中耳炎: 'otitis', 呼吸道感染: ['bronch', 'pneu'], 泌尿道感染: 'uti', 感染性腹瀉: 'diarr', 手足口病: 'hfmd', 嬰兒玫瑰疹: 'roseola', 病毒疣: 'wart', 水痘: 'varicella', 德國麻疹: 'rubella', 傳染性軟疣: 'mollusc', 傳染性紅斑: 'erythema', 傳染性單核細胞增多症: 'mono' } }];
   const lecPg = (l, n) => l.pages && l.pages[n] ? [].concat(l.pages[n]) : null;
