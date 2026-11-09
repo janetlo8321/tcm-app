@@ -477,7 +477,7 @@
   async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
-    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true), () => dnSync(true),
+    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true), () => dnSync(true), () => lxSync(true),
       ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
@@ -1859,6 +1859,7 @@
     const a = zoAll();
     ent.querySelectorAll('section.zz-sys').forEach(sec => {
       const h2 = sec.querySelector('h2.group'), ul = sec.querySelector('ul.nb-grid'); if (!h2 || !ul) return;
+      (SYSLEC[zoSys(sec)] || []).forEach(x => { if (!sec.querySelector(`.bz-sysfx[data-sysfx="${x.key}"]`)) h2.insertAdjacentHTML('afterend', `<a href="#" class="bz-sysfx" data-sysfx="${x.key}"><span class="bz-lec-tag">${E(x.t)}</span><b>${E(x.d)}</b><i>打開 ›</i></a>`); });
       if (!h2.querySelector('.bz-zo-btn')) h2.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-btn" title="拖拉調換順序、按 ✎ 改病名">⇅ 排序／改名</button>');
       const lis = [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd'));
       lis.forEach(li => {
@@ -1920,6 +1921,9 @@
       return true;
     } catch (e) { return false; }
   }
+  // 整個系的專題（例如 婦科 → 相關方劑），放在那個系的病名清單上面
+  const SYSLEC = { 婦科: [{ key: 'gyn-fx', t: '相關方劑', d: '婦科常用方劑 50 首詳解＋組成速記表' }] };
+  document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a.bz-sysfx'); if (!a) return; e.preventDefault(); lecOpen(a.dataset.sysfx); });
   function zoSave(sec) {
     const ul = sec.querySelector('ul.nb-grid'), a = zoAll();
     a[zoSys(sec)] = { o: [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd')).map(zdId).filter(Boolean), t: Date.now() };
@@ -2477,6 +2481,7 @@
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
     if (root.classList.contains('shl-body')) { const w = root.closest('#bzShl'); return w && w.dataset.bk ? 'shl:' + w.dataset.bk : ''; }
+    if (root.closest('.bz-lec-edit')) return '';   // 專題頁編輯中不畫
     if (root.classList.contains('bz-lec-hl')) return root.dataset.hk || '';   // 專題頁的標題框也能畫綠勾、加註
     if (root.classList.contains('bz-lec-body')) return root.dataset.ch ? 'lec:' + root.dataset.lk + ':' + root.dataset.ch : '';
     if (root.classList.contains('bz-pt-wrap')) { const b = root.querySelector('.bz-dh[data-id]'); return b ? 'pt:' + b.dataset.id : ''; }
@@ -3260,23 +3265,139 @@
   }
   const lecIn = s => E(s).replace(/&lt;br&gt;/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/\[\[(.+?)&gt;([\w-]+)(?:#([\w-]+))?\]\]/g, (m, t, c, a) => `<a href="#" class="bz-lec-a" data-lch="${c}"${a ? ` data-la="${a}"` : ''}>${t}</a>`);
+  /* 方名、藥名連結（講義 json 有 auto: 1 才做）：標題和表格第一欄的方名 → 方劑（YB_CONTENT）；「組成」那一列的藥名 → 藥材。點了在右邊小視窗看，不離開專題頁 */
+  let lkYbN = null, lkHbN = null;
+  const lkYb = () => { if (!lkYbN) { lkYbN = {}; try { Object.keys(YB_CONTENT).forEach(k => { const n = YB_CONTENT[k] && YB_CONTENT[k].n; if (n && !lkYbN[n]) lkYbN[n] = k; }); } catch (e) {} } return lkYbN; };
+  const lkHb = () => { if (!lkHbN) { lkHbN = {}; try { DB.herbs.forEach(h => { lkHbN[h.name] = h; }); } catch (e) {} } return lkHbN; };
+  const LK_HA = { 山萸肉: '山茱萸', 枸杞: '枸杞子', 桂心: '肉桂', 橘皮: '陳皮', 梔子: '山梔子', 三棱: '三稜', 仙靈脾: '淫羊藿', 南星: '天南星', 川椒: '花椒', 龜甲: '龜板', 黑薑: '炮薑', 當歸尾: '當歸', 當歸頭: '當歸', 豬芩: '豬苓', 黃芪: '黃耆' };
+  function lkHerb(n) {
+    const H = lkHb(); if (H[n]) return H[n];
+    if (LK_HA[n] && H[LK_HA[n]]) return H[LK_HA[n]];
+    const m = n.replace(/^[生炙炒法懷川制製鹽黑酒醋焦蜜]/, ''); if (m !== n) return H[m] || (LK_HA[m] && H[LK_HA[m]]) || null;
+    return null;
+  }
+  function lkFx(n, d) {
+    const a = d && d.fxa || {}; if (a[n] === '') return null;
+    const Y = lkYb(); return Y[a[n] || n] || null;
+  }
+  const lkA = (t, k, v) => `<a href="#" class="bz-lec-x" data-x${k}="${E(v)}">${t}</a>`;
+  function lecR(d, c, bi) {   // 回傳這一段的文字轉法：編輯中 → 可以改的原文；平常 → 排版＋連結
+    const ov = document.querySelector('.bz-lec');
+    if (ov && ov.classList.contains('bz-lec-edit')) return (s, p) => /^\[\[[^\]]+\]\]$/.test(s) ? lecIn(s) : `<span class="bz-lec-ed" contenteditable="plaintext-only" spellcheck="false" data-ep="${E(c.id + '|' + bi + '|' + p)}">${E(String(s).replace(/<br>/g, '\n'))}</span>`;
+    if (!d.auto) return lecIn;
+    return (s, p, row) => {
+      if (p === 'h') { const m = String(s).match(/^([^《]+)(.*)$/), f = m && !/[\[*]/.test(m[1]) && lkFx(m[1].trim(), d); return f ? lkA(E(m[1]), 'f', f) + lecIn(m[2]) : lecIn(s); }
+      if (/^tb\.[1-9]\d*\.0$/.test(p) && !/[\[*<]/.test(s)) { const f = lkFx(String(s).trim(), d); if (f) return lkA(E(s), 'f', f); }
+      if (/^tb\.[1-9]\d*\.1$/.test(p) && row && row[0] === '組成') return String(s).split(/([、，,；;。\s]+)/).map(t => { const h = t && !/^[、，,；;。\s]+$/.test(t) && lkHerb(t.trim()); return h ? lkA(E(t), 'h', h.id) : lecIn(t); }).join('');
+      return lecIn(s);
+    };
+  }
+  // 右邊小視窗：藥材頁 / 方劑頁
+  let lkCur = null;
+  function lkClose() { const pk = document.querySelector('.bz-lec .bz-lec-pk'); if (pk) pk.hidden = true; lkCur = null; }
+  function lkOpen(k, v) {
+    const pk = document.querySelector('.bz-lec .bz-lec-pk'); if (!pk) return;
+    let t = '', h = '';
+    try {
+      if (k === 'h') { const hb = DB.herbs.find(x => x.id === v); if (!hb) return; t = hb.name; h = viewHerb(hb); }
+      else { const c = YB_CONTENT[v]; if (!c) return; t = c.n; h = `<h2>${E(c.n)}</h2>` + c.h; }
+    } catch (e) { return; }
+    lkCur = { k, v };
+    const bar = document.querySelector('.bz-lec .bz-doc-bar'); if (bar && !COARSE.matches) pk.style.top = bar.offsetHeight + 'px';
+    pk.querySelector('.bz-lec-pkbar b').textContent = (k === 'h' ? '藥材・' : '方劑・') + t;
+    const b = pk.querySelector('.bz-lec-pkb'); b.innerHTML = h; b.scrollTop = 0;
+    try { ybWire(b); } catch (e) {}
+    pk.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    const pk = e.target.closest && e.target.closest('.bz-lec .bz-lec-pk'); if (!pk) return;
+    if (e.target.closest('.bz-lec-pkx')) { e.preventDefault(); lkClose(); return; }
+    if (e.target.closest('.bz-lec-pkgo')) {   // 離開專題頁，到完整的頁面
+      e.preventDefault(); const c = lkCur; if (!c) return;
+      const x = document.querySelector('.bz-lec [data-lec-x]'); if (x) x.click();
+      if (c.k === 'h') go(c.v); else openYb(c.v);
+      return;
+    }
+    const y = e.target.closest('[data-yb]'); if (y) { e.preventDefault(); e.stopPropagation(); lkOpen('f', y.dataset.yb); return; }
+    const g = e.target.closest('[data-go]');
+    if (g) {
+      e.preventDefault(); e.stopPropagation();
+      if (DB.herbs.some(x => x.id === g.dataset.go)) { lkOpen('h', g.dataset.go); return; }
+      const x = document.querySelector('.bz-lec [data-lec-x]'); if (x) x.click(); go(g.dataset.go);
+    }
+  }, true);
+  /* 專題頁可以編輯：按 ✎ 編輯 後每段文字變成可以直接改的原文，離開那一格就存（tcm-lecx-v1，{講義: {"章|段|位置": {x, t}}}），同步到 sync/lecx.json */
+  const LXK = 'tcm-lecx-v1', LX_URL = GH_URL.replace('myfx.json', 'lecx.json');
+  const lxAll = () => { try { const a = JSON.parse(localStorage.getItem(LXK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const lxStore = a => { try { localStorage.setItem(LXK, JSON.stringify(a)); } catch (e) {} };
+  function lxDoc(d) {   // 原講義＋自己改過的字
+    const x = d && lxAll()[d.key]; if (!x || !Object.keys(x).length) return d;
+    const o = JSON.parse(JSON.stringify(d));
+    Object.keys(x).forEach(k => {
+      const [ci, bi, p] = k.split('|'), c = o.ch.find(c => c.id === ci), b = c && c.b[+bi]; if (!b || !p) return;
+      const ps = p.split('.'); let t = b;
+      for (let j = 0; j < ps.length - 1; j++) { t = t && t[ps[j]]; }
+      const last = ps[ps.length - 1]; if (t && typeof t === 'object' && typeof t[last] === 'string') t[last] = x[k].x;
+    });
+    return o;
+  }
+  function lxSave(el) {
+    if (!lecCur || !el || !el.dataset.ep) return;
+    const v = el.innerText.replace(/\r/g, '').replace(/\n+$/, '').replace(/\n/g, '<br>');
+    const k = el.dataset.ep, [ci, bi, p] = k.split('|'), c = lecCur.d.ch.find(c => c.id === ci), b = c && c.b[+bi]; if (!b) return;
+    let t = b; const ps = p.split('.'); for (let j = 0; j < ps.length - 1; j++) t = t && t[ps[j]];
+    if (!t || t[ps[ps.length - 1]] === v) return;
+    const a = lxAll(); (a[lecCur.key] = a[lecCur.key] || {})[k] = { x: v, t: Date.now() }; lxStore(a);
+    lecCur.d = lxDoc(lecCur.d0);
+    clearTimeout(lxSave.t); lxSave.t = setTimeout(() => lxSync(true), 1500);
+  }
+  function lxFlush() { const f = document.activeElement; if (f && f.classList && f.classList.contains('bz-lec-ed')) lxSave(f); }
+  document.addEventListener('focusout', e => { if (e.target.classList && e.target.classList.contains('bz-lec-ed')) lxSave(e.target); }, true);
+  document.addEventListener('keydown', e => { if (e.target.classList && e.target.classList.contains('bz-lec-ed')) e.stopPropagation(); }, true);
+  function lxToggle() {
+    const ov = document.querySelector('.bz-lec'); if (!ov || !lecCur) return;
+    lxFlush();
+    const on = ov.classList.toggle('bz-lec-edit');
+    ov.querySelector('.bz-lec-edb').innerHTML = on ? '✓<em> 完成</em>' : '✎<em> 編輯</em>';
+    const sc = ov.querySelector('.bz-doc-scroll'), y = sc.scrollTop;
+    lecShow(lecCur.ch); sc.scrollTop = y;
+  }
+  async function lxSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(LX_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const mine = lxAll(), all = JSON.parse(JSON.stringify(remote));
+      Object.keys(mine).forEach(L => { all[L] = all[L] || {}; Object.keys(mine[L]).forEach(k => { const a = all[L][k], m = mine[L][k]; if (!a || (m.t || 0) > (a.t || 0)) all[L][k] = m; }); });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      lxStore(all);
+      if (changed && lecCur) { const ov = document.querySelector('.bz-lec'); if (ov && !ov.classList.contains('bz-lec-edit')) lecShow(lecCur.ch); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(LX_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步專題頁修改', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
   const lecTxt = s => String(s || '').replace(/<br>/g, ' ').replace(/\*\*/g, '').replace(/\[\[(.+?)>[^\]]+\]\]/g, '$1');
   const lecBlkTxt = b => lecTxt([b.h, b.p, b.note, b.warn, b.src, b.f, b.cap, ...(b.ul || []), ...[].concat(...(b.tb || [])), ...[].concat(...(b.cards || []))].filter(Boolean).join('　'));
   const lecHid = (b, i) => 'lec-' + (b.id || 'h' + i);
-  function lecBlock(b, i) {
+  function lecBlock(b, i, I) {
+    I = I || lecIn;
     const w = (cls, h) => `<div class="bz-lec-blk ${cls}" data-lbx="${i}">${h}</div>`;
-    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}"><button type="button" class="bz-lec-top" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>${lecIn(b.h)}</span></h3>`;
-    if (b.p) return w('bz-lec-p', lecIn(b.p));
-    if (b.ul) return `<ul class="bz-lec-blk bz-lec-ul" data-lbx="${i}">${b.ul.map(x => `<li>${lecIn(x)}</li>`).join('')}</ul>`;
+    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}"><button type="button" class="bz-lec-top" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>${I(b.h, 'h')}</span></h3>`;
+    if (b.p) return w('bz-lec-p', I(b.p, 'p'));
+    if (b.ul) return `<ul class="bz-lec-blk bz-lec-ul" data-lbx="${i}">${b.ul.map((x, k) => `<li>${I(x, 'ul.' + k)}</li>`).join('')}</ul>`;
     if (b.tb) {
       const [hd, ...rs] = b.tb;
-      return w('bz-lec-tbw', `${b.cap ? `<div class="bz-lec-cap">${lecIn(b.cap)}</div>` : ''}<div class="bz-lec-tbs"><table class="bz-lec-tb"><thead><tr>${hd.map(c => `<th>${lecIn(c)}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr>${r.map(c => `<td>${lecIn(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      return w('bz-lec-tbw', `${b.cap ? `<div class="bz-lec-cap">${I(b.cap, 'cap')}</div>` : ''}<div class="bz-lec-tbs"><table class="bz-lec-tb"><thead><tr>${hd.map((c, j) => `<th>${I(c, 'tb.0.' + j)}</th>`).join('')}</tr></thead><tbody>${rs.map((r, k) => `<tr>${r.map((c, j) => `<td>${I(c, 'tb.' + (k + 1) + '.' + j, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
     }
-    if (b.cards) return w('bz-lec-cards', b.cards.map(([t, x]) => `<div class="bz-lec-cd"><b>${lecIn(t)}</b><div>${lecIn(x)}</div></div>`).join(''));
-    if (b.note) return w('bz-lec-note', lecIn(b.note));
-    if (b.warn) return w('bz-lec-warn', lecIn(b.warn));
-    if (b.f) return w('bz-lec-f', lecIn(b.f));
-    if (b.src) return w('bz-lec-src', '出處：' + lecIn(b.src));
+    if (b.cards) return w('bz-lec-cards', b.cards.map(([t, x], k) => `<div class="bz-lec-cd"><b>${I(t, 'cards.' + k + '.0')}</b><div>${I(x, 'cards.' + k + '.1')}</div></div>`).join(''));
+    if (b.note) return w('bz-lec-note', I(b.note, 'note'));
+    if (b.warn) return w('bz-lec-warn', I(b.warn, 'warn'));
+    if (b.f) return w('bz-lec-f', I(b.f, 'f'));
+    if (b.src) return w('bz-lec-src', '出處：' + I(b.src, 'src'));
     return '';
   }
   const lecTiles = d => d.ch.map((c, i) => `<a href="#" class="bz-lec-tile" data-lk="${E(d.key)}" data-lch="${E(c.id)}"><span class="bz-lec-ic">${i + 1}</span><b>${E(c.t)}</b><span class="bz-lec-sum">${E(c.sum)}</span></a>`).join('');
@@ -3285,7 +3406,7 @@
     const hs = c.b.map((b, i) => b.h ? `<a href="#" class="bz-lec-a" data-lch="${E(c.id)}" data-la="${lecHid(b, i).slice(4)}">${E(lecTxt(b.h))}</a>` : '').filter(Boolean);
     return `<div class="bz-lec-chh bz-lec-hl" data-hk="lec:${E(d.key)}:${E(c.id)}:hd"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
 ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join('')}</div>` : ''}
-<div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map(lecBlock).join('')}</div>
+<div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map((b, i) => lecBlock(b, i, lecR(d, c, i))).join('')}</div>
 <div class="bz-lec-pn">${pv ? `<a href="#" class="bz-lec-a" data-lch="${E(pv.id)}"><small>‹ 上一類</small>${E(pv.t)}</a>` : '<span></span>'}${nx ? `<a href="#" class="bz-lec-a nx" data-lch="${E(nx.id)}"><small>下一類 ›</small>${E(nx.t)}</a>` : '<span></span>'}</div>`;
   }
   const lecHomeHtml = d => `<div class="bz-lec-home"><div class="bz-lec-hl" data-hk="lec:${E(d.key)}:_home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div></div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
@@ -3296,13 +3417,14 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     let ov = document.querySelector('.bz-lec');
     if (!ov) {
       ov = document.createElement('div'); ov.className = 'bz-doc bz-lec';
-      ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-lec-x title="關閉（Esc）">‹ 返回</button><b class="bz-lec-tt"></b><input type="search" class="bz-lec-q" placeholder="搜尋這份專題" enterkeyhint="search"></div>
-<div class="bz-lec-main"><nav class="bz-lec-nav"></nav><div class="bz-doc-scroll"><div class="bz-lec-pg"></div></div></div>`;
+      ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-lec-x title="關閉（Esc）">‹ 返回</button><b class="bz-lec-tt"></b><button type="button" class="bz-lec-edb" hidden title="打開後可以直接改文字，改完按「完成」">✎<em> 編輯</em></button><input type="search" class="bz-lec-q" placeholder="搜尋這份專題" enterkeyhint="search"></div>
+<div class="bz-lec-main"><nav class="bz-lec-nav"></nav><div class="bz-doc-scroll"><div class="bz-lec-pg"></div></div></div><aside class="bz-lec-pk" hidden><div class="bz-lec-pkbar"><b></b><button type="button" class="bz-lec-pkgo">開啟完整頁 ›</button><button type="button" class="bz-lec-pkx" title="關閉" aria-label="關閉">✕</button></div><div class="bz-lec-pkb"></div></aside>`;
       document.body.appendChild(ov);
-      const close = () => { if (!ntBox.hidden) ntClose(); hlHide(); ov.remove(); lecCur = null; document.removeEventListener('keydown', esc, true); removeEventListener('hashchange', close); };
+      const close = () => { if (!ntBox.hidden) ntClose(); hlHide(); lxFlush(); ov.remove(); lecCur = null; document.removeEventListener('keydown', esc, true); removeEventListener('hashchange', close); };
       const esc = e => {
         if (e.key !== 'Escape' || document.querySelector('.bz-ntdoc') || !ntBox.hidden) return;
         e.preventDefault(); e.stopPropagation();
+        if (!ov.querySelector('.bz-lec-pk').hidden) { lkClose(); return; }
         const q = ov.querySelector('.bz-lec-q'); if (q.value) { q.value = ''; lecShow(lecCur.ch); return; }
         close();
       };
@@ -3311,6 +3433,9 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
       ov.querySelector('[data-lec-x]').addEventListener('click', close);
       ov.addEventListener('click', e => {
         if (e.target.closest('.bz-lec-top')) { e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollTo({ top: 0, behavior: 'smooth' }); return; }
+        if (e.target.closest('.bz-lec-edb')) { e.preventDefault(); lxToggle(); return; }
+        const x = e.target.closest('a.bz-lec-x');
+        if (x) { e.preventDefault(); if (String(getSelection() || '').trim()) return; lkOpen(x.dataset.xh ? 'h' : 'f', x.dataset.xh || x.dataset.xf); return; }
         const l = e.target.closest('a[data-lch]'); if (!l) return;
         e.preventDefault();
         if (l.closest('.bz-lec-body') && String(getSelection() || '').trim()) return;   // 正在選字就不要跳走
@@ -3328,22 +3453,23 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
       ov.querySelector('.bz-lec-q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => lecSearch(e.target.value), 200); });
       ov.querySelector('.bz-lec-q').addEventListener('keydown', e => e.stopPropagation());
     }
-    lecCur = { key, d, ch: '' };
+    lecCur = { key, d0: d, d: lxDoc(d), ch: '' };
+    ov.classList.remove('bz-lec-edit'); ov.querySelector('.bz-lec-edb').hidden = !d.auto;
     ov.querySelector('.bz-lec-tt').textContent = d.title || '';
     ov.querySelector('.bz-lec-nav').innerHTML = `<button type="button" class="bz-lec-top bz-lec-navtop" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><a href="#" class="bz-lec-nv" data-lch=""><span></span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('');
     lecShow(ch || '', a);
   }
   function lecShow(ch, a, bi) {
     const ov = document.querySelector('.bz-lec'); if (!ov || !lecCur) return;
-    const d = lecCur.d, ci = d.ch.findIndex(c => c.id === ch);
-    if (!ntBox.hidden) ntClose(); hlHide();
+    const d = lecCur.d = lxDoc(lecCur.d0), ci = d.ch.findIndex(c => c.id === ch);
+    if (!ntBox.hidden) ntClose(); hlHide(); lkClose();
     lecCur.ch = ci < 0 ? '' : ch;
     const pg = ov.querySelector('.bz-lec-pg'), sc = ov.querySelector('.bz-doc-scroll');
     pg.innerHTML = ci < 0 ? lecHomeHtml(d) : lecChHtml(d, ci);
     ov.querySelectorAll('.bz-lec-nv').forEach(n => n.classList.toggle('on', n.dataset.lch === lecCur.ch));
     const on = ov.querySelector('.bz-lec-nv.on'); if (on) { const nv = on.parentElement; nv.scrollLeft = on.offsetLeft - nv.clientWidth / 2 + on.offsetWidth / 2; }
-    const body = pg.querySelector('.bz-lec-body'); if (body) { lecTbW(body); try { hlApply(body); } catch (e) {} }
-    pg.querySelectorAll('.bz-lec-hl').forEach(h => { try { hlApply(h); } catch (e) {} });
+    const body = pg.querySelector('.bz-lec-body'), ed = ov.classList.contains('bz-lec-edit'); if (body) { lecTbW(body); if (!ed) try { hlApply(body); } catch (e) {} }
+    if (!ed) pg.querySelectorAll('.bz-lec-hl').forEach(h => { try { hlApply(h); } catch (e) {} });
     const t = a ? pg.querySelector('#lec-' + a) : bi != null && bi !== '' ? pg.querySelector(`.bz-lec-body [data-lbx="${bi}"]`) : null;
     sc.scrollTop = 0;
     if (t) {
