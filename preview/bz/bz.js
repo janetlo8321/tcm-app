@@ -3083,7 +3083,7 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }];
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }];
   const LEC_URL = GH_URL.replace('sync/myfx.json', 'lec/');
   let lecDbP = null;
   const lecDb = () => lecDbP || (lecDbP = new Promise((res, rej) => {
