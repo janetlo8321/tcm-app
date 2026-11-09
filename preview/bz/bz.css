@@ -1418,3 +1418,8 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-note::before { content: "📍 "; }
 .bz-lec-note { background: #ffe9d6; border-left-color: #f29a4a; }
 .bz-lec-cd { border-top: 1px solid #e3eef8; }
+/* v2.45.9 方案 A：標題寶寶藍底、📍 提醒框淡綠底 */
+.bz-lec-h { background: #e3f1fc; color: #1d4f80; }
+.bz-lec-top { border-color: #c6def4; color: #2b6cb0; }
+.bz-lec-top:hover { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
+.bz-lec-note { background: #e3f3e7; border-left-color: #6cbf84; }
