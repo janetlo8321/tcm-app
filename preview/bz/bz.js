@@ -3197,7 +3197,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     pg.innerHTML = ci < 0 ? lecHomeHtml(d) : lecChHtml(d, ci);
     ov.querySelectorAll('.bz-lec-nv').forEach(n => n.classList.toggle('on', n.dataset.lch === lecCur.ch));
     const on = ov.querySelector('.bz-lec-nv.on'); if (on) { const nv = on.parentElement; nv.scrollLeft = on.offsetLeft - nv.clientWidth / 2 + on.offsetWidth / 2; }
-    const body = pg.querySelector('.bz-lec-body'); if (body) try { hlApply(body); } catch (e) {}
+    const body = pg.querySelector('.bz-lec-body'); if (body) { lecTbW(body); try { hlApply(body); } catch (e) {} }
     const t = a ? pg.querySelector('#lec-' + a) : bi != null && bi !== '' ? pg.querySelector(`.bz-lec-body [data-lbx="${bi}"]`) : null;
     sc.scrollTop = 0;
     if (t) {
@@ -3205,6 +3205,54 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
       t.classList.add('bz-lec-flash'); setTimeout(() => t.classList.remove('bz-lec-flash'), 1600);
     }
   }
+  // 專題頁表格：縱線可以左右拖（欄寬比例存在這台裝置 tcm-lecw-v1，key「講義:章:表格位置」）
+  const LECW = 'tcm-lecw-v1';
+  const lecWAll = () => { try { const a = JSON.parse(localStorage.getItem(LECW) || '{}'); return a && typeof a === 'object' ? a : {}; } catch (e) { return {}; } };
+  const lecWKey = tw => lecCur ? lecCur.key + ':' + lecCur.ch + ':' + tw.dataset.lbx : '';
+  function lecTbSet(tb, w) {
+    let cg = tb.querySelector('colgroup');
+    if (!cg) { cg = document.createElement('colgroup'); tb.prepend(cg); }
+    cg.innerHTML = w.map(x => `<col style="width:${x}%">`).join('');
+    tb.style.tableLayout = 'fixed';
+  }
+  function lecTbW(body) {
+    const all = lecWAll();
+    body.querySelectorAll('.bz-lec-tbw').forEach(tw => {
+      const tb = tw.querySelector('table'), w = all[lecWKey(tw)], n = tb && tb.rows[0] ? tb.rows[0].cells.length : 0;
+      if (tb && Array.isArray(w) && w.length === n) lecTbSet(tb, w);
+    });
+  }
+  const lecEdge = e => {   // 游標在哪一條縱線上（左右 5px 內，最右邊的外框不算）
+    const c = e.target.closest && e.target.closest('.bz-lec-tb th, .bz-lec-tb td'); if (!c) return null;
+    const tb = c.closest('table'), cells = [...tb.rows[0].cells];
+    for (let i = 0; i < cells.length - 1; i++) { const x = cells[i].getBoundingClientRect().right; if (Math.abs(e.clientX - x) <= 5) return { tb, i, cells }; }
+    return null;
+  };
+  document.addEventListener('mousemove', e => {
+    if (!e.target.closest || !e.target.closest('.bz-lec .bz-lec-tb')) return;
+    const t = e.target.closest('table'); t.classList.toggle('bz-lec-rz', !!lecEdge(e));
+  });
+  document.addEventListener('pointerdown', e => {
+    const g = e.button === 0 && e.target.closest && e.target.closest('.bz-lec .bz-lec-tb') && lecEdge(e); if (!g) return;
+    e.preventDefault(); e.stopPropagation();
+    const { tb, i, cells } = g, W = tb.getBoundingClientRect().width, x0 = e.clientX;
+    const w0 = cells.map(c => c.getBoundingClientRect().width / W * 100);
+    lecTbSet(tb, w0.map(x => +x.toFixed(2)));
+    const pair = w0[i] + w0[i + 1], min = Math.min(6, pair / 3);
+    let w = w0.slice();
+    tb.classList.add('bz-lec-rzon');
+    const mv = ev => {
+      const a = Math.max(min, Math.min(pair - min, w0[i] + (ev.clientX - x0) / W * 100));
+      w = w0.slice(); w[i] = +a.toFixed(2); w[i + 1] = +(pair - a).toFixed(2);
+      tb.querySelectorAll('col').forEach((c, j) => { c.style.width = w[j] + '%'; });
+    };
+    const up = () => {
+      tb.classList.remove('bz-lec-rzon'); removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      const tw = tb.closest('.bz-lec-tbw'), k = tw && lecWKey(tw); if (!k) return;
+      const all = lecWAll(); all[k] = w; try { localStorage.setItem(LECW, JSON.stringify(all)); } catch (er) {}
+    };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  }, true);
   function lecSearch(q) {
     const ov = document.querySelector('.bz-lec'); if (!ov || !lecCur) return;
     q = q.trim(); if (!q) { lecShow(lecCur.ch); return; }

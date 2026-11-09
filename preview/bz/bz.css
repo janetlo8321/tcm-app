@@ -1428,3 +1428,9 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-top { border-color: #f1d77a; color: #b07800; }
 .bz-lec-top:hover { background: #e0a800; border-color: #e0a800; color: #fff; }
 .bz-lec-note { background: linear-gradient(90deg, #e3f1fc, #e3f3e7); border-left-color: #7fbbea; }
+/* v2.45.12 專題頁表格縱線可拖 */
+.bz-lec-tb.bz-lec-rz, .bz-lec-tb.bz-lec-rz *, .bz-lec-tb.bz-lec-rzon, .bz-lec-tb.bz-lec-rzon * { cursor: col-resize !important; }
+.bz-lec-tb.bz-lec-rzon { user-select: none; -webkit-user-select: none; }
+.bz-lec-tb th + th, .bz-lec-tb td + td { border-left: 1px solid #edf3f9; }
+.bz-lec-tb th, .bz-lec-tb td { overflow-wrap: anywhere; }
+.bz-lec-tb[style*="fixed"] th { white-space: normal; }
