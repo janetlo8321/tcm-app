@@ -3134,14 +3134,14 @@
     if (b.src) return w('bz-lec-src', '出處：' + lecIn(b.src));
     return '';
   }
-  const lecTiles = d => d.ch.map((c, i) => `<a href="#" class="bz-lec-tile" data-lk="${E(d.key)}" data-lch="${E(c.id)}"><span class="bz-lec-ic">${E(c.icon)}</span><b><small>${i + 1}</small>${E(c.t)}</b><span class="bz-lec-sum">${E(c.sum)}</span></a>`).join('');
+  const lecTiles = d => d.ch.map((c, i) => `<a href="#" class="bz-lec-tile" data-lk="${E(d.key)}" data-lch="${E(c.id)}"><span class="bz-lec-ic">${i + 1}</span><b>${E(c.t)}</b><span class="bz-lec-sum">${E(c.sum)}</span></a>`).join('');
   function lecChHtml(d, ci) {
     const c = d.ch[ci], pv = d.ch[ci - 1], nx = d.ch[ci + 1];
     const hs = c.b.map((b, i) => b.h ? `<a href="#" class="bz-lec-a" data-lch="${E(c.id)}" data-la="${lecHid(b, i).slice(4)}">${E(lecTxt(b.h))}</a>` : '').filter(Boolean);
-    return `<div class="bz-lec-chh"><span class="bz-lec-ic">${E(c.icon)}</span><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
+    return `<div class="bz-lec-chh"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
 ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join('')}</div>` : ''}
 <div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map(lecBlock).join('')}</div>
-<div class="bz-lec-pn">${pv ? `<a href="#" class="bz-lec-a" data-lch="${E(pv.id)}"><small>‹ 上一類</small>${E(pv.icon)} ${E(pv.t)}</a>` : '<span></span>'}${nx ? `<a href="#" class="bz-lec-a nx" data-lch="${E(nx.id)}"><small>下一類 ›</small>${E(nx.icon)} ${E(nx.t)}</a>` : '<span></span>'}</div>`;
+<div class="bz-lec-pn">${pv ? `<a href="#" class="bz-lec-a" data-lch="${E(pv.id)}"><small>‹ 上一類</small>${E(pv.t)}</a>` : '<span></span>'}${nx ? `<a href="#" class="bz-lec-a nx" data-lch="${E(nx.id)}"><small>下一類 ›</small>${E(nx.t)}</a>` : '<span></span>'}</div>`;
   }
   const lecHomeHtml = d => `<div class="bz-lec-home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
   let lecCur = null;
@@ -3178,7 +3178,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     }
     lecCur = { key, d, ch: '' };
     ov.querySelector('.bz-lec-tt').textContent = d.title || '';
-    ov.querySelector('.bz-lec-nav').innerHTML = `<a href="#" class="bz-lec-nv" data-lch=""><span>📚</span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${E(c.icon)}</span>${E(c.t)}</a>`).join('');
+    ov.querySelector('.bz-lec-nav').innerHTML = `<a href="#" class="bz-lec-nv" data-lch=""><span></span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('');
     lecShow(ch || '', a);
   }
   function lecShow(ch, a, bi) {
@@ -3205,7 +3205,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     d.ch.forEach(c => c.b.forEach((b, i) => {
       const t = lecBlkTxt(b), k = t.toLowerCase().indexOf(ql); if (k < 0) return;
       const s = Math.max(0, k - 24), sn = (s ? '…' : '') + E(t.slice(s, k)) + '<mark class="bz-lec-hit">' + E(t.slice(k, k + q.length)) + '</mark>' + E(t.slice(k + q.length, k + q.length + 60)) + (k + q.length + 60 < t.length ? '…' : '');
-      out.push(`<a href="#" class="bz-lec-res" data-lch="${E(c.id)}" data-lbi="${i}"><small>${E(c.icon)} ${E(c.t)}</small><span>${sn}</span></a>`);
+      out.push(`<a href="#" class="bz-lec-res" data-lch="${E(c.id)}" data-lbi="${i}"><small>${E(c.t)}</small><span>${sn}</span></a>`);
     }));
     ov.querySelectorAll('.bz-lec-nv').forEach(n => n.classList.remove('on'));
     pg.innerHTML = `<div class="bz-lec-srch"><h2>搜尋「${E(q)}」：${out.length} 筆</h2>${out.join('') || '<p class="bz-lec-none">找不到，換個字試試。</p>'}</div>`;
@@ -3223,7 +3223,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     const d = lecMem[L.key];
     if (d) {
       card.dataset.ok = 1;
-      card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map(c => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${E(c.icon)}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
+      card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${i + 1}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
     } else {
       delete card.dataset.ok;
       card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
