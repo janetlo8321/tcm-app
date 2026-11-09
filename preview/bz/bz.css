@@ -1399,3 +1399,7 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
   .bz-lec-tb th, .bz-lec-tb td { padding: 6px 8px; }
   .bz-lec-tb td { min-width: 6em; }
 }
+/* v2.45.5 專題頁段落標題：做成跟提醒框一樣的色塊，前面一個 📌 */
+.bz-lec-h { margin: 26px 0 12px; padding: 10px 14px; border-left: 4px solid #f29a4a; border-radius: 12px; background: #e3f1fc; color: #1d4f80; font-size: 17px; }
+.bz-lec-h::before { content: "📌 "; }
+@media (max-width: 820px) { .bz-lec-h { font-size: 16px; padding: 9px 12px; } }
