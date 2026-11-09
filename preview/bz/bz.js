@@ -3173,6 +3173,12 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
         lecShow(l.dataset.lch, l.dataset.la, l.dataset.lbi);
         if (l.dataset.lbi) q.value = '';
       });
+      // 游標在左邊分類欄滾滾輪：分類欄本身捲不動時，改捲右邊的內文
+      ov.querySelector('.bz-lec-nav').addEventListener('wheel', e => {
+        const nv = e.currentTarget, dy = e.deltaY; if (!dy || Math.abs(e.deltaX) > Math.abs(dy)) return;
+        if (dy < 0 ? nv.scrollTop > 0 : nv.scrollTop + nv.clientHeight < nv.scrollHeight - 1) return;
+        e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollBy({ top: dy * (e.deltaMode === 1 ? 32 : 1) });
+      }, { passive: false });
       let qt = 0;
       ov.querySelector('.bz-lec-q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => lecSearch(e.target.value), 200); });
       ov.querySelector('.bz-lec-q').addEventListener('keydown', e => e.stopPropagation());
