@@ -3224,7 +3224,7 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] }, { key: 'ped-pp2', match: ['兒童性早熟'] },
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] }, { key: 'ped-pp2', match: ['兒童性早熟'] }, { key: 'gyn-mj', match: ['月經不調'] },
     // 一份講義分到好幾個病證頁：pages = { 病名: 章 id 或 [章 id…] }，病證頁只列那幾章的段落
     { key: 'ped-infect', pages: { 上呼吸道感染: 'uri', 流行性感冒: 'flu', 鼻竇炎: 'sinus', 扁桃腺炎: 'tonsil', 流行性腮腺炎: 'mumps', 中耳炎: 'otitis', 呼吸道感染: ['bronch', 'pneu'], 泌尿道感染: 'uti', 感染性腹瀉: 'diarr', 手足口病: 'hfmd', 嬰兒玫瑰疹: 'roseola', 病毒疣: 'wart', 水痘: 'varicella', 德國麻疹: 'rubella', 傳染性軟疣: 'mollusc', 傳染性紅斑: 'erythema', 傳染性單核細胞增多症: 'mono' } }];
   const lecPg = (l, n) => l.pages && l.pages[n] ? [].concat(l.pages[n]) : null;
