@@ -1410,3 +1410,10 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-top { order: -1; flex: none; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #c6def4; border-radius: 50%; background: #fff; color: #2b6cb0; cursor: pointer; }
 .bz-lec-top:hover { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
 .bz-lec-h { border-left: 0; }
+/* v2.45.7 標題：黃色底、不要 📍（只留 ︿）；提醒框：📍 開頭，底色改淡橘 */
+.bz-lec-h { background: #fff1bf; color: #5a3b00; }
+.bz-lec-h::before { content: none; }
+.bz-lec-top { border-color: #f1d77a; color: #b07800; }
+.bz-lec-top:hover { background: #e0a800; border-color: #e0a800; color: #fff; }
+.bz-lec-note::before { content: "📍 "; }
+.bz-lec-note { background: #ffe9d6; border-left-color: #f29a4a; }
