@@ -2473,10 +2473,11 @@
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx,.bz-nd-inl,.bz-lec-card';
-  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
+  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body'), ...document.querySelectorAll('.bz-lec .bz-lec-hl')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
     if (root.classList.contains('shl-body')) { const w = root.closest('#bzShl'); return w && w.dataset.bk ? 'shl:' + w.dataset.bk : ''; }
+    if (root.classList.contains('bz-lec-hl')) return root.dataset.hk || '';   // 專題頁的標題框也能畫綠勾、加註
     if (root.classList.contains('bz-lec-body')) return root.dataset.ch ? 'lec:' + root.dataset.lk + ':' + root.dataset.ch : '';
     if (root.classList.contains('bz-pt-wrap')) { const b = root.querySelector('.bz-dh[data-id]'); return b ? 'pt:' + b.dataset.id : ''; }
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
@@ -2551,7 +2552,7 @@
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
-    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body'))) {
+    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl'))) {
       const gap = COARSE.matches ? 22 : 38;
       hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
@@ -3282,12 +3283,12 @@
   function lecChHtml(d, ci) {
     const c = d.ch[ci], pv = d.ch[ci - 1], nx = d.ch[ci + 1];
     const hs = c.b.map((b, i) => b.h ? `<a href="#" class="bz-lec-a" data-lch="${E(c.id)}" data-la="${lecHid(b, i).slice(4)}">${E(lecTxt(b.h))}</a>` : '').filter(Boolean);
-    return `<div class="bz-lec-chh"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
+    return `<div class="bz-lec-chh bz-lec-hl" data-hk="lec:${E(d.key)}:${E(c.id)}:hd"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
 ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join('')}</div>` : ''}
 <div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map(lecBlock).join('')}</div>
 <div class="bz-lec-pn">${pv ? `<a href="#" class="bz-lec-a" data-lch="${E(pv.id)}"><small>‹ 上一類</small>${E(pv.t)}</a>` : '<span></span>'}${nx ? `<a href="#" class="bz-lec-a nx" data-lch="${E(nx.id)}"><small>下一類 ›</small>${E(nx.t)}</a>` : '<span></span>'}</div>`;
   }
-  const lecHomeHtml = d => `<div class="bz-lec-home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
+  const lecHomeHtml = d => `<div class="bz-lec-home"><div class="bz-lec-hl" data-hk="lec:${E(d.key)}:_home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div></div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
   let lecCur = null;
   async function lecOpen(key, ch, a) {
     const d = await lecGet(key);
@@ -3342,6 +3343,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     ov.querySelectorAll('.bz-lec-nv').forEach(n => n.classList.toggle('on', n.dataset.lch === lecCur.ch));
     const on = ov.querySelector('.bz-lec-nv.on'); if (on) { const nv = on.parentElement; nv.scrollLeft = on.offsetLeft - nv.clientWidth / 2 + on.offsetWidth / 2; }
     const body = pg.querySelector('.bz-lec-body'); if (body) { lecTbW(body); try { hlApply(body); } catch (e) {} }
+    pg.querySelectorAll('.bz-lec-hl').forEach(h => { try { hlApply(h); } catch (e) {} });
     const t = a ? pg.querySelector('#lec-' + a) : bi != null && bi !== '' ? pg.querySelector(`.bz-lec-body [data-lbx="${bi}"]`) : null;
     sc.scrollTop = 0;
     if (t) {
