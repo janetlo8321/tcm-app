@@ -1423,3 +1423,8 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-top { border-color: #c6def4; color: #2b6cb0; }
 .bz-lec-top:hover { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
 .bz-lec-note { background: #e3f3e7; border-left-color: #6cbf84; }
+/* v2.45.10 改方案 B：標題黃底、📍 提醒框寶寶藍漸層到淡綠 */
+.bz-lec-h { background: #fff1bf; color: #5a3b00; }
+.bz-lec-top { border-color: #f1d77a; color: #b07800; }
+.bz-lec-top:hover { background: #e0a800; border-color: #e0a800; color: #fff; }
+.bz-lec-note { background: linear-gradient(90deg, #e3f1fc, #e3f3e7); border-left-color: #7fbbea; }
