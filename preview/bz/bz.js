@@ -3120,7 +3120,7 @@
   const lecHid = (b, i) => 'lec-' + (b.id || 'h' + i);
   function lecBlock(b, i) {
     const w = (cls, h) => `<div class="bz-lec-blk ${cls}" data-lbx="${i}">${h}</div>`;
-    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}">${lecIn(b.h)}</h3>`;
+    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}"><button type="button" class="bz-lec-top" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>${lecIn(b.h)}</span></h3>`;
     if (b.p) return w('bz-lec-p', lecIn(b.p));
     if (b.ul) return `<ul class="bz-lec-blk bz-lec-ul" data-lbx="${i}">${b.ul.map(x => `<li>${lecIn(x)}</li>`).join('')}</ul>`;
     if (b.tb) {
@@ -3165,6 +3165,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
       addEventListener('hashchange', close);
       ov.querySelector('[data-lec-x]').addEventListener('click', close);
       ov.addEventListener('click', e => {
+        if (e.target.closest('.bz-lec-top')) { e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollTo({ top: 0, behavior: 'smooth' }); return; }
         const l = e.target.closest('a[data-lch]'); if (!l) return;
         e.preventDefault();
         if (l.closest('.bz-lec-body') && String(getSelection() || '').trim()) return;   // 正在選字就不要跳走

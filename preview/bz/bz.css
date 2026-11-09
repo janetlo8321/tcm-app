@@ -1403,3 +1403,10 @@ a.bz-lec-chd:hover i { text-decoration: underline; }
 .bz-lec-h { margin: 26px 0 12px; padding: 10px 14px; border-left: 4px solid #f29a4a; border-radius: 12px; background: #e3f1fc; color: #1d4f80; font-size: 17px; }
 .bz-lec-h::before { content: "📍 "; }
 @media (max-width: 820px) { .bz-lec-h { font-size: 16px; padding: 9px 12px; } }
+/* v2.45.6 段落標題最前面 ︿：點了回到最上面 */
+.bz-lec-h { display: flex; align-items: center; gap: 6px; }
+.bz-lec-h::before { order: 0; content: "📍"; }
+.bz-lec-h > span { order: 1; min-width: 0; }
+.bz-lec-top { order: -1; flex: none; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #c6def4; border-radius: 50%; background: #fff; color: #2b6cb0; cursor: pointer; }
+.bz-lec-top:hover { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
+.bz-lec-h { border-left: 0; }
