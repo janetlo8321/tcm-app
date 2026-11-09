@@ -477,7 +477,7 @@
   async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
-    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true),
+    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true), () => dnSync(true),
       ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
@@ -1859,9 +1859,12 @@
     const a = zoAll();
     ent.querySelectorAll('section.zz-sys').forEach(sec => {
       const h2 = sec.querySelector('h2.group'), ul = sec.querySelector('ul.nb-grid'); if (!h2 || !ul) return;
-      if (!h2.querySelector('.bz-zo-btn')) h2.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-btn" title="拖拉調換這一系的病名順序">⇅ 排序</button>');
+      if (!h2.querySelector('.bz-zo-btn')) h2.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-btn" title="拖拉調換順序、按 ✎ 改病名">⇅ 排序／改名</button>');
       const lis = [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd'));
-      lis.forEach(li => { if (!li.querySelector(':scope > .bz-zo-h')) li.insertAdjacentHTML('beforeend', '<span class="bz-zo-h" aria-hidden="true">≡</span>'); });
+      lis.forEach(li => {
+        if (!li.querySelector(':scope > .bz-zo-h')) li.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-rn" title="改名稱">✎</button><span class="bz-zo-h" aria-hidden="true">≡</span>');
+        dnLi(li);
+      });
       const o = a[zoSys(sec)] && a[zoSys(sec)].o; if (!Array.isArray(o) || !o.length) return;
       const rank = id => { const i = o.indexOf(id); return i < 0 ? 1e6 : i; };
       const sorted = lis.map((li, i) => ({ li, i, r: rank(zdId(li)) })).sort((x, y) => x.r - y.r || x.i - y.i).map(x => x.li);
@@ -1869,6 +1872,53 @@
       const add = ul.querySelector(':scope > .bz-dzadd');
       sorted.forEach(li => ul.insertBefore(li, add));
     });
+  }
+  /* 病名改名：只改顯示的名稱（tcm-dzname-v1，{病 id: {n, t}}；n 空白 = 用回原名），原本資料、專題整理的對應都不動；同步到 sync/dzname.json */
+  const DNK = 'tcm-dzname-v1', DN_URL = GH_URL.replace('myfx.json', 'dzname.json');
+  const dnAll = () => { try { const a = JSON.parse(localStorage.getItem(DNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const dnStore = a => { try { localStorage.setItem(DNK, JSON.stringify(a)); } catch (e) {} };
+  const dnOf = id => { const x = dnAll()[id]; return x && x.n ? x.n : ''; };
+  function dnLi(li) {
+    const b = li.querySelector(':scope > a > b'); if (!b) return;
+    if (b.dataset.orig == null) b.dataset.orig = b.textContent;
+    const n = dnOf(zdId(li)) || b.dataset.orig;
+    if (b.textContent !== n) b.textContent = n;
+  }
+  function dnPage() {   // 病證頁大標題
+    const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined' || !by[state.cur]) return;
+    const h1 = ent.querySelector('h1'); if (!h1) return;
+    const tn = [...h1.childNodes].find(n => n.nodeType === 3 && n.data.trim()); if (!tn) return;
+    if (h1.dataset.orig == null || h1.dataset.dnid !== state.cur) { h1.dataset.orig = tn.data; h1.dataset.dnid = state.cur; }
+    const n = dnOf(state.cur) || h1.dataset.orig;
+    if (tn.data !== n) tn.data = n;
+  }
+  function dnRename(li) {
+    const id = zdId(li), b = li.querySelector(':scope > a > b'); if (!id || !b) return;
+    const orig = b.dataset.orig || b.textContent;
+    const v = window.prompt(`改名稱（原名：${orig}）\n清空後按確定 = 用回原名`, dnOf(id) || orig);
+    if (v == null) return;
+    const n = v.trim(), a = dnAll();
+    a[id] = { n: n === orig ? '' : n, t: Date.now() };
+    dnStore(a); dnLi(li);
+    clearTimeout(dnRename.t); dnRename.t = setTimeout(() => dnSync(true), 1200);
+  }
+  async function dnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = dnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      dnStore(all);
+      if (changed) { zoApply(); dnPage(); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步病證改名', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
   }
   function zoSave(sec) {
     const ul = sec.querySelector('ul.nb-grid'), a = zoAll();
@@ -1881,17 +1931,19 @@
     if (b) {
       e.preventDefault(); e.stopPropagation();
       const sec = b.closest('section.zz-sys'), on = !sec.classList.contains('bz-zo-on');
-      document.querySelectorAll('section.zz-sys.bz-zo-on').forEach(x => { x.classList.remove('bz-zo-on'); const y = x.querySelector('.bz-zo-btn'); if (y) y.textContent = '⇅ 排序'; });
+      document.querySelectorAll('section.zz-sys.bz-zo-on').forEach(x => { x.classList.remove('bz-zo-on'); const y = x.querySelector('.bz-zo-btn'); if (y) y.textContent = '⇅ 排序／改名'; });
       if (on) { sec.classList.add('bz-zo-on'); b.textContent = '✓ 完成'; }
       return;
     }
+    const rn = e.target.closest && e.target.closest('section.zz-sys.bz-zo-on .bz-zo-rn');
+    if (rn) { e.preventDefault(); e.stopPropagation(); dnRename(rn.closest('li')); return; }
     if (e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li')) { e.preventDefault(); e.stopPropagation(); }   // 排序中點病名不打開
   }, true);
   // 拖拉：滑鼠和手指都用 pointer 事件；按住整格（排序中）上下移動，放開就存
   let zoDrag = null;
   document.addEventListener('pointerdown', e => {
     const li = e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li:not(.bz-dzadd)'); if (!li || e.button > 0) return;
-    if (e.target.closest('.bz-zd-ck')) return;
+    if (e.target.closest('.bz-zd-ck, .bz-zo-rn')) return;
     e.preventDefault();
     zoDrag = { li, ul: li.parentNode, sec: li.closest('section.zz-sys'), id: e.pointerId, moved: false };
     li.classList.add('bz-zo-drag');
@@ -1933,8 +1985,8 @@
       return true;
     } catch (e) { return false; }
   }
-  if (dzEnt) new MutationObserver(() => { if (!zoDrag) zoApply(); }).observe(dzEnt, { childList: true });
-  zoApply();
+  if (dzEnt) new MutationObserver(() => { if (!zoDrag) zoApply(); dnPage(); }).observe(dzEnt, { childList: true });
+  zoApply(); dnPage();
 
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json

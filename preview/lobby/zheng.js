@@ -163,7 +163,7 @@
       b.type = 'button';
       b.className = 'zz-dz';
       b.setAttribute('role', 'listitem');
-      b.textContent = d.name;
+      b.textContent = (() => { try { const x = JSON.parse(localStorage.getItem('tcm-dzname-v1') || '{}')[d.id]; return x && x.n ? x.n : d.name; } catch (e) { return d.name; } })();   // 資料庫裡改過的名稱
       b.dataset.id = d.id;
       if (d.id === repId) b.classList.add('active');
       if (d.mine) b.classList.add('mine');
