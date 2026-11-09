@@ -3223,10 +3223,10 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     const d = lecMem[L.key];
     if (d) {
       card.dataset.ok = 1;
-      card.innerHTML = `<div class="bz-lec-chd"><b>📚 專題整理</b><a href="#" class="bz-lec-open" data-lk="${E(L.key)}" data-lch="">${E(d.title)} ›</a><small>${E(d.by)}</small></div><div class="bz-lec-grid">${lecTiles(d)}</div>`;
+      card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map(c => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${E(c.icon)}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
     } else {
       delete card.dataset.ok;
-      card.innerHTML = `<div class="bz-lec-chd"><b>📚 專題整理</b><small class="bz-lec-wait">下載中…</small></div>`;
+      card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
       lecGet(L.key).then(x => {
         if (x) { lecDecorate(true); return; }
         const w = card.querySelector('.bz-lec-wait');
