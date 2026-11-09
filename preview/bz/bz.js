@@ -3230,7 +3230,7 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] }, { key: 'ped-pp2', match: ['兒童性早熟'] }, { key: 'gyn-mj', match: ['月經不調'] },
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] }, { key: 'ped-pp2', match: ['兒童性早熟'] }, { key: 'gyn-mj', match: ['月經不調'] }, { key: 'gyn-yj', match: ['經前期緊張症候群'], pages: { 乳證: ['rz1', 'rz2'] } },
     // 一份講義分到好幾個病證頁：pages = { 病名: 章 id 或 [章 id…] }，病證頁只列那幾章的段落
     { key: 'ped-infect', pages: { 上呼吸道感染: 'uri', 流行性感冒: 'flu', 鼻竇炎: 'sinus', 扁桃腺炎: 'tonsil', 流行性腮腺炎: 'mumps', 中耳炎: 'otitis', 呼吸道感染: ['bronch', 'pneu'], 泌尿道感染: 'uti', 感染性腹瀉: 'diarr', 手足口病: 'hfmd', 嬰兒玫瑰疹: 'roseola', 病毒疣: 'wart', 水痘: 'varicella', 德國麻疹: 'rubella', 傳染性軟疣: 'mollusc', 傳染性紅斑: 'erythema', 傳染性單核細胞增多症: 'mono' } }];
   const lecPg = (l, n) => l.pages && l.pages[n] ? [].concat(l.pages[n]) : null;
@@ -3269,7 +3269,7 @@
   let lkYbN = null, lkHbN = null;
   const lkYb = () => { if (!lkYbN) { lkYbN = {}; try { Object.keys(YB_CONTENT).forEach(k => { const n = YB_CONTENT[k] && YB_CONTENT[k].n; if (n && !lkYbN[n]) lkYbN[n] = k; }); } catch (e) {} } return lkYbN; };
   const lkHb = () => { if (!lkHbN) { lkHbN = {}; try { DB.herbs.forEach(h => { lkHbN[h.name] = h; }); } catch (e) {} } return lkHbN; };
-  const LK_HA = { 山萸肉: '山茱萸', 枸杞: '枸杞子', 桂心: '肉桂', 橘皮: '陳皮', 梔子: '山梔子', 三棱: '三稜', 仙靈脾: '淫羊藿', 南星: '天南星', 川椒: '花椒', 龜甲: '龜板', 黑薑: '炮薑', 當歸尾: '當歸', 當歸頭: '當歸', 豬芩: '豬苓', 黃芪: '黃耆' };
+  const LK_HA = { 山萸肉: '山茱萸', 枸杞: '枸杞子', 生地: '生地黃', 熟地: '熟地黃', 杞子: '枸杞子', 川楝: '川楝子', 雲苓: '茯苓', 白茯苓: '茯苓', 法夏: '半夏', 淮山: '山藥', 胡連: '胡黃連', 驢皮膠: '阿膠', 旱蓮草: '墨旱蓮', 丹皮: '牡丹皮', 山梔: '山梔子', 棗仁: '酸棗仁', 縮砂仁: '砂仁', 扁豆: '白扁豆', 蓮子: '蓮子肉', 蓮肉: '蓮子肉', 巴戟: '巴戟天', 苡仁: '薏苡仁', 吳萸: '吳茱萸', 老蔥: '蔥白', 紅棗: '大棗', 黃甘菊: '菊花', 霜桑葉: '桑葉', 白芍藥: '白芍', 當歸身: '當歸', 葳蕤: '玉竹', 沙苑蒺藜: '沙苑子', 沙苑蒺黎: '沙苑子', 首烏: '何首烏', 桂心: '肉桂', 橘皮: '陳皮', 梔子: '山梔子', 三棱: '三稜', 仙靈脾: '淫羊藿', 南星: '天南星', 川椒: '花椒', 龜甲: '龜板', 黑薑: '炮薑', 當歸尾: '當歸', 當歸頭: '當歸', 豬芩: '豬苓', 黃芪: '黃耆' };
   function lkHerb(n) {
     const H = lkHb(); if (H[n]) return H[n];
     if (LK_HA[n] && H[LK_HA[n]]) return H[LK_HA[n]];
@@ -3288,7 +3288,8 @@
     return (s, p, row) => {
       if (p === 'h') { const m = String(s).match(/^([^《]+)(.*)$/), f = m && !/[\[*]/.test(m[1]) && lkFx(m[1].trim(), d); return f ? lkA(E(m[1]), 'f', f) + lecIn(m[2]) : lecIn(s); }
       if (/^tb\.[1-9]\d*\.0$/.test(p) && !/[\[*<]/.test(s)) { const f = lkFx(String(s).trim(), d); if (f) return lkA(E(s), 'f', f); }
-      if (/^tb\.[1-9]\d*\.1$/.test(p) && row && row[0] === '組成') return String(s).split(/([、，,；;。\s]+)/).map(t => { const h = t && !/^[、，,；;。\s]+$/.test(t) && lkHerb(t.trim()); return h ? lkA(E(t), 'h', h.id) : lecIn(t); }).join('');
+      const cm = String(p).match(/^tb\.[1-9]\d*\.(\d+)$/), hd = cm && c.b[bi] && c.b[bi].tb && c.b[bi].tb[0];
+      if (cm && row && ((cm[1] === '1' && row[0] === '組成') || (hd && hd[+cm[1]] === '組成'))) return String(s).split(/([、，,；;。\s]+)/).map(t => { const h = t && !/^[、，,；;。\s]+$/.test(t) && lkHerb(t.trim()); return h ? lkA(E(t), 'h', h.id) : lecIn(t); }).join('');
       return lecIn(s);
     };
   }
