@@ -3445,10 +3445,21 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
         if (l.dataset.lbi) q.value = '';
       });
       // 游標在左邊分類欄滾滾輪：分類欄本身捲不動時，改捲右邊的內文
+      // 游標在左邊分類欄滾滾輪：一格換一類（往下 = 下一類），右邊內容跟著換；手機的橫排分類不受影響
+      let wAcc = 0, wT = 0;
       ov.querySelector('.bz-lec-nav').addEventListener('wheel', e => {
-        const nv = e.currentTarget, dy = e.deltaY; if (!dy || Math.abs(e.deltaX) > Math.abs(dy)) return;
-        if (dy < 0 ? nv.scrollTop > 0 : nv.scrollTop + nv.clientHeight < nv.scrollHeight - 1) return;
-        e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollBy({ top: dy * (e.deltaMode === 1 ? 32 : 1) });
+        if (COARSE.matches || matchMedia('(max-width: 820px)').matches) return;
+        const dy = e.deltaY * (e.deltaMode === 1 ? 32 : 1); if (!dy || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        const now = Date.now(); if (now - wT > 400) wAcc = 0;
+        wAcc += dy; if (Math.abs(wAcc) < 40 || now - wT < 260) return;
+        wT = now; const dir = wAcc > 0 ? 1 : -1; wAcc = 0;
+        if (!lecCur) return;
+        const ids = [''].concat(lecCur.d.ch.map(c => c.id)), i = ids.indexOf(lecCur.ch), j = Math.max(0, Math.min(ids.length - 1, (i < 0 ? 0 : i) + dir));
+        if (j === i) return;
+        const q = ov.querySelector('.bz-lec-q'); if (q.value) q.value = '';
+        lecShow(ids[j]);
+        const on = ov.querySelector('.bz-lec-nv.on'); if (on) on.scrollIntoView({ block: 'nearest' });
       }, { passive: false });
       let qt = 0;
       ov.querySelector('.bz-lec-q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => lecSearch(e.target.value), 200); });
