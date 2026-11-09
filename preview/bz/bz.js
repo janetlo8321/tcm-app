@@ -3083,7 +3083,10 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }];
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] },
+    // 一份講義分到好幾個病證頁：pages = { 病名: 章 id 或 [章 id…] }，病證頁只列那幾章的段落
+    { key: 'ped-infect', pages: { 上呼吸道感染: 'uri', 流行性感冒: 'flu', 鼻竇炎: 'sinus', 扁桃腺炎: 'tonsil', 流行性腮腺炎: 'mumps', 中耳炎: 'otitis', 呼吸道感染: ['bronch', 'pneu'], 泌尿道感染: 'uti', 感染性腹瀉: 'diarr', 手足口病: 'hfmd', 嬰兒玫瑰疹: 'roseola', 病毒疣: 'wart', 水痘: 'varicella', 德國麻疹: 'rubella', 傳染性軟疣: 'mollusc', 傳染性紅斑: 'erythema', 傳染性單核細胞增多症: 'mono' } }];
+  const lecPg = (l, n) => l.pages && l.pages[n] ? [].concat(l.pages[n]) : null;
   const LEC_URL = GH_URL.replace('sync/myfx.json', 'lec/');
   let lecDbP = null;
   const lecDb = () => lecDbP || (lecDbP = new Promise((res, rej) => {
@@ -3268,31 +3271,43 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
   }
   function lecDecorate(force) {
     const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined') return;
-    const o = by[state.cur], old = ent.querySelector('.bz-lec-card');
-    const L = o && o.kind === 'zd' && LECS.find(l => l.match.includes(String(o.name || '').trim()));
-    if (!L) { if (old) old.remove(); return; }
-    if (old && old.dataset.lk === L.key && old.dataset.ok && !force) return;
-    const h1 = ent.querySelector('h1'); if (!h1) return;
-    const card = old || document.createElement('div'); card.className = 'bz-lec-card'; card.dataset.lk = L.key;
-    if (!old) h1.insertAdjacentElement('afterend', card);
-    const d = lecMem[L.key];
-    if (d) {
-      card.dataset.ok = 1;
-      card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${i + 1}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
-    } else {
-      delete card.dataset.ok;
-      card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
-      lecGet(L.key).then(x => {
-        if (x) { lecDecorate(true); return; }
-        const w = card.querySelector('.bz-lec-wait');
-        if (w) w.textContent = lecErr === 'tok' ? '這份專題放在私人備份庫：這台裝置要先按「☁ 同步」貼上金鑰才能下載（下載一次後沒網路也能看）。' : '還沒下載成功（' + (lecErr || '請稍後再試') + '）';
-      });
-    }
+    const o = by[state.cur], nm = o && o.kind === 'zd' ? String(o.name || '').trim() : '';
+    const Ls = nm ? LECS.filter(l => (l.match && l.match.includes(nm)) || lecPg(l, nm)) : [];
+    ent.querySelectorAll('.bz-lec-card').forEach(c => { if (!Ls.some(l => l.key === c.dataset.lk)) c.remove(); });
+    const h1 = ent.querySelector('h1'); if (!h1 || !Ls.length) return;
+    let prev = h1;
+    Ls.forEach(L => {
+      const old = ent.querySelector(`.bz-lec-card[data-lk="${L.key}"]`);
+      if (old && old.dataset.ok && !force) { prev = old; return; }
+      const card = old || document.createElement('div'); card.className = 'bz-lec-card'; card.dataset.lk = L.key;
+      if (!old) prev.insertAdjacentElement('afterend', card);
+      prev = card;
+      const d = lecMem[L.key], pg = lecPg(L, nm);
+      if (d) {
+        card.dataset.ok = 1;
+        if (pg) {   // 只列這個病的章：一章就列段落，好幾章就列章
+          const cs = pg.map(id => d.ch.find(c => c.id === id)).filter(Boolean);
+          const one = cs.length === 1 ? cs[0] : null;
+          const chips = one ? one.b.map((b, i) => b.h ? { ch: one.id, a: lecHid(b, i).slice(4), t: lecTxt(b.h), tip: one.t + '：' + lecTxt(b.h) } : null).filter(Boolean)
+            : cs.map(c => ({ ch: c.id, a: '', t: c.s || c.t, tip: c.t + '：' + c.sum }));
+          card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch="${E(one ? one.id : '')}"><span class="bz-lec-tag">專題整理</span><b>${E(d.title + (one ? '：' + one.t : '：' + cs.map(c => c.t).join('、')))}</b><i>全部 ›</i></a><div class="bz-lec-mini">${chips.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.ch)}" data-la="${E(c.a)}" title="${E(c.tip)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('')}</div>`;
+        } else
+          card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${i + 1}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
+      } else {
+        delete card.dataset.ok;
+        card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
+        lecGet(L.key).then(x => {
+          if (x) { lecDecorate(true); return; }
+          const w = card.querySelector('.bz-lec-wait');
+          if (w) w.textContent = lecErr === 'tok' ? '這份專題放在私人備份庫：這台裝置要先按「☁ 同步」貼上金鑰才能下載（下載一次後沒網路也能看）。' : '還沒下載成功（' + (lecErr || '請稍後再試') + '）';
+        });
+      }
+    });
   }
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('.bz-lec-card a[data-lch]'); if (!t) return;
     e.preventDefault(); e.stopPropagation();
-    lecOpen(t.dataset.lk, t.dataset.lch);
+    lecOpen(t.dataset.lk, t.dataset.lch, t.dataset.la);
   }, true);
   if (entObs) new MutationObserver(() => lecDecorate()).observe(entObs, { childList: true });
   lecDecorate();
