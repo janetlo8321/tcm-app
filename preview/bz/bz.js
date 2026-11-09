@@ -3083,7 +3083,7 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }];
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }];
   const LEC_URL = GH_URL.replace('sync/myfx.json', 'lec/');
   let lecDbP = null;
   const lecDb = () => lecDbP || (lecDbP = new Promise((res, rej) => {
@@ -3113,9 +3113,9 @@
       } catch (e) { lecErr = '沒有網路'; return lecMem[key] || null; }
     })());
   }
-  const lecIn = s => E(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+  const lecIn = s => E(s).replace(/&lt;br&gt;/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/\[\[(.+?)&gt;([\w-]+)(?:#([\w-]+))?\]\]/g, (m, t, c, a) => `<a href="#" class="bz-lec-a" data-lch="${c}"${a ? ` data-la="${a}"` : ''}>${t}</a>`);
-  const lecTxt = s => String(s || '').replace(/\*\*/g, '').replace(/\[\[(.+?)>[^\]]+\]\]/g, '$1');
+  const lecTxt = s => String(s || '').replace(/<br>/g, ' ').replace(/\*\*/g, '').replace(/\[\[(.+?)>[^\]]+\]\]/g, '$1');
   const lecBlkTxt = b => lecTxt([b.h, b.p, b.note, b.warn, b.src, b.f, b.cap, ...(b.ul || []), ...[].concat(...(b.tb || [])), ...[].concat(...(b.cards || []))].filter(Boolean).join('　'));
   const lecHid = (b, i) => 'lec-' + (b.id || 'h' + i);
   function lecBlock(b, i) {
