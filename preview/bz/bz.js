@@ -3185,7 +3185,7 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     }
     lecCur = { key, d, ch: '' };
     ov.querySelector('.bz-lec-tt').textContent = d.title || '';
-    ov.querySelector('.bz-lec-nav').innerHTML = `<a href="#" class="bz-lec-nv" data-lch=""><span></span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('');
+    ov.querySelector('.bz-lec-nav').innerHTML = `<button type="button" class="bz-lec-top bz-lec-navtop" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><a href="#" class="bz-lec-nv" data-lch=""><span></span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('');
     lecShow(ch || '', a);
   }
   function lecShow(ch, a, bi) {
