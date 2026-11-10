@@ -1201,6 +1201,8 @@
       const W = Math.min(vw - 16, 380), x = Math.max(vx + 8, Math.min(vx + vw - W - 8, L + r0.width / 2 - W / 2));
       const tb = document.querySelector('.tabbar'), tbh = tb && tb.offsetHeight && getComputedStyle(tb).display !== 'none' ? tb.offsetHeight : 0;
       const [up, dn] = cur.pops.map(p => p.d);
+      const zz = typeof xhZ === 'number' && xhZ > 0 ? xhZ : 0.75, fs = Math.max(9, Math.min(30, 13 * zz / 0.75));   // 跟著表格的 －／＋：75% 時 13px
+      [up, dn].forEach(d => { d.style.fontSize = fs + 'px'; });
       Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(44, T - 6 - (vy + 4)) + 'px' });
       up.style.top = (T - 6 - up.offsetHeight) + 'px';
       Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (B + 6) + 'px', maxHeight: Math.max(60, vy + vh - tbh - 6 - (B + 6)) + 'px' });
@@ -1254,6 +1256,7 @@
     let rq = 0;
     addEventListener('scroll', e => { if (!cur || (e.target.closest && e.target.closest('.bz-xhpop'))) return; cancelAnimationFrame(rq); rq = requestAnimationFrame(place); }, true);
     addEventListener('resize', () => { if (cur) place(); });
+    if (typeof window.xhSet === 'function') { const _set = window.xhSet; window.xhSet = function () { const r = _set.apply(this, arguments); if (cur) requestAnimationFrame(place); return r; }; }   // 按 －／＋ 灰框一起放大縮小
     if (window.visualViewport) ['resize', 'scroll'].forEach(k => visualViewport.addEventListener(k, () => { if (cur) { cancelAnimationFrame(rq); rq = requestAnimationFrame(place); } }));
     if (entObs) new MutationObserver(() => { if (cur && !cur.c.isConnected) zfClose(); }).observe(entObs, { childList: true });
     window.__bzXhZf = () => { const i = col('主方'); document.querySelectorAll('.xh-g .xh-c').forEach(x => x.classList.toggle('bz-xhzf', x.dataset.c === String(i))); };
