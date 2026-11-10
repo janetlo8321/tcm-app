@@ -477,7 +477,7 @@
   async function pullOnce() { if (pulled || !ghToken()) return; pulled = true; if (await syncFx(false)) { if (report && !root.hidden) keep(draw); fxlRefresh(); } }
   // 全部自己加的資料一起同步（設定金鑰時、每次打開時）：合併後和雲端不一樣才上傳，合併只會加資料或取比較新的，不會刪
   async function syncAll() {
-    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true),
+    const fs = [() => fckSync(true), () => fxtSync(true), () => docSync(true), () => xhSync(true), () => stSync(), () => xnSync(true), () => dzSync(true), () => zdSync(true), () => zoSync(true), () => dnSync(true), () => lxSync(true),
       ...Object.keys(TBS).map(k => () => tbSync(k, true)), () => hnSync(true), () => hlSync(true), () => gxSync(true), () => shlSync(true), () => ccnSync(true), () => ndImgSync()];
     let n = 0;
     for (const f of fs) { try { if (await f()) n++; } catch (e) {} }
@@ -1089,10 +1089,12 @@
     const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
     const sec = g.closest('.xh-sec');
     if (sec) {
-      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；按上面「✎ 編輯」後點格子就能改字，點格子外面就存好，改完按「完成」；平常選字可以畫綠勾黃底、加註。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
       const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
       const pg = sec.querySelector('.xh-zoombar .pg');
       if (pg && xhTW() >= 0 && !pg.querySelector('[data-xhtw]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhtw = ''; b.className = 'bz-xhtw'; pg.appendChild(b); }
+      if (pg && !pg.querySelector('[data-xhed]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhed = ''; b.className = 'bz-xhedb'; pg.appendChild(b); }
+      xhEdMode(xhEdOn);
     }
     g.querySelectorAll('.xh-h').forEach(h => {
       h.removeAttribute('draggable'); h.removeAttribute('title');
@@ -1102,7 +1104,7 @@
       c.dataset.xi = i;
       const ed = XS.e[i]; if (!ed) return;
       let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
-      if (d.innerHTML !== ed.h) d.innerHTML = ed.h;
+      if (xhClean(d) !== ed.h) d.innerHTML = ed.h;
       c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
     });
     window.xhApply();
@@ -1130,18 +1132,34 @@
     e.stopPropagation();
     const t = Date.now(); Object.keys(XS.w).forEach(k => { XS.w[k] = { v: XH.cols[k].w, t }; }); window.xhApply(); xhSave();
   }, true);
-  // 長按格子 → 這一格變成可以編輯
-  let lp = null, lpFired = false;
-  document.addEventListener('pointerdown', e => {
-    const c = e.target.closest && e.target.closest('.xh-c'); if (!c || c.classList.contains('editing')) return;
-    lpFired = false; clearTimeout(lp && lp.t);
-    lp = { c, x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; xhEdit(c); }, 550) };
-  });
-  document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } });
-  ['pointerup', 'pointercancel', 'scroll'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
-  document.addEventListener('click', e => { if (lpFired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopPropagation(); lpFired = false; } }, true);
-  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xh-c.editing')) { e.preventDefault(); e.stopPropagation(); } }, true);
-  document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c:not(.editing)')) e.preventDefault(); });
+  // 「✎ 編輯」開關：開著時點格子就能改字（方名連結先不跳）；關著時表格鎖住，可以選字畫綠勾、加註（tcm-hl-v1，和這一頁同一份）
+  let xhEdOn = false;
+  function xhEdMode(on) {
+    xhEdOn = !!on;
+    const g = document.querySelector('.xh-g'); if (g) g.classList.toggle('bz-xhed', xhEdOn);
+    document.querySelectorAll('[data-xhed]').forEach(b => { b.textContent = xhEdOn ? '✓ 完成編輯' : '✎ 編輯'; b.setAttribute('aria-pressed', String(xhEdOn)); });
+    if (!xhEdOn) { const c = document.querySelector('.xh-c.editing > div'); if (c) c.blur(); }
+  }
+  // 存格子時把螢光筆、註的標記拿掉（標記另外存在 tcm-hl-v1）
+  function xhClean(d) {
+    if (!d.querySelector('mark.bz-hl')) return d.innerHTML.replace(/<br>$/, '').trim();
+    const x = d.cloneNode(true);
+    x.querySelectorAll('mark.bz-hl').forEach(m => { const p = m.parentNode; while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); });
+    x.normalize(); return x.innerHTML.replace(/<br>$/, '').trim();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-xhed]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    if (typeof getSelection === 'function') try { getSelection().removeAllRanges(); } catch (er) {}
+    xhEdMode(!xhEdOn);
+  }, true);
+  document.addEventListener('click', e => {
+    const c = e.target.closest && e.target.closest('.xh-g.bz-xhed .xh-c'); if (!c) return;
+    if (e.target.closest('.xh-rs')) return;
+    if (c.closest('.xh-g.tw-off') && c.dataset.c === String(xhTW())) return;   // 收起的條文格：照舊點了展開
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (!c.classList.contains('editing')) xhEdit(c);
+  }, true);
   function xhEdit(c) {
     let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
     c.classList.add('editing'); c.classList.remove('e');
@@ -1151,10 +1169,11 @@
     const done = () => {
       d.removeEventListener('blur', done);
       d.contentEditable = 'false'; c.classList.remove('editing');
-      const h = d.innerHTML.replace(/<br>$/, '').trim();
+      const h = xhClean(d);
       const i = +c.dataset.xi;
       if (!(XS.e[i] && XS.e[i].h === h)) { XS.e[i] = { h, t: Date.now() }; c.classList.add('xh-ed'); xhSave(); }
       c.classList.toggle('e', !h);
+      if (typeof hlLater === 'function') hlLater();   // 改完重新畫上綠勾黃底、註
     };
     d.addEventListener('blur', done);
     d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
@@ -1847,6 +1866,151 @@
   if (dzEnt) new MutationObserver(() => { if (typeof state !== 'undefined' && state.cur !== 'zz') document.body.classList.remove('bz-zd-on'); zdDecorate(); }).observe(dzEnt, { childList: true });
   zdDecorate();
 
+  /* ---------- 病證清單：每一系可以自己拖拉調換病名順序（系標題旁「⇅ 排序」，按住右邊 ≡ 拖） ----------
+   * 存在這台裝置（tcm-zzord-v1，{系名: {o: [病 id…], t}}），有設定 GitHub 同步時合併到 tcm-notes sync/zzord.json；大廳的病證清單也照這個順序 */
+  const ZOK = 'tcm-zzord-v1', ZO_URL = GH_URL.replace('myfx.json', 'zzord.json');
+  const zoAll = () => { try { const a = JSON.parse(localStorage.getItem(ZOK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const zoStore = a => { try { localStorage.setItem(ZOK, JSON.stringify(a)); } catch (e) {} };
+  const zoSys = sec => { const h = sec.querySelector('h2.group'); return h && h.firstChild ? h.firstChild.textContent.trim() : ''; };
+  function zoApply() {
+    const ent = document.getElementById('entry');
+    if (!ent || typeof state === 'undefined' || state.cur !== 'zz') return;
+    const a = zoAll();
+    ent.querySelectorAll('section.zz-sys').forEach(sec => {
+      const h2 = sec.querySelector('h2.group'), ul = sec.querySelector('ul.nb-grid'); if (!h2 || !ul) return;
+      (SYSLEC[zoSys(sec)] || []).forEach(x => { if (!sec.querySelector(`.bz-sysfx[data-sysfx="${x.key}"]`)) h2.insertAdjacentHTML('afterend', `<a href="#" class="bz-sysfx" data-sysfx="${x.key}"><span class="bz-lec-tag">${E(x.t)}</span><b>${E(x.d)}</b><i>打開 ›</i></a>`); });
+      if (!h2.querySelector('.bz-zo-btn')) h2.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-btn" title="拖拉調換順序、按 ✎ 改病名">⇅ 排序／改名</button>');
+      const lis = [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd'));
+      lis.forEach(li => {
+        if (!li.querySelector(':scope > .bz-zo-h')) li.insertAdjacentHTML('beforeend', '<button type="button" class="bz-zo-rn" title="改名稱">✎</button><span class="bz-zo-h" aria-hidden="true">≡</span>');
+        dnLi(li);
+      });
+      const o = a[zoSys(sec)] && a[zoSys(sec)].o; if (!Array.isArray(o) || !o.length) return;
+      const rank = id => { const i = o.indexOf(id); return i < 0 ? 1e6 : i; };
+      const sorted = lis.map((li, i) => ({ li, i, r: rank(zdId(li)) })).sort((x, y) => x.r - y.r || x.i - y.i).map(x => x.li);
+      if (sorted.every((li, i) => li === lis[i])) return;
+      const add = ul.querySelector(':scope > .bz-dzadd');
+      sorted.forEach(li => ul.insertBefore(li, add));
+    });
+  }
+  /* 病名改名：只改顯示的名稱（tcm-dzname-v1，{病 id: {n, t}}；n 空白 = 用回原名），原本資料、專題整理的對應都不動；同步到 sync/dzname.json */
+  const DNK = 'tcm-dzname-v1', DN_URL = GH_URL.replace('myfx.json', 'dzname.json');
+  const dnAll = () => { try { const a = JSON.parse(localStorage.getItem(DNK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const dnStore = a => { try { localStorage.setItem(DNK, JSON.stringify(a)); } catch (e) {} };
+  const dnOf = id => { const x = dnAll()[id]; return x && x.n ? x.n : ''; };
+  function dnLi(li) {
+    const b = li.querySelector(':scope > a > b'); if (!b) return;
+    if (b.dataset.orig == null) b.dataset.orig = b.textContent;
+    const n = dnOf(zdId(li)) || b.dataset.orig;
+    if (b.textContent !== n) b.textContent = n;
+  }
+  function dnPage() {   // 病證頁大標題
+    const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined' || !by[state.cur]) return;
+    const h1 = ent.querySelector('h1'); if (!h1) return;
+    const tn = [...h1.childNodes].find(n => n.nodeType === 3 && n.data.trim()); if (!tn) return;
+    if (h1.dataset.orig == null || h1.dataset.dnid !== state.cur) { h1.dataset.orig = tn.data; h1.dataset.dnid = state.cur; }
+    const n = dnOf(state.cur) || h1.dataset.orig;
+    if (tn.data !== n) tn.data = n;
+  }
+  function dnRename(li) {
+    const id = zdId(li), b = li.querySelector(':scope > a > b'); if (!id || !b) return;
+    const orig = b.dataset.orig || b.textContent;
+    const v = window.prompt(`改名稱（原名：${orig}）\n清空後按確定 = 用回原名`, dnOf(id) || orig);
+    if (v == null) return;
+    const n = v.trim(), a = dnAll();
+    a[id] = { n: n === orig ? '' : n, t: Date.now() };
+    dnStore(a); dnLi(li);
+    clearTimeout(dnRename.t); dnRename.t = setTimeout(() => dnSync(true), 1200);
+  }
+  async function dnSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(DN_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = dnAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      dnStore(all);
+      if (changed) { zoApply(); dnPage(); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(DN_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步病證改名', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  // 整個系的專題（例如 婦科 → 相關方劑），放在那個系的病名清單上面
+  const SYSLEC = { 婦科: [{ key: 'gyn-fx', t: '相關方劑', d: '婦科常用方劑 50 首詳解＋組成速記表' }] };
+  document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a.bz-sysfx'); if (!a) return; e.preventDefault(); lecOpen(a.dataset.sysfx); });
+  function zoSave(sec) {
+    const ul = sec.querySelector('ul.nb-grid'), a = zoAll();
+    a[zoSys(sec)] = { o: [...ul.children].filter(li => li.tagName === 'LI' && !li.classList.contains('bz-dzadd')).map(zdId).filter(Boolean), t: Date.now() };
+    zoStore(a);
+    clearTimeout(zoSave.t); zoSave.t = setTimeout(() => zoSync(true), 1200);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.bz-zo-btn');
+    if (b) {
+      e.preventDefault(); e.stopPropagation();
+      const sec = b.closest('section.zz-sys'), on = !sec.classList.contains('bz-zo-on');
+      document.querySelectorAll('section.zz-sys.bz-zo-on').forEach(x => { x.classList.remove('bz-zo-on'); const y = x.querySelector('.bz-zo-btn'); if (y) y.textContent = '⇅ 排序／改名'; });
+      if (on) { sec.classList.add('bz-zo-on'); b.textContent = '✓ 完成'; }
+      return;
+    }
+    const rn = e.target.closest && e.target.closest('section.zz-sys.bz-zo-on .bz-zo-rn');
+    if (rn) { e.preventDefault(); e.stopPropagation(); dnRename(rn.closest('li')); return; }
+    if (e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li')) { e.preventDefault(); e.stopPropagation(); }   // 排序中點病名不打開
+  }, true);
+  // 拖拉：滑鼠和手指都用 pointer 事件；按住整格（排序中）上下移動，放開就存
+  let zoDrag = null;
+  document.addEventListener('pointerdown', e => {
+    const li = e.target.closest && e.target.closest('section.zz-sys.bz-zo-on ul.nb-grid > li:not(.bz-dzadd)'); if (!li || e.button > 0) return;
+    if (e.target.closest('.bz-zd-ck, .bz-zo-rn')) return;
+    e.preventDefault();
+    zoDrag = { li, ul: li.parentNode, sec: li.closest('section.zz-sys'), id: e.pointerId, moved: false };
+    li.classList.add('bz-zo-drag');
+    try { li.setPointerCapture(e.pointerId); } catch (x) {}
+  });
+  document.addEventListener('pointermove', e => {
+    if (!zoDrag || e.pointerId !== zoDrag.id) return;
+    e.preventDefault();
+    const { li, ul } = zoDrag;
+    const over = [...ul.children].find(x => x !== li && x.tagName === 'LI' && !x.classList.contains('bz-dzadd') && (() => { const r = x.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; })());
+    if (!over) return;
+    const r = over.getBoundingClientRect(), wide = r.width > r.height * 2.2 && ul.clientWidth - r.width < 40;
+    const after = wide ? e.clientY > r.top + r.height / 2 : (e.clientY > r.bottom - r.height / 3 || (e.clientY >= r.top + r.height / 3 && e.clientX > r.left + r.width / 2));
+    const ref = after ? over.nextSibling : over;
+    if (ref !== li && li.nextSibling !== ref) { ul.insertBefore(li, ref); zoDrag.moved = true; }
+  }, { passive: false });
+  const zoEnd = e => {
+    if (!zoDrag || e.pointerId !== zoDrag.id) return;
+    zoDrag.li.classList.remove('bz-zo-drag');
+    if (zoDrag.moved) zoSave(zoDrag.sec);
+    zoDrag = null;
+  };
+  document.addEventListener('pointerup', zoEnd); document.addEventListener('pointercancel', zoEnd);
+  async function zoSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(ZO_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const all = { ...remote }, mine = zoAll();
+      Object.keys(mine).forEach(k => { if (!all[k] || (mine[k].t || 0) > (all[k].t || 0)) all[k] = mine[k]; });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      zoStore(all);
+      if (changed) zoApply();
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(ZO_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步病證清單順序', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  if (dzEnt) new MutationObserver(() => { if (!zoDrag) zoApply(); dnPage(); }).observe(dzEnt, { childList: true });
+  zoApply(); dnPage();
+
   /* ---------- 病證頁的兩個表格（欄線可拖、左下＋加一列、整列空白時左邊 － 刪掉）----------
    * 「相關藥物作用」：本病常用方下面（藥物／作用／補充），存 tcm-dzherb-v1、sync/dzherb.json
    * 「DD.」：本病常用方上面（疾病／症狀／補充），存 tcm-dzdd-v1、sync/dzdd.json
@@ -2332,10 +2496,12 @@
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx,.bz-nd-inl,.bz-lec-card';
-  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
+  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body'), ...document.querySelectorAll('.bz-lec .bz-lec-hl')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
     if (root.classList.contains('shl-body')) { const w = root.closest('#bzShl'); return w && w.dataset.bk ? 'shl:' + w.dataset.bk : ''; }
+    if (root.closest('.bz-lec-edit')) return '';   // 專題頁編輯中不畫
+    if (root.classList.contains('bz-lec-hl')) return root.dataset.hk || '';   // 專題頁的標題框也能畫綠勾、加註
     if (root.classList.contains('bz-lec-body')) return root.dataset.ch ? 'lec:' + root.dataset.lk + ':' + root.dataset.ch : '';
     if (root.classList.contains('bz-pt-wrap')) { const b = root.querySelector('.bz-dh[data-id]'); return b ? 'pt:' + b.dataset.id : ''; }
     if (root.id === 'ybBody') { const y = document.getElementById('yb'); return y && y.dataset.fno ? 'yb:' + y.dataset.fno : ''; }
@@ -2410,7 +2576,7 @@
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
-    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body'))) {
+    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl') || pend.xh)) {
       const gap = COARSE.matches ? 22 : 38;
       hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
@@ -2424,6 +2590,10 @@
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
+      const ca = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+      const sx = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+      if ((ca && ca.closest('.xh-g.bz-xhed, [contenteditable="true"]')) || (sx && sx.closest('.xh-g.bz-xhed'))) { hlHide(); return; }   // 小黑學長表編輯中不畫
+      const inXh = !!(sx && sx.closest('.xh-g'));
       const tsx = hlTexts(root), ix = n => tsx.findIndex(t => t.n === n);   // 端點剛好在標記外那一格時往標記裡挪
       let sn = r.startContainer, en = r.endContainer;
       if (sn.nodeType === 3 && r.startOffset === sn.data.length && tsx[ix(sn) + 1]) sn = tsx[ix(sn) + 1].n;
@@ -2439,7 +2609,7 @@
           const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
           if (x.trim()) nt = { s, e, x };
         }
-        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt });
+        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt, xh: inXh });
         return;
       }
       const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
@@ -2447,7 +2617,7 @@
       const x = hlTexts(root).map(t => t.n.data).join('').slice(s, e);
       if (!x.trim()) { hlHide(); return; }
       const rs = r.getClientRects(), rc = rs.length ? rs[rs.length - 1] : r.getBoundingClientRect(), r0 = rs.length ? rs[0] : rc;
-      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x });
+      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x, xh: inXh });
     }, 450);
   });
   ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlOk.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
@@ -2997,7 +3167,7 @@
   });
   function ndOpen(f) {   // 註的延伸筆記
     const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
-    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.closest('.bz-lec-blk') || f.m.parentElement;
+    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.closest('.bz-lec-blk') || f.m.closest('.xh-c') || f.m.parentElement;
     ndShow({
       root: f.root, W: f.root.closest('#bzShl'), label: '註：' + (h.x || '').replace(/\s+/g, ' ').slice(0, 30),
       target: () => ({ els: [...f.root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`)], cls: 'cur' }),
@@ -3083,7 +3253,10 @@
   /* ---------- 專題整理（講義）：病證頁（例：醫 → 小兒科 → 兒童肥胖）標題下出現分類格，點一格進入全螢幕的專題頁 ----------
    * 內容放在私人備份庫 tcm-notes 的 lec/講義.json（不放在公開的 bz.js），用這台裝置的同步金鑰下載，存在 IndexedDB（tcm-lec），沒網路也能看
    * 專題頁裡：左邊（手機在上面）是分類、可以搜尋、[[文字>章#段]] 點了跳到別的分類；字可以畫綠勾、加註（tcm-hl-v1，key「lec:講義:章」） */
-  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }];
+  const LECS = [{ key: 'ped-obesity', match: ['兒童肥胖'] }, { key: 'ped-precocious', match: ['兒童性早熟'] }, { key: 'ped-resp', match: ['呼吸道感染'] }, { key: 'ped-uti', match: ['泌尿道感染'] }, { key: 'ped-growth', match: ['生長'] }, { key: 'ped-pp2', match: ['兒童性早熟'] }, { key: 'gyn-mj', match: ['月經不調'] }, { key: 'gyn-yj', match: ['經前期緊張症候群'], pages: { 乳證: ['rz1', 'rz2'] } },
+    // 一份講義分到好幾個病證頁：pages = { 病名: 章 id 或 [章 id…] }，病證頁只列那幾章的段落
+    { key: 'ped-infect', pages: { 上呼吸道感染: 'uri', 流行性感冒: 'flu', 鼻竇炎: 'sinus', 扁桃腺炎: 'tonsil', 流行性腮腺炎: 'mumps', 中耳炎: 'otitis', 呼吸道感染: ['bronch', 'pneu'], 泌尿道感染: 'uti', 感染性腹瀉: 'diarr', 手足口病: 'hfmd', 嬰兒玫瑰疹: 'roseola', 病毒疣: 'wart', 水痘: 'varicella', 德國麻疹: 'rubella', 傳染性軟疣: 'mollusc', 傳染性紅斑: 'erythema', 傳染性單核細胞增多症: 'mono' } }];
+  const lecPg = (l, n) => l.pages && l.pages[n] ? [].concat(l.pages[n]) : null;
   const LEC_URL = GH_URL.replace('sync/myfx.json', 'lec/');
   let lecDbP = null;
   const lecDb = () => lecDbP || (lecDbP = new Promise((res, rej) => {
@@ -3113,37 +3286,154 @@
       } catch (e) { lecErr = '沒有網路'; return lecMem[key] || null; }
     })());
   }
-  const lecIn = s => E(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+  const lecIn = s => E(s).replace(/&lt;br&gt;/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/\[\[(.+?)&gt;([\w-]+)(?:#([\w-]+))?\]\]/g, (m, t, c, a) => `<a href="#" class="bz-lec-a" data-lch="${c}"${a ? ` data-la="${a}"` : ''}>${t}</a>`);
-  const lecTxt = s => String(s || '').replace(/\*\*/g, '').replace(/\[\[(.+?)>[^\]]+\]\]/g, '$1');
+  /* 方名、藥名連結（講義 json 有 auto: 1 才做）：標題和表格第一欄的方名 → 方劑（YB_CONTENT）；「組成」那一列的藥名 → 藥材。點了在右邊小視窗看，不離開專題頁 */
+  let lkYbN = null, lkHbN = null;
+  const lkYb = () => { if (!lkYbN) { lkYbN = {}; try { Object.keys(YB_CONTENT).forEach(k => { const n = YB_CONTENT[k] && YB_CONTENT[k].n; if (n && !lkYbN[n]) lkYbN[n] = k; }); } catch (e) {} } return lkYbN; };
+  const lkHb = () => { if (!lkHbN) { lkHbN = {}; try { DB.herbs.forEach(h => { lkHbN[h.name] = h; }); } catch (e) {} } return lkHbN; };
+  const LK_HA = { 山萸肉: '山茱萸', 枸杞: '枸杞子', 生地: '生地黃', 熟地: '熟地黃', 杞子: '枸杞子', 川楝: '川楝子', 雲苓: '茯苓', 白茯苓: '茯苓', 法夏: '半夏', 淮山: '山藥', 胡連: '胡黃連', 驢皮膠: '阿膠', 旱蓮草: '墨旱蓮', 丹皮: '牡丹皮', 山梔: '山梔子', 棗仁: '酸棗仁', 縮砂仁: '砂仁', 扁豆: '白扁豆', 蓮子: '蓮子肉', 蓮肉: '蓮子肉', 巴戟: '巴戟天', 苡仁: '薏苡仁', 吳萸: '吳茱萸', 老蔥: '蔥白', 紅棗: '大棗', 黃甘菊: '菊花', 霜桑葉: '桑葉', 白芍藥: '白芍', 當歸身: '當歸', 葳蕤: '玉竹', 沙苑蒺藜: '沙苑子', 沙苑蒺黎: '沙苑子', 首烏: '何首烏', 桂心: '肉桂', 橘皮: '陳皮', 梔子: '山梔子', 三棱: '三稜', 仙靈脾: '淫羊藿', 南星: '天南星', 川椒: '花椒', 龜甲: '龜板', 黑薑: '炮薑', 當歸尾: '當歸', 當歸頭: '當歸', 豬芩: '豬苓', 黃芪: '黃耆' };
+  function lkHerb(n) {
+    const H = lkHb(); if (H[n]) return H[n];
+    if (LK_HA[n] && H[LK_HA[n]]) return H[LK_HA[n]];
+    const m = n.replace(/^[生炙炒法懷川制製鹽黑酒醋焦蜜]/, ''); if (m !== n) return H[m] || (LK_HA[m] && H[LK_HA[m]]) || null;
+    return null;
+  }
+  function lkFx(n, d) {
+    const a = d && d.fxa || {}; if (a[n] === '') return null;
+    const Y = lkYb(); return Y[a[n] || n] || null;
+  }
+  const lkA = (t, k, v) => `<a href="#" class="bz-lec-x" data-x${k}="${E(v)}">${t}</a>`;
+  function lecR(d, c, bi) {   // 回傳這一段的文字轉法：編輯中 → 可以改的原文；平常 → 排版＋連結
+    const ov = document.querySelector('.bz-lec');
+    if (ov && ov.classList.contains('bz-lec-edit')) return (s, p) => /^\[\[[^\]]+\]\]$/.test(s) ? lecIn(s) : `<span class="bz-lec-ed" contenteditable="plaintext-only" spellcheck="false" data-ep="${E(c.id + '|' + bi + '|' + p)}">${E(String(s).replace(/<br>/g, '\n'))}</span>`;
+    if (!d.auto) return lecIn;
+    return (s, p, row) => {
+      if (p === 'h') { const m = String(s).match(/^([^《]+)(.*)$/), f = m && !/[\[*]/.test(m[1]) && lkFx(m[1].trim(), d); return f ? lkA(E(m[1]), 'f', f) + lecIn(m[2]) : lecIn(s); }
+      if (/^tb\.[1-9]\d*\.0$/.test(p) && !/[\[*<]/.test(s)) { const f = lkFx(String(s).trim(), d); if (f) return lkA(E(s), 'f', f); }
+      const cm = String(p).match(/^tb\.[1-9]\d*\.(\d+)$/), hd = cm && c.b[bi] && c.b[bi].tb && c.b[bi].tb[0];
+      if (cm && row && ((cm[1] === '1' && row[0] === '組成') || (hd && hd[+cm[1]] === '組成'))) return String(s).split(/([、，,；;。\s]+)/).map(t => { const h = t && !/^[、，,；;。\s]+$/.test(t) && lkHerb(t.trim()); return h ? lkA(E(t), 'h', h.id) : lecIn(t); }).join('');
+      return lecIn(s);
+    };
+  }
+  // 右邊小視窗：藥材頁 / 方劑頁
+  let lkCur = null;
+  function lkClose() { const pk = document.querySelector('.bz-lec .bz-lec-pk'); if (pk) pk.hidden = true; lkCur = null; }
+  function lkOpen(k, v) {
+    const pk = document.querySelector('.bz-lec .bz-lec-pk'); if (!pk) return;
+    let t = '', h = '';
+    try {
+      if (k === 'h') { const hb = DB.herbs.find(x => x.id === v); if (!hb) return; t = hb.name; h = viewHerb(hb); }
+      else { const c = YB_CONTENT[v]; if (!c) return; t = c.n; h = `<h2>${E(c.n)}</h2>` + c.h; }
+    } catch (e) { return; }
+    lkCur = { k, v };
+    const bar = document.querySelector('.bz-lec .bz-doc-bar'); if (bar && !COARSE.matches) pk.style.top = bar.offsetHeight + 'px';
+    pk.querySelector('.bz-lec-pkbar b').textContent = (k === 'h' ? '藥材・' : '方劑・') + t;
+    const b = pk.querySelector('.bz-lec-pkb'); b.innerHTML = h; b.scrollTop = 0;
+    try { ybWire(b); } catch (e) {}
+    pk.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    const pk = e.target.closest && e.target.closest('.bz-lec .bz-lec-pk'); if (!pk) return;
+    if (e.target.closest('.bz-lec-pkx')) { e.preventDefault(); lkClose(); return; }
+    if (e.target.closest('.bz-lec-pkgo')) {   // 離開專題頁，到完整的頁面
+      e.preventDefault(); const c = lkCur; if (!c) return;
+      const x = document.querySelector('.bz-lec [data-lec-x]'); if (x) x.click();
+      if (c.k === 'h') go(c.v); else openYb(c.v);
+      return;
+    }
+    const y = e.target.closest('[data-yb]'); if (y) { e.preventDefault(); e.stopPropagation(); lkOpen('f', y.dataset.yb); return; }
+    const g = e.target.closest('[data-go]');
+    if (g) {
+      e.preventDefault(); e.stopPropagation();
+      if (DB.herbs.some(x => x.id === g.dataset.go)) { lkOpen('h', g.dataset.go); return; }
+      const x = document.querySelector('.bz-lec [data-lec-x]'); if (x) x.click(); go(g.dataset.go);
+    }
+  }, true);
+  /* 專題頁可以編輯：按 ✎ 編輯 後每段文字變成可以直接改的原文，離開那一格就存（tcm-lecx-v1，{講義: {"章|段|位置": {x, t}}}），同步到 sync/lecx.json */
+  const LXK = 'tcm-lecx-v1', LX_URL = GH_URL.replace('myfx.json', 'lecx.json');
+  const lxAll = () => { try { const a = JSON.parse(localStorage.getItem(LXK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
+  const lxStore = a => { try { localStorage.setItem(LXK, JSON.stringify(a)); } catch (e) {} };
+  function lxDoc(d) {   // 原講義＋自己改過的字
+    const x = d && lxAll()[d.key]; if (!x || !Object.keys(x).length) return d;
+    const o = JSON.parse(JSON.stringify(d));
+    Object.keys(x).forEach(k => {
+      const [ci, bi, p] = k.split('|'), c = o.ch.find(c => c.id === ci), b = c && c.b[+bi]; if (!b || !p) return;
+      const ps = p.split('.'); let t = b;
+      for (let j = 0; j < ps.length - 1; j++) { t = t && t[ps[j]]; }
+      const last = ps[ps.length - 1]; if (t && typeof t === 'object' && typeof t[last] === 'string') t[last] = x[k].x;
+    });
+    return o;
+  }
+  function lxSave(el) {
+    if (!lecCur || !el || !el.dataset.ep) return;
+    const v = el.innerText.replace(/\r/g, '').replace(/\n+$/, '').replace(/\n/g, '<br>');
+    const k = el.dataset.ep, [ci, bi, p] = k.split('|'), c = lecCur.d.ch.find(c => c.id === ci), b = c && c.b[+bi]; if (!b) return;
+    let t = b; const ps = p.split('.'); for (let j = 0; j < ps.length - 1; j++) t = t && t[ps[j]];
+    if (!t || t[ps[ps.length - 1]] === v) return;
+    const a = lxAll(); (a[lecCur.key] = a[lecCur.key] || {})[k] = { x: v, t: Date.now() }; lxStore(a);
+    lecCur.d = lxDoc(lecCur.d0);
+    clearTimeout(lxSave.t); lxSave.t = setTimeout(() => lxSync(true), 1500);
+  }
+  function lxFlush() { const f = document.activeElement; if (f && f.classList && f.classList.contains('bz-lec-ed')) lxSave(f); }
+  document.addEventListener('focusout', e => { if (e.target.classList && e.target.classList.contains('bz-lec-ed')) lxSave(e.target); }, true);
+  document.addEventListener('keydown', e => { if (e.target.classList && e.target.classList.contains('bz-lec-ed')) e.stopPropagation(); }, true);
+  function lxToggle() {
+    const ov = document.querySelector('.bz-lec'); if (!ov || !lecCur) return;
+    lxFlush();
+    const on = ov.classList.toggle('bz-lec-edit');
+    ov.querySelector('.bz-lec-edb').innerHTML = on ? '✓<em> 完成</em>' : '✎<em> 編輯</em>';
+    const sc = ov.querySelector('.bz-doc-scroll'), y = sc.scrollTop;
+    lecShow(lecCur.ch); sc.scrollTop = y;
+  }
+  async function lxSync(push) {
+    const tok = ghToken(); if (!tok) return false;
+    try {
+      const H = { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' };
+      const r = await fetch(LX_URL + '?t=' + Date.now(), { headers: H, cache: 'no-store' });
+      let remote = {}, sha;
+      if (r.ok) { const j = await r.json(); sha = j.sha; try { remote = JSON.parse(b64d(j.content)) || {}; } catch (e) {} }
+      const mine = lxAll(), all = JSON.parse(JSON.stringify(remote));
+      Object.keys(mine).forEach(L => { all[L] = all[L] || {}; Object.keys(mine[L]).forEach(k => { const a = all[L][k], m = mine[L][k]; if (!a || (m.t || 0) > (a.t || 0)) all[L][k] = m; }); });
+      const changed = JSON.stringify(all) !== JSON.stringify(mine);
+      lxStore(all);
+      if (changed && lecCur) { const ov = document.querySelector('.bz-lec'); if (ov && !ov.classList.contains('bz-lec-edit')) lecShow(lecCur.ch); }
+      if (push && JSON.stringify(all) !== JSON.stringify(remote))
+        await fetch(LX_URL, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '同步專題頁修改', content: b64e(JSON.stringify(all, null, 1)), ...(sha ? { sha } : {}) }) });
+      return true;
+    } catch (e) { return false; }
+  }
+  const lecTxt = s => String(s || '').replace(/<br>/g, ' ').replace(/\*\*/g, '').replace(/\[\[(.+?)>[^\]]+\]\]/g, '$1');
   const lecBlkTxt = b => lecTxt([b.h, b.p, b.note, b.warn, b.src, b.f, b.cap, ...(b.ul || []), ...[].concat(...(b.tb || [])), ...[].concat(...(b.cards || []))].filter(Boolean).join('　'));
   const lecHid = (b, i) => 'lec-' + (b.id || 'h' + i);
-  function lecBlock(b, i) {
+  function lecBlock(b, i, I) {
+    I = I || lecIn;
     const w = (cls, h) => `<div class="bz-lec-blk ${cls}" data-lbx="${i}">${h}</div>`;
-    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}"><button type="button" class="bz-lec-top" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>${lecIn(b.h)}</span></h3>`;
-    if (b.p) return w('bz-lec-p', lecIn(b.p));
-    if (b.ul) return `<ul class="bz-lec-blk bz-lec-ul" data-lbx="${i}">${b.ul.map(x => `<li>${lecIn(x)}</li>`).join('')}</ul>`;
+    if (b.h) return `<h3 class="bz-lec-blk bz-lec-h" data-lbx="${i}" id="${lecHid(b, i)}"><button type="button" class="bz-lec-top" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>${I(b.h, 'h')}</span></h3>`;
+    if (b.p) return w('bz-lec-p', I(b.p, 'p'));
+    if (b.ul) return `<ul class="bz-lec-blk bz-lec-ul" data-lbx="${i}">${b.ul.map((x, k) => `<li>${I(x, 'ul.' + k)}</li>`).join('')}</ul>`;
     if (b.tb) {
       const [hd, ...rs] = b.tb;
-      return w('bz-lec-tbw', `${b.cap ? `<div class="bz-lec-cap">${lecIn(b.cap)}</div>` : ''}<div class="bz-lec-tbs"><table class="bz-lec-tb"><thead><tr>${hd.map(c => `<th>${lecIn(c)}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr>${r.map(c => `<td>${lecIn(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      return w('bz-lec-tbw', `${b.cap ? `<div class="bz-lec-cap">${I(b.cap, 'cap')}</div>` : ''}<div class="bz-lec-tbs"><table class="bz-lec-tb"><thead><tr>${hd.map((c, j) => `<th>${I(c, 'tb.0.' + j)}</th>`).join('')}</tr></thead><tbody>${rs.map((r, k) => `<tr>${r.map((c, j) => `<td>${I(c, 'tb.' + (k + 1) + '.' + j, r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
     }
-    if (b.cards) return w('bz-lec-cards', b.cards.map(([t, x]) => `<div class="bz-lec-cd"><b>${lecIn(t)}</b><div>${lecIn(x)}</div></div>`).join(''));
-    if (b.note) return w('bz-lec-note', lecIn(b.note));
-    if (b.warn) return w('bz-lec-warn', lecIn(b.warn));
-    if (b.f) return w('bz-lec-f', lecIn(b.f));
-    if (b.src) return w('bz-lec-src', '出處：' + lecIn(b.src));
+    if (b.cards) return w('bz-lec-cards', b.cards.map(([t, x], k) => `<div class="bz-lec-cd"><b>${I(t, 'cards.' + k + '.0')}</b><div>${I(x, 'cards.' + k + '.1')}</div></div>`).join(''));
+    if (b.note) return w('bz-lec-note', I(b.note, 'note'));
+    if (b.warn) return w('bz-lec-warn', I(b.warn, 'warn'));
+    if (b.f) return w('bz-lec-f', I(b.f, 'f'));
+    if (b.src) return w('bz-lec-src', '出處：' + I(b.src, 'src'));
     return '';
   }
   const lecTiles = d => d.ch.map((c, i) => `<a href="#" class="bz-lec-tile" data-lk="${E(d.key)}" data-lch="${E(c.id)}"><span class="bz-lec-ic">${i + 1}</span><b>${E(c.t)}</b><span class="bz-lec-sum">${E(c.sum)}</span></a>`).join('');
   function lecChHtml(d, ci) {
     const c = d.ch[ci], pv = d.ch[ci - 1], nx = d.ch[ci + 1];
     const hs = c.b.map((b, i) => b.h ? `<a href="#" class="bz-lec-a" data-lch="${E(c.id)}" data-la="${lecHid(b, i).slice(4)}">${E(lecTxt(b.h))}</a>` : '').filter(Boolean);
-    return `<div class="bz-lec-chh"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
+    return `<div class="bz-lec-chh bz-lec-hl" data-hk="lec:${E(d.key)}:${E(c.id)}:hd"><div><div class="bz-lec-no">第 ${ci + 1} 類／共 ${d.ch.length} 類</div><h2>${E(c.t)}</h2><p>${E(c.sum)}</p></div></div>
 ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join('')}</div>` : ''}
-<div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map(lecBlock).join('')}</div>
+<div class="bz-lec-body" data-lk="${E(d.key)}" data-ch="${E(c.id)}">${c.b.map((b, i) => lecBlock(b, i, lecR(d, c, i))).join('')}</div>
 <div class="bz-lec-pn">${pv ? `<a href="#" class="bz-lec-a" data-lch="${E(pv.id)}"><small>‹ 上一類</small>${E(pv.t)}</a>` : '<span></span>'}${nx ? `<a href="#" class="bz-lec-a nx" data-lch="${E(nx.id)}"><small>下一類 ›</small>${E(nx.t)}</a>` : '<span></span>'}</div>`;
   }
-  const lecHomeHtml = d => `<div class="bz-lec-home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
+  const lecHomeHtml = d => `<div class="bz-lec-home"><div class="bz-lec-hl" data-hk="lec:${E(d.key)}:_home"><h2>${E(d.title)}</h2><div class="bz-lec-by">${E(d.by)}${d.note ? '｜' + E(d.note) : ''}</div></div><div class="bz-lec-grid">${lecTiles(d)}</div></div>`;
   let lecCur = null;
   async function lecOpen(key, ch, a) {
     const d = await lecGet(key);
@@ -3151,13 +3441,14 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     let ov = document.querySelector('.bz-lec');
     if (!ov) {
       ov = document.createElement('div'); ov.className = 'bz-doc bz-lec';
-      ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-lec-x title="關閉（Esc）">‹ 返回</button><b class="bz-lec-tt"></b><input type="search" class="bz-lec-q" placeholder="搜尋這份專題" enterkeyhint="search"></div>
-<div class="bz-lec-main"><nav class="bz-lec-nav"></nav><div class="bz-doc-scroll"><div class="bz-lec-pg"></div></div></div>`;
+      ov.innerHTML = `<div class="bz-doc-bar"><button type="button" data-lec-x title="關閉（Esc）">‹ 返回</button><b class="bz-lec-tt"></b><button type="button" class="bz-lec-edb" hidden title="打開後可以直接改文字，改完按「完成」">✎<em> 編輯</em></button><input type="search" class="bz-lec-q" placeholder="搜尋這份專題" enterkeyhint="search"></div>
+<div class="bz-lec-main"><nav class="bz-lec-nav"></nav><div class="bz-doc-scroll"><div class="bz-lec-pg"></div></div></div><aside class="bz-lec-pk" hidden><div class="bz-lec-pkbar"><b></b><button type="button" class="bz-lec-pkgo">開啟完整頁 ›</button><button type="button" class="bz-lec-pkx" title="關閉" aria-label="關閉">✕</button></div><div class="bz-lec-pkb"></div></aside>`;
       document.body.appendChild(ov);
-      const close = () => { if (!ntBox.hidden) ntClose(); hlHide(); ov.remove(); lecCur = null; document.removeEventListener('keydown', esc, true); removeEventListener('hashchange', close); };
+      const close = () => { if (!ntBox.hidden) ntClose(); hlHide(); lxFlush(); ov.remove(); lecCur = null; document.removeEventListener('keydown', esc, true); removeEventListener('hashchange', close); };
       const esc = e => {
         if (e.key !== 'Escape' || document.querySelector('.bz-ntdoc') || !ntBox.hidden) return;
         e.preventDefault(); e.stopPropagation();
+        if (!ov.querySelector('.bz-lec-pk').hidden) { lkClose(); return; }
         const q = ov.querySelector('.bz-lec-q'); if (q.value) { q.value = ''; lecShow(lecCur.ch); return; }
         close();
       };
@@ -3166,6 +3457,9 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
       ov.querySelector('[data-lec-x]').addEventListener('click', close);
       ov.addEventListener('click', e => {
         if (e.target.closest('.bz-lec-top')) { e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollTo({ top: 0, behavior: 'smooth' }); return; }
+        if (e.target.closest('.bz-lec-edb')) { e.preventDefault(); lxToggle(); return; }
+        const x = e.target.closest('a.bz-lec-x');
+        if (x) { e.preventDefault(); if (String(getSelection() || '').trim()) return; lkOpen(x.dataset.xh ? 'h' : 'f', x.dataset.xh || x.dataset.xf); return; }
         const l = e.target.closest('a[data-lch]'); if (!l) return;
         e.preventDefault();
         if (l.closest('.bz-lec-body') && String(getSelection() || '').trim()) return;   // 正在選字就不要跳走
@@ -3174,30 +3468,43 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
         if (l.dataset.lbi) q.value = '';
       });
       // 游標在左邊分類欄滾滾輪：分類欄本身捲不動時，改捲右邊的內文
+      // 游標在左邊分類欄滾滾輪：一格換一類（往下 = 下一類），右邊內容跟著換；手機的橫排分類不受影響
+      let wAcc = 0, wT = 0;
       ov.querySelector('.bz-lec-nav').addEventListener('wheel', e => {
-        const nv = e.currentTarget, dy = e.deltaY; if (!dy || Math.abs(e.deltaX) > Math.abs(dy)) return;
-        if (dy < 0 ? nv.scrollTop > 0 : nv.scrollTop + nv.clientHeight < nv.scrollHeight - 1) return;
-        e.preventDefault(); ov.querySelector('.bz-doc-scroll').scrollBy({ top: dy * (e.deltaMode === 1 ? 32 : 1) });
+        if (COARSE.matches || matchMedia('(max-width: 820px)').matches) return;
+        const dy = e.deltaY * (e.deltaMode === 1 ? 32 : 1); if (!dy || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        e.preventDefault();
+        const now = Date.now(); if (now - wT > 400) wAcc = 0;
+        wAcc += dy; if (Math.abs(wAcc) < 40 || now - wT < 260) return;
+        wT = now; const dir = wAcc > 0 ? 1 : -1; wAcc = 0;
+        if (!lecCur) return;
+        const ids = [''].concat(lecCur.d.ch.map(c => c.id)), i = ids.indexOf(lecCur.ch), j = Math.max(0, Math.min(ids.length - 1, (i < 0 ? 0 : i) + dir));
+        if (j === i) return;
+        const q = ov.querySelector('.bz-lec-q'); if (q.value) q.value = '';
+        lecShow(ids[j]);
+        const on = ov.querySelector('.bz-lec-nv.on'); if (on) on.scrollIntoView({ block: 'nearest' });
       }, { passive: false });
       let qt = 0;
       ov.querySelector('.bz-lec-q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => lecSearch(e.target.value), 200); });
       ov.querySelector('.bz-lec-q').addEventListener('keydown', e => e.stopPropagation());
     }
-    lecCur = { key, d, ch: '' };
+    lecCur = { key, d0: d, d: lxDoc(d), ch: '' };
+    ov.classList.remove('bz-lec-edit'); ov.querySelector('.bz-lec-edb').hidden = !d.auto;
     ov.querySelector('.bz-lec-tt').textContent = d.title || '';
     ov.querySelector('.bz-lec-nav').innerHTML = `<button type="button" class="bz-lec-top bz-lec-navtop" title="回到最上面" aria-label="回到最上面"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 7.8 6 4.3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><a href="#" class="bz-lec-nv" data-lch=""><span></span>總覽</a>` + d.ch.map((c, i) => `<a href="#" class="bz-lec-nv" data-lch="${E(c.id)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('');
     lecShow(ch || '', a);
   }
   function lecShow(ch, a, bi) {
     const ov = document.querySelector('.bz-lec'); if (!ov || !lecCur) return;
-    const d = lecCur.d, ci = d.ch.findIndex(c => c.id === ch);
-    if (!ntBox.hidden) ntClose(); hlHide();
+    const d = lecCur.d = lxDoc(lecCur.d0), ci = d.ch.findIndex(c => c.id === ch);
+    if (!ntBox.hidden) ntClose(); hlHide(); lkClose();
     lecCur.ch = ci < 0 ? '' : ch;
     const pg = ov.querySelector('.bz-lec-pg'), sc = ov.querySelector('.bz-doc-scroll');
     pg.innerHTML = ci < 0 ? lecHomeHtml(d) : lecChHtml(d, ci);
     ov.querySelectorAll('.bz-lec-nv').forEach(n => n.classList.toggle('on', n.dataset.lch === lecCur.ch));
     const on = ov.querySelector('.bz-lec-nv.on'); if (on) { const nv = on.parentElement; nv.scrollLeft = on.offsetLeft - nv.clientWidth / 2 + on.offsetWidth / 2; }
-    const body = pg.querySelector('.bz-lec-body'); if (body) { lecTbW(body); try { hlApply(body); } catch (e) {} }
+    const body = pg.querySelector('.bz-lec-body'), ed = ov.classList.contains('bz-lec-edit'); if (body) { lecTbW(body); if (!ed) try { hlApply(body); } catch (e) {} }
+    if (!ed) pg.querySelectorAll('.bz-lec-hl').forEach(h => { try { hlApply(h); } catch (e) {} });
     const t = a ? pg.querySelector('#lec-' + a) : bi != null && bi !== '' ? pg.querySelector(`.bz-lec-body [data-lbx="${bi}"]`) : null;
     sc.scrollTop = 0;
     if (t) {
@@ -3268,31 +3575,43 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
   }
   function lecDecorate(force) {
     const ent = document.getElementById('entry'); if (!ent || typeof state === 'undefined') return;
-    const o = by[state.cur], old = ent.querySelector('.bz-lec-card');
-    const L = o && o.kind === 'zd' && LECS.find(l => l.match.includes(String(o.name || '').trim()));
-    if (!L) { if (old) old.remove(); return; }
-    if (old && old.dataset.lk === L.key && old.dataset.ok && !force) return;
-    const h1 = ent.querySelector('h1'); if (!h1) return;
-    const card = old || document.createElement('div'); card.className = 'bz-lec-card'; card.dataset.lk = L.key;
-    if (!old) h1.insertAdjacentElement('afterend', card);
-    const d = lecMem[L.key];
-    if (d) {
-      card.dataset.ok = 1;
-      card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b><i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${i + 1}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
-    } else {
-      delete card.dataset.ok;
-      card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
-      lecGet(L.key).then(x => {
-        if (x) { lecDecorate(true); return; }
-        const w = card.querySelector('.bz-lec-wait');
-        if (w) w.textContent = lecErr === 'tok' ? '這份專題放在私人備份庫：這台裝置要先按「☁ 同步」貼上金鑰才能下載（下載一次後沒網路也能看）。' : '還沒下載成功（' + (lecErr || '請稍後再試') + '）';
-      });
-    }
+    const o = by[state.cur], nm = o && o.kind === 'zd' ? String(o.name || '').trim() : '';
+    const Ls = nm ? LECS.filter(l => (l.match && l.match.includes(nm)) || lecPg(l, nm)) : [];
+    ent.querySelectorAll('.bz-lec-card').forEach(c => { if (!Ls.some(l => l.key === c.dataset.lk)) c.remove(); });
+    const h1 = ent.querySelector('h1'); if (!h1 || !Ls.length) return;
+    let prev = h1;
+    Ls.forEach(L => {
+      const old = ent.querySelector(`.bz-lec-card[data-lk="${L.key}"]`);
+      if (old && old.dataset.ok && !force) { prev = old; return; }
+      const card = old || document.createElement('div'); card.className = 'bz-lec-card'; card.dataset.lk = L.key;
+      if (!old) prev.insertAdjacentElement('afterend', card);
+      prev = card;
+      const d = lecMem[L.key], pg = lecPg(L, nm);
+      if (d) {
+        card.dataset.ok = 1;
+        if (pg) {   // 只列這個病的章：一章就列段落，好幾章就列章
+          const cs = pg.map(id => d.ch.find(c => c.id === id)).filter(Boolean);
+          const one = cs.length === 1 ? cs[0] : null;
+          const chips = one ? one.b.map((b, i) => b.h ? { ch: one.id, a: lecHid(b, i).slice(4), t: lecTxt(b.h), tip: one.t + '：' + lecTxt(b.h) } : null).filter(Boolean)
+            : cs.map(c => ({ ch: c.id, a: '', t: c.s || c.t, tip: c.t + '：' + c.sum }));
+          card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch="${E(one ? one.id : '')}"><span class="bz-lec-tag">專題整理</span><b>${E(d.title + (one ? '：' + one.t : '：' + cs.map(c => c.t).join('、')))}</b>${d.by ? `<small class="bz-lec-cby">${E(String(d.by).split(/[（(]/)[0].trim())}</small>` : ''}<i>全部 ›</i></a><div class="bz-lec-mini">${chips.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.ch)}" data-la="${E(c.a)}" title="${E(c.tip)}"><span>${i + 1}</span>${E(c.t)}</a>`).join('')}</div>`;
+        } else
+          card.innerHTML = `<a href="#" class="bz-lec-chd" data-lk="${E(L.key)}" data-lch=""><span class="bz-lec-tag">專題整理</span><b>${E(d.title)}</b>${d.by ? `<small class="bz-lec-cby">${E(String(d.by).split(/[（(]/)[0].trim())}</small>` : ''}<i>全部 ›</i></a><div class="bz-lec-mini">${d.ch.map((c, i) => `<a href="#" data-lk="${E(d.key)}" data-lch="${E(c.id)}" title="${E(c.t + '：' + c.sum)}"><span>${i + 1}</span>${E(c.s || c.t.split(/[：（(]/)[0].trim())}</a>`).join('')}</div>`;
+      } else {
+        delete card.dataset.ok;
+        card.innerHTML = `<div class="bz-lec-chd"><span class="bz-lec-tag">專題整理</span><small class="bz-lec-wait">下載中…</small></div>`;
+        lecGet(L.key).then(x => {
+          if (x) { lecDecorate(true); return; }
+          const w = card.querySelector('.bz-lec-wait');
+          if (w) w.textContent = lecErr === 'tok' ? '這份專題放在私人備份庫：這台裝置要先按「☁ 同步」貼上金鑰才能下載（下載一次後沒網路也能看）。' : '還沒下載成功（' + (lecErr || '請稍後再試') + '）';
+        });
+      }
+    });
   }
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('.bz-lec-card a[data-lch]'); if (!t) return;
     e.preventDefault(); e.stopPropagation();
-    lecOpen(t.dataset.lk, t.dataset.lch);
+    lecOpen(t.dataset.lk, t.dataset.lch, t.dataset.la);
   }, true);
   if (entObs) new MutationObserver(() => lecDecorate()).observe(entObs, { childList: true });
   lecDecorate();
