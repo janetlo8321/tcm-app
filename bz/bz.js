@@ -1107,6 +1107,7 @@
       if (xhClean(d) !== ed.h) d.innerHTML = ed.h;
       c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
     });
+    if (window.__bzXhZf) window.__bzXhZf();
     window.xhApply();
   }
   // 拉欄寬
@@ -1177,6 +1178,50 @@
     };
     d.addEventListener('blur', done);
     d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
+  }
+  /* 手機：長按「主方」那一格 → 上面浮出灰框顯示同一橫列的「科中」，下面浮出灰框顯示「條文」；點別的地方或捲動就收起 */
+  {
+    const col = h => { try { return XH.cols.findIndex(c => c.h === h); } catch (e) { return -1; } };
+    const rowOf = c => { const a = parseInt(c.style.gridRowStart, 10) || 0, e = c.style.gridRowEnd || '';
+      const sp = /span\s*(\d+)/.exec(e), b = sp ? a + +sp[1] : (parseInt(e, 10) || a + 1); return [a, b]; };
+    const cellAt = (g, ci, r) => [...g.querySelectorAll(`.xh-c[data-c="${ci}"]`)].find(x => { const [a, b] = rowOf(x); return a <= r && r < b; });
+    const pops = [];
+    const zfClose = () => { while (pops.length) pops.pop().remove(); document.querySelectorAll('.xh-c.bz-xhzf-on').forEach(x => x.classList.remove('bz-xhzf-on')); };
+    const zfBox = (lb, src) => {
+      const d = document.createElement('div'); d.className = 'bz-xhpop';
+      const h = src && src.firstElementChild ? xhClean(src.firstElementChild) : '';
+      d.innerHTML = `<div class="bz-xhpop-lb"></div><div class="bz-xhpop-b"></div>`;
+      d.firstChild.textContent = lb;
+      if (h) d.lastChild.innerHTML = h; else { d.lastChild.textContent = '（空白）'; d.classList.add('e'); }
+      d.addEventListener('scroll', e => e.stopPropagation()); document.body.appendChild(d); pops.push(d); return d;
+    };
+    function zfShow(c) {
+      zfClose();
+      const g = c.closest('.xh-g'); if (!g) return;
+      const [r] = rowOf(c), kz = cellAt(g, col('科中'), r), tw = cellAt(g, col('條文'), r);
+      const rc = c.getBoundingClientRect(), W = Math.min(innerWidth - 16, 380), x = Math.max(8, Math.min(innerWidth - W - 8, rc.left + rc.width / 2 - W / 2));
+      const tb = document.querySelector('.tabbar'), bot = innerHeight - (tb && tb.offsetHeight ? tb.offsetHeight : 0) - 6;
+      const up = zfBox('科中', kz); Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(60, rc.top - 12) + 'px' });
+      up.style.top = Math.max(6, rc.top - 6 - up.offsetHeight) + 'px';
+      const dn = zfBox('條文', tw); Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (rc.bottom + 6) + 'px', maxHeight: Math.max(80, bot - rc.bottom - 6) + 'px' });
+      c.classList.add('bz-xhzf-on');
+      if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+    }
+    let lp = null, fired = false;
+    document.addEventListener('pointerdown', e => {
+      if (pops.length && !e.target.closest('.bz-xhpop')) zfClose();
+      if (e.pointerType === 'mouse') return;
+      const c = e.target.closest && e.target.closest('.xh-g:not(.bz-xhed) .xh-c'); if (!c || c.dataset.c !== String(col('主方')) || c.classList.contains('e')) return;
+      const [r] = rowOf(c); if (r <= 0) return;
+      fired = false; clearTimeout(lp && lp.t);
+      lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { fired = true; lp = null; try { getSelection().removeAllRanges(); } catch (er) {} zfShow(c); }, 500) };
+    }, true);
+    document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
+    ['pointerup', 'pointercancel'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
+    document.addEventListener('click', e => { if (fired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; } }, true);
+    document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c.bz-xhzf')) e.preventDefault(); });
+    addEventListener('scroll', e => { if (pops.length && !(e.target.closest && e.target.closest('.bz-xhpop'))) zfClose(); }, true);
+    window.__bzXhZf = () => { const i = col('主方'); document.querySelectorAll('.xh-g .xh-c').forEach(x => x.classList.toggle('bz-xhzf', x.dataset.c === String(i))); };
   }
   xhDecorate();
 
@@ -2263,13 +2308,65 @@
     if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 藥・方・經・脈・證 互相切換時，每一區記住停的位置（哪一個條目、捲到哪裡、表格裡面捲到哪裡），切回來就回到那裡 ----------
+   * 只記在這次開著的 App 裡；按底下五格（手機）或左邊小篆圓鈕（電腦）才會回到原位，點條目裡的連結照舊直接打開那一條 */
+  {
+    const MAIN = ['zz', 'sheet', 'chart', 'jk', 'mai'];
+    const grpOf = id => { const o = typeof by !== 'undefined' && by[id]; const k = o && o.kind;
+      return k === 's' || k === 'h' ? 'sheet' : k === 'c' || k === 'f' ? 'chart' : k === 'jk' || k === 'jkt' ? 'jk' : k === 'z' || k === 'zd' || k === 'd' || k === 'p' ? 'zz' : k === 'mai' ? 'mai' : (MAIN.includes(id) ? id : ''); };
+    const SV = {};   // 區 → { cur, y, x: { 路徑: [top, left] } }
+    let busy = 0;
+    const pathOf = el => { const ent = document.getElementById('entry'), p = []; let e = el;
+      while (e && e !== ent && e.parentElement) { p.unshift([...e.parentElement.children].indexOf(e)); e = e.parentElement; }
+      return e === ent ? p.join('.') : ''; };
+    const byPath = p => { let e = document.getElementById('entry'); for (const i of p.split('.')) { if (!e) return null; e = e.children[+i]; } return e; };
+    const rec = t => {
+      if (busy || typeof state === 'undefined' || !state.cur) return;
+      const g = grpOf(state.cur); if (!g) return;
+      let v = SV[g]; if (!v || v.cur !== state.cur) v = SV[g] = { cur: state.cur, y: 0, x: {} };
+      if (!t || t === document || t === document.documentElement || t === document.body) v.y = scrollY;
+      else if (t.nodeType === 1) { const p = pathOf(t); if (p) v.x[p] = [t.scrollTop, t.scrollLeft]; }
+    };
+    addEventListener('scroll', e => rec(e.target), true);
+    const restore = v => {
+      Object.entries(v.x).forEach(([p, [tp, lf]]) => { const e = byPath(p); if (e) { e.scrollTop = tp; e.scrollLeft = lf; } });
+      scrollTo(0, v.y);
+    };
+    window.__bzSnBack = 0;
+    document.addEventListener('click', e => {
+      const a = e.target.closest && e.target.closest('.tabbar [data-tgo], .cards .chart-link, a[data-go]'); if (!a || typeof state === 'undefined' || typeof go !== 'function') return;
+      const id = a.dataset.tgo || a.dataset.go || decodeURIComponent((a.getAttribute('href') || '').replace(/^#/, ''));
+      if (!MAIN.includes(id)) return;   // 只管五個主頁的入口
+      const g = grpOf(id), v = SV[g];
+      if (!g || !v || g === grpOf(state.cur) || !by[v.cur]) return;   // 沒記過、或本來就在這一區：照舊
+      e.preventDefault(); e.stopImmediatePropagation();
+      const snap = { cur: v.cur, y: v.y, x: { ...v.x } };
+      rec(document);   // 先記下現在這一區
+      busy = 1; window.__bzSnBack = Date.now();
+      go(snap.cur, { scroll: false });
+      // 內容（例如經方條文）可能晚一點才載好、頁面變長：持續拉回原位，直到位置穩定或手指／滾輪動了為止（最多 4 秒）
+      const t0 = Date.now(); let ok = 0, stop = false;
+      const quit = () => { stop = true; };
+      ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(k => addEventListener(k, quit, { once: true, capture: true, passive: true }));
+      const end = () => { busy = 0; SV[g] = snap; ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(k => removeEventListener(k, quit, true)); };
+      const tick = () => {
+        if (stop || typeof state === 'undefined' || state.cur !== snap.cur) { end(); return; }
+        restore(snap);
+        ok = Math.abs(scrollY - snap.y) < 3 ? ok + 1 : 0;
+        if (ok >= 4 || Date.now() - t0 > 4000) { end(); return; }
+        setTimeout(tick, 100);
+      };
+      requestAnimationFrame(() => requestAnimationFrame(tick));
+    }, true);
+  }
+
   /* ---------- 電腦版：每次點進一頁，自動捲到那一頁的標題，上面的資料庫標題列先藏在畫面上方（往上拖還是看得到） ---------- */
   {
     let last = null;
     const toTop = () => {
       if (innerWidth < 821 || !entObs || typeof state === 'undefined') return;
       const cur = state.cur; if (cur === last) return; last = cur;
-      if (!cur || cur === 'jk') return;
+      if (!cur || cur === 'jk' || Date.now() - (window.__bzSnBack || 0) < 1000) return;   // 切回原位置時不要捲到標題
       setTimeout(() => {
         const t = [...entObs.children].find(e => e.offsetHeight > 0 && getComputedStyle(e).display !== 'none' && !e.matches('.back, style, script'));
         if (!t) return;
@@ -2566,12 +2663,15 @@
   function hlShow(rect, pend) {
     hlPend = pend; hlPut();
     if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
-    let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
-    if (COARSE.matches) {   // 手機：小小的綠勾、註放在選取範圍第一行的右上角（字的上方、行與行之間）
-      let tp = rect.top, rt = rect.right;
-      try { const rs = getSelection().getRangeAt(0).getClientRects(); if (rs.length) { tp = rs[0].top; rt = rs[0].right; } } catch (er) {}
-      x = Math.min(innerWidth - 46, Math.max(4, rt + 2)); y = Math.max(4, tp - 22);
-    }
+    // 綠勾貼在選到的字「第一行最後一個字」的右上角（只看文字那幾行的框，不看整格、整段的大框，免得跑很遠）
+    let tp = rect.top, rt = rect.right;
+    try {
+      const rs = [...getSelection().getRangeAt(0).getClientRects()].filter(r => r.width > 0 && r.height > 0 && r.height < 48);
+      if (rs.length) { const t0 = Math.min(...rs.map(r => r.top)), ln = rs.filter(r => Math.abs(r.top - t0) < 6); tp = t0; rt = Math.max(...ln.map(r => r.right)); }
+    } catch (er) {}
+    const bh = COARSE.matches ? 20 : 30;
+    let x = Math.min(innerWidth - (COARSE.matches ? 46 : 40), Math.max(4, rt + 1)), y = tp - bh - 1;
+    if (y < 4) y = Math.max(4, tp + 2);
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
@@ -3706,6 +3806,39 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     const a = shlAnchor(w);
     shlGo(a ? shlPageOf(b, a) : 0, true);
     shlDock();
+  }
+  /* 手機經方（捲動模式）：兩指捏合放大縮小條文（CSS zoom，字會重新排行、不會左右超出）；比例記在這台裝置 tcm-shl-z */
+  {
+    const ZK = 'tcm-shl-z';
+    let Z = 1; try { Z = Math.min(2.4, Math.max(0.6, parseFloat(localStorage.getItem(ZK)) || 1)); } catch (e) {}
+    const st = document.createElement('style'); st.id = 'bzShlZ';
+    const put = () => { st.textContent = Math.abs(Z - 1) < 0.01 ? '' : `.bz-shl:not(.shl-book) .shl-body{zoom:${Z.toFixed(3)}}`; if (!st.isConnected && document.head) document.head.appendChild(st); };
+    put();
+    const tip = document.createElement('div'); tip.className = 'bz-shlz-tip'; tip.hidden = true;
+    let pz = null, tipT = 0;
+    const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    document.addEventListener('touchstart', e => {
+      if (e.touches.length !== 2) return;
+      const b = e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-body'); if (!b) return;
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2, my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      let a = document.elementFromPoint(mx, my); a = a && a.closest && a.closest('.shl-c, .shl-h');
+      pz = { d: dist(e.touches), z: Z, a, ay: a ? a.getBoundingClientRect().top : 0 };
+      try { getSelection().removeAllRanges(); } catch (er) {}
+    }, { passive: true, capture: true });
+    document.addEventListener('touchmove', e => {
+      if (!pz || e.touches.length !== 2) return;
+      e.preventDefault();
+      Z = Math.min(2.4, Math.max(0.6, pz.z * dist(e.touches) / pz.d)); put();
+      if (pz.a && pz.a.isConnected) scrollBy(0, pz.a.getBoundingClientRect().top - pz.ay);   // 捏合中間那一條留在原位
+      if (!tip.isConnected) document.body.appendChild(tip);
+      tip.textContent = Math.round(Z * 100) + '%'; tip.hidden = false; clearTimeout(tipT);
+    }, { passive: false, capture: true });
+    const end = e => { if (!pz || (e.touches && e.touches.length >= 2)) return; pz = null;
+      if (Math.abs(Z - 1) < 0.04) { Z = 1; put(); }
+      try { localStorage.setItem(ZK, String(Math.round(Z * 1000) / 1000)); } catch (er) {}
+      tipT = setTimeout(() => { tip.hidden = true; }, 700); };
+    document.addEventListener('touchend', end, true); document.addEventListener('touchcancel', end, true);
+    ['gesturestart', 'gesturechange'].forEach(k => document.addEventListener(k, e => { if (e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-body')) e.preventDefault(); }, { passive: false }));   // iPhone：不要整頁放大
   }
   /* 底下的頁面列（像 Mac 的 Dock）：每一格是一個左右兩頁，同一篇同一個顏色；滑過去放大並顯示第幾頁、哪一篇、第幾條到第幾條，點一下翻過去 */
   let shlSpreads = [];
