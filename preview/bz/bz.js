@@ -2653,12 +2653,15 @@
   function hlShow(rect, pend) {
     hlPend = pend; hlPut();
     if (typeof ntBox !== 'undefined' && !ntBox.hidden) ntClose();   // 選字時一律先收起註的框（打的字已自動存），免得遮到綠勾
-    let x = Math.min(innerWidth - 40, rect.right + 4), y = rect.top - 34 < 6 ? rect.bottom + 6 : rect.top - 34;
-    if (COARSE.matches) {   // 手機：小小的綠勾、註放在選取範圍第一行的右上角（字的上方、行與行之間）
-      let tp = rect.top, rt = rect.right;
-      try { const rs = getSelection().getRangeAt(0).getClientRects(); if (rs.length) { tp = rs[0].top; rt = rs[0].right; } } catch (er) {}
-      x = Math.min(innerWidth - 46, Math.max(4, rt + 2)); y = Math.max(4, tp - 22);
-    }
+    // 綠勾貼在選到的字「第一行最後一個字」的右上角（只看文字那幾行的框，不看整格、整段的大框，免得跑很遠）
+    let tp = rect.top, rt = rect.right;
+    try {
+      const rs = [...getSelection().getRangeAt(0).getClientRects()].filter(r => r.width > 0 && r.height > 0 && r.height < 48);
+      if (rs.length) { const t0 = Math.min(...rs.map(r => r.top)), ln = rs.filter(r => Math.abs(r.top - t0) < 6); tp = t0; rt = Math.max(...ln.map(r => r.right)); }
+    } catch (er) {}
+    const bh = COARSE.matches ? 20 : 30;
+    let x = Math.min(innerWidth - (COARSE.matches ? 46 : 40), Math.max(4, rt + 1)), y = tp - bh - 1;
+    if (y < 4) y = Math.max(4, tp + 2);
     hlOk.style.left = x + 'px'; hlOk.style.top = y + 'px';
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
