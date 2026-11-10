@@ -1179,48 +1179,80 @@
     d.addEventListener('blur', done);
     d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
   }
-  /* 手機：長按「主方」那一格 → 上面浮出灰框顯示同一橫列的「科中」，下面浮出灰框顯示「條文」；點別的地方或捲動就收起 */
+  /* 手機：短按「主方」那一格 → 上面浮出灰框顯示同一橫列的「科中」，下面浮出灰框顯示「條文」；再按一次同一格才收起，捲動時跟著那一格走
+   * 灰框裡長按選字一樣有綠勾、註（存到原本那一格，tcm-hl-v1）；灰框右上「✎」可以直接改那一格的字（存到 tcm-xh-v1） */
   {
     const col = h => { try { return XH.cols.findIndex(c => c.h === h); } catch (e) { return -1; } };
     const rowOf = c => { const a = parseInt(c.style.gridRowStart, 10) || 0, e = c.style.gridRowEnd || '';
       const sp = /span\s*(\d+)/.exec(e), b = sp ? a + +sp[1] : (parseInt(e, 10) || a + 1); return [a, b]; };
     const cellAt = (g, ci, r) => [...g.querySelectorAll(`.xh-c[data-c="${ci}"]`)].find(x => { const [a, b] = rowOf(x); return a <= r && r < b; });
-    const pops = [];
-    const zfClose = () => { while (pops.length) pops.pop().remove(); document.querySelectorAll('.xh-c.bz-xhzf-on').forEach(x => x.classList.remove('bz-xhzf-on')); };
-    const zfBox = (lb, src) => {
+    let cur = null;   // { c: 主方格, pops: [{ d, src }], mo }
+    const zfClose = () => { if (!cur) return; cur.pops.forEach(p => p.d.remove()); if (cur.mo) cur.mo.disconnect(); cur.c.classList.remove('bz-xhzf-on'); cur = null; };
+    const fill = p => {
+      if (p.d.classList.contains('editing')) return;
+      const src = p.src && p.src.firstElementChild, h = src ? src.innerHTML.replace(/<br>$/, '').trim() : '', b = p.d.querySelector('.bz-xhpop-b');
+      if (h) { if (b.innerHTML !== h) b.innerHTML = h; p.d.classList.remove('e'); } else { b.textContent = '（空白）'; p.d.classList.add('e'); }
+    };
+    const place = () => {
+      if (!cur) return;
+      if (!cur.c.isConnected) { zfClose(); return; }
+      const rc = cur.c.getBoundingClientRect(), W = Math.min(innerWidth - 16, 380), x = Math.max(8, Math.min(innerWidth - W - 8, rc.left + rc.width / 2 - W / 2));
+      const tb = document.querySelector('.tabbar'), bot = innerHeight - (tb && tb.offsetHeight ? tb.offsetHeight : 0) - 6;
+      const [up, dn] = cur.pops.map(p => p.d);
+      Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(60, rc.top - 12) + 'px' });
+      up.style.top = (rc.top - 6 - up.offsetHeight) + 'px';
+      Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (rc.bottom + 6) + 'px', maxHeight: Math.max(80, bot - rc.bottom - 6) + 'px' });
+    };
+    const mk = (lb, src) => {
       const d = document.createElement('div'); d.className = 'bz-xhpop';
-      const h = src && src.firstElementChild ? xhClean(src.firstElementChild) : '';
-      d.innerHTML = `<div class="bz-xhpop-lb"></div><div class="bz-xhpop-b"></div>`;
-      d.firstChild.textContent = lb;
-      if (h) d.lastChild.innerHTML = h; else { d.lastChild.textContent = '（空白）'; d.classList.add('e'); }
-      d.addEventListener('scroll', e => e.stopPropagation()); document.body.appendChild(d); pops.push(d); return d;
+      d.innerHTML = '<div class="bz-xhpop-lb"><span></span><button type="button" class="bz-xhpop-ed" title="編輯這一格">✎</button></div><div class="bz-xhpop-b"></div>';
+      d.querySelector('span').textContent = lb;
+      const p = { d, src }; d.querySelector('.bz-xhpop-b')._xhSrc = src;
+      if (!src) d.querySelector('.bz-xhpop-ed').hidden = true;
+      document.body.appendChild(d); fill(p); return p;
     };
     function zfShow(c) {
       zfClose();
       const g = c.closest('.xh-g'); if (!g) return;
       const [r] = rowOf(c), kz = cellAt(g, col('科中'), r), tw = cellAt(g, col('條文'), r);
-      const rc = c.getBoundingClientRect(), W = Math.min(innerWidth - 16, 380), x = Math.max(8, Math.min(innerWidth - W - 8, rc.left + rc.width / 2 - W / 2));
-      const tb = document.querySelector('.tabbar'), bot = innerHeight - (tb && tb.offsetHeight ? tb.offsetHeight : 0) - 6;
-      const up = zfBox('科中', kz); Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(60, rc.top - 12) + 'px' });
-      up.style.top = Math.max(6, rc.top - 6 - up.offsetHeight) + 'px';
-      const dn = zfBox('條文', tw); Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (rc.bottom + 6) + 'px', maxHeight: Math.max(80, bot - rc.bottom - 6) + 'px' });
-      c.classList.add('bz-xhzf-on');
-      if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+      cur = { c, pops: [mk('科中', kz), mk('條文', tw)] };
+      cur.mo = new MutationObserver(() => cur && cur.pops.forEach(fill));   // 原格子畫上綠勾、註或改了字 → 灰框跟著更新
+      [kz, tw].forEach(x => x && cur.mo.observe(x, { childList: true, subtree: true, characterData: true }));
+      c.classList.add('bz-xhzf-on'); place();
     }
-    let lp = null, fired = false;
-    document.addEventListener('pointerdown', e => {
-      if (pops.length && !e.target.closest('.bz-xhpop')) zfClose();
-      if (e.pointerType === 'mouse') return;
-      const c = e.target.closest && e.target.closest('.xh-g:not(.bz-xhed) .xh-c'); if (!c || c.dataset.c !== String(col('主方')) || c.classList.contains('e')) return;
-      const [r] = rowOf(c); if (r <= 0) return;
-      fired = false; clearTimeout(lp && lp.t);
-      lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { fired = true; lp = null; try { getSelection().removeAllRanges(); } catch (er) {} zfShow(c); }, 500) };
+    // 灰框裡的 ✎：這一格直接打字，點外面就存（存到原本那一格）
+    document.addEventListener('click', e => {
+      const bt = e.target.closest && e.target.closest('.bz-xhpop-ed'); if (!bt || !cur) return;
+      e.preventDefault(); e.stopPropagation();
+      const d = bt.closest('.bz-xhpop'), p = cur.pops.find(x => x.d === d); if (!p || !p.src) return;
+      const b = d.querySelector('.bz-xhpop-b');
+      if (d.classList.contains('editing')) { b.blur(); return; }
+      if (d.classList.contains('e')) b.innerHTML = '';
+      else b.innerHTML = xhClean(b);
+      d.classList.add('editing'); b.contentEditable = 'true'; b.focus();
+      try { const rg = document.createRange(); rg.selectNodeContents(b); rg.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(rg); } catch (er) {}
+      const done = () => {
+        b.removeEventListener('blur', done); b.contentEditable = 'false'; d.classList.remove('editing');
+        const h = xhClean(b), c = p.src, i = +c.dataset.xi;
+        let dv = c.firstElementChild; if (!dv) { dv = document.createElement('div'); c.appendChild(dv); }
+        if (xhClean(dv) !== h) { dv.innerHTML = h; XS.e[i] = { h, t: Date.now() }; c.classList.add('xh-ed'); c.classList.toggle('e', !h); xhSave(); }
+        fill(p); if (typeof hlLater === 'function') hlLater();
+      };
+      b.addEventListener('blur', done);
     }, true);
-    document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
-    ['pointerup', 'pointercancel'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
-    document.addEventListener('click', e => { if (fired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; } }, true);
-    document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c.bz-xhzf')) e.preventDefault(); });
-    addEventListener('scroll', e => { if (pops.length && !(e.target.closest && e.target.closest('.bz-xhpop'))) zfClose(); }, true);
+    document.addEventListener('click', e => {
+      if (!matchMedia('(pointer: coarse)').matches) return;
+      const c = e.target.closest && e.target.closest('.xh-g:not(.bz-xhed) .xh-c'); if (!c || c.dataset.c !== String(col('主方')) || c.classList.contains('e')) return;
+      const sl = getSelection(); if (sl && !sl.isCollapsed && c.contains(sl.anchorNode)) return;   // 正在選字就不要開關灰框
+      if (e.target.closest('mark.bz-note')) return;
+      const [r] = rowOf(c); if (r <= 0) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (cur && cur.c === c) zfClose(); else zfShow(c);
+    }, true);
+    let rq = 0;
+    addEventListener('scroll', e => { if (!cur || (e.target.closest && e.target.closest('.bz-xhpop'))) return; cancelAnimationFrame(rq); rq = requestAnimationFrame(place); }, true);
+    addEventListener('resize', () => { if (cur) place(); });
+    if (entObs) new MutationObserver(() => { if (cur && !cur.c.isConnected) zfClose(); }).observe(entObs, { childList: true });
     window.__bzXhZf = () => { const i = col('主方'); document.querySelectorAll('.xh-g .xh-c').forEach(x => x.classList.toggle('bz-xhzf', x.dataset.c === String(i))); };
   }
   xhDecorate();
@@ -2593,9 +2625,10 @@
   const hlAll = () => { try { const a = JSON.parse(localStorage.getItem(HLK) || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; } };
   const hlStore = a => { try { localStorage.setItem(HLK, JSON.stringify(a)); } catch (e) {} };
   const HL_SKIP = 'input,textarea,select,button,.bz-hl-ok,script,style,.bz-fxl-no,.bz-gjx,.bz-nd-inl,.bz-lec-card';
-  const hlRoots = () => [document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body'), ...document.querySelectorAll('.bz-lec .bz-lec-hl')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
+  const hlRoots = () => [...document.querySelectorAll('.bz-xhpop-b'), document.getElementById('entry'), document.getElementById('ybBody'), document.querySelector('.bz-ptov .bz-pt-wrap'), document.querySelector('#bzShl .shl-body'), document.querySelector('.bz-lec .bz-lec-body'), ...document.querySelectorAll('.bz-lec .bz-lec-hl')].filter(r => r && !r.closest('[hidden]'));   // p't list 頁面也能畫
   function hlLater() { if (hlLaterFn) hlLaterFn(); }
   function hlKey(root) {
+    if (root.classList.contains('bz-xhpop-b')) return root.closest('.bz-xhpop.editing') ? '' : (typeof state !== 'undefined' && state.cur ? String(state.cur) : '');   // 小黑學長表灰框：存到原本那一格（同一頁）
     if (root.classList.contains('shl-body')) { const w = root.closest('#bzShl'); return w && w.dataset.bk ? 'shl:' + w.dataset.bk : ''; }
     if (root.closest('.bz-lec-edit')) return '';   // 專題頁編輯中不畫
     if (root.classList.contains('bz-lec-hl')) return root.dataset.hk || '';   // 專題頁的標題框也能畫綠勾、加註
@@ -2615,6 +2648,8 @@
   }
   let hlBusy = false;
   function hlApply(root) {
+    if (root && root.classList && root.classList.contains('bz-xhpop-b')) root = document.getElementById('entry');   // 灰框的標記畫在原本那一格，灰框自己跟著更新
+    if (!root) return;
     const key = hlKey(root); if (!key) return;
     hlBusy = true;
     try {
@@ -2694,6 +2729,13 @@
       const sx = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
       if ((ca && ca.closest('.xh-g.bz-xhed, [contenteditable="true"]')) || (sx && sx.closest('.xh-g.bz-xhed'))) { hlHide(); return; }   // 小黑學長表編輯中不畫
       const inXh = !!(sx && sx.closest('.xh-g'));
+      // 灰框裡選字：位置換算成原本那一格在整頁裡的位置
+      let base = 0, realRoot = root;
+      if (root.classList.contains('bz-xhpop-b')) {
+        const src = root._xhSrc, ent = document.getElementById('entry'); if (!src || !ent) { hlHide(); return; }
+        const t0 = hlTexts(ent).find(t => src.contains(t.n)); if (!t0) { hlHide(); return; }
+        base = t0.s; realRoot = ent;
+      }
       const tsx = hlTexts(root), ix = n => tsx.findIndex(t => t.n === n);   // 端點剛好在標記外那一格時往標記裡挪
       let sn = r.startContainer, en = r.endContainer;
       if (sn.nodeType === 3 && r.startOffset === sn.data.length && tsx[ix(sn) + 1]) sn = tsx[ix(sn) + 1].n;
@@ -2709,7 +2751,8 @@
           const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
           if (x.trim()) nt = { s, e, x };
         }
-        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt, xh: inXh });
+        if (nt) { nt.s += base; nt.e += base; }
+        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root: realRoot, key, id: mk.dataset.hl, nt, xh: inXh || base > 0 || realRoot !== root });
         return;
       }
       const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
@@ -2717,7 +2760,7 @@
       const x = hlTexts(root).map(t => t.n.data).join('').slice(s, e);
       if (!x.trim()) { hlHide(); return; }
       const rs = r.getClientRects(), rc = rs.length ? rs[rs.length - 1] : r.getBoundingClientRect(), r0 = rs.length ? rs[0] : rc;
-      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x, xh: inXh });
+      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root: realRoot, key, s: s + base, e: e + base, x, xh: inXh || realRoot !== root });
     }, 450);
   });
   ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlOk.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
