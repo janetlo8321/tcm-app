@@ -2263,13 +2263,55 @@
     if (entObs) new MutationObserver(maiMark).observe(entObs, { childList: true });
   }
 
+  /* ---------- 藥・方・經・脈・證 互相切換時，每一區記住停的位置（哪一個條目、捲到哪裡、表格裡面捲到哪裡），切回來就回到那裡 ----------
+   * 只記在這次開著的 App 裡；按底下五格（手機）或左邊小篆圓鈕（電腦）才會回到原位，點條目裡的連結照舊直接打開那一條 */
+  {
+    const MAIN = ['zz', 'sheet', 'chart', 'jk', 'mai'];
+    const grpOf = id => { const o = typeof by !== 'undefined' && by[id]; const k = o && o.kind;
+      return k === 's' || k === 'h' ? 'sheet' : k === 'c' || k === 'f' ? 'chart' : k === 'jk' || k === 'jkt' ? 'jk' : k === 'z' || k === 'zd' || k === 'd' || k === 'p' ? 'zz' : k === 'mai' ? 'mai' : (MAIN.includes(id) ? id : ''); };
+    const SV = {};   // 區 → { cur, y, x: { 路徑: [top, left] } }
+    let busy = 0;
+    const pathOf = el => { const ent = document.getElementById('entry'), p = []; let e = el;
+      while (e && e !== ent && e.parentElement) { p.unshift([...e.parentElement.children].indexOf(e)); e = e.parentElement; }
+      return e === ent ? p.join('.') : ''; };
+    const byPath = p => { let e = document.getElementById('entry'); for (const i of p.split('.')) { if (!e) return null; e = e.children[+i]; } return e; };
+    const rec = t => {
+      if (busy || typeof state === 'undefined' || !state.cur) return;
+      const g = grpOf(state.cur); if (!g) return;
+      let v = SV[g]; if (!v || v.cur !== state.cur) v = SV[g] = { cur: state.cur, y: 0, x: {} };
+      if (!t || t === document || t === document.documentElement || t === document.body) v.y = scrollY;
+      else if (t.nodeType === 1) { const p = pathOf(t); if (p) v.x[p] = [t.scrollTop, t.scrollLeft]; }
+    };
+    addEventListener('scroll', e => rec(e.target), true);
+    const restore = v => {
+      Object.entries(v.x).forEach(([p, [tp, lf]]) => { const e = byPath(p); if (e) { e.scrollTop = tp; e.scrollLeft = lf; } });
+      scrollTo(0, v.y);
+    };
+    window.__bzSnBack = 0;
+    document.addEventListener('click', e => {
+      const a = e.target.closest && e.target.closest('.tabbar [data-tgo], .cards .chart-link, a[data-go]'); if (!a || typeof state === 'undefined' || typeof go !== 'function') return;
+      const id = a.dataset.tgo || a.dataset.go || decodeURIComponent((a.getAttribute('href') || '').replace(/^#/, ''));
+      if (!MAIN.includes(id)) return;   // 只管五個主頁的入口
+      const g = grpOf(id), v = SV[g];
+      if (!g || !v || g === grpOf(state.cur) || !by[v.cur]) return;   // 沒記過、或本來就在這一區：照舊
+      e.preventDefault(); e.stopImmediatePropagation();
+      const snap = { cur: v.cur, y: v.y, x: { ...v.x } };
+      rec(document);   // 先記下現在這一區
+      busy = 1; window.__bzSnBack = Date.now();
+      go(snap.cur, { scroll: false });
+      const back = () => restore(snap);
+      requestAnimationFrame(() => requestAnimationFrame(back)); [120, 300, 600].forEach(ms => setTimeout(back, ms));
+      setTimeout(() => { busy = 0; SV[g] = snap; }, 650);
+    }, true);
+  }
+
   /* ---------- 電腦版：每次點進一頁，自動捲到那一頁的標題，上面的資料庫標題列先藏在畫面上方（往上拖還是看得到） ---------- */
   {
     let last = null;
     const toTop = () => {
       if (innerWidth < 821 || !entObs || typeof state === 'undefined') return;
       const cur = state.cur; if (cur === last) return; last = cur;
-      if (!cur || cur === 'jk') return;
+      if (!cur || cur === 'jk' || Date.now() - (window.__bzSnBack || 0) < 1000) return;   // 切回原位置時不要捲到標題
       setTimeout(() => {
         const t = [...entObs.children].find(e => e.offsetHeight > 0 && getComputedStyle(e).display !== 'none' && !e.matches('.back, style, script'));
         if (!t) return;
