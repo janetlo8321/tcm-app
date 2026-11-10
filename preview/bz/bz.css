@@ -1501,7 +1501,7 @@ section.zz-sys.bz-zo-on .nb-grid li > .bz-zo-rn:hover { background: #2b6cb0; col
 
 /* 手機：長按小黑學長表「主方」格 → 上面灰框 科中、下面灰框 條文 */
 .xh-c.bz-xhzf-on { box-shadow: inset 0 0 0 2px #8a8f98; }
-.bz-xhpop { position: fixed; z-index: 2147483000; background: rgba(238, 239, 241, .97); color: #1b1b1b; border: 1px solid #c4c8ce; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 6px 10px 8px; font-size: 13px; line-height: 1.55; overflow: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+.bz-xhpop { position: absolute; z-index: 2147483000; background: rgba(238, 239, 241, .97); color: #1b1b1b; border: 1px solid #c4c8ce; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 6px 10px 8px; font-size: 13px; line-height: 1.55; overflow: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
 .bz-xhpop-lb { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: #6b7280; margin-bottom: 2px; -webkit-user-select: none; user-select: none; }
 .bz-xhpop-ed { border: 0; background: rgba(0,0,0,.06); color: #1a4fd6; border-radius: 6px; font-size: 12px; padding: 1px 8px; min-height: 20px; }
 .bz-xhpop.editing { background: #fff; border-color: #1a4fd6; }

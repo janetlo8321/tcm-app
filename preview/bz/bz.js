@@ -1193,15 +1193,17 @@
       const src = p.src && p.src.firstElementChild, h = src ? src.innerHTML.replace(/<br>$/, '').trim() : '', b = p.d.querySelector('.bz-xhpop-b');
       if (h) { if (b.innerHTML !== h) b.innerHTML = h; p.d.classList.remove('e'); } else { b.textContent = '（空白）'; p.d.classList.add('e'); }
     };
-    const place = () => {
+    const place = () => {   // 用整頁座標（position:absolute），手機兩指放大頁面時也對得準、不會蓋到主方那一格
       if (!cur) return;
       if (!cur.c.isConnected) { zfClose(); return; }
-      const rc = cur.c.getBoundingClientRect(), W = Math.min(innerWidth - 16, 380), x = Math.max(8, Math.min(innerWidth - W - 8, rc.left + rc.width / 2 - W / 2));
-      const tb = document.querySelector('.tabbar'), bot = innerHeight - (tb && tb.offsetHeight ? tb.offsetHeight : 0) - 6;
+      const vv = window.visualViewport, vx = vv ? vv.pageLeft : scrollX, vy = vv ? vv.pageTop : scrollY, vw = vv ? vv.width : innerWidth, vh = vv ? vv.height : innerHeight;
+      const r0 = cur.c.getBoundingClientRect(), L = r0.left + scrollX, T = r0.top + scrollY, B = r0.bottom + scrollY;
+      const W = Math.min(vw - 16, 380), x = Math.max(vx + 8, Math.min(vx + vw - W - 8, L + r0.width / 2 - W / 2));
+      const tb = document.querySelector('.tabbar'), tbh = tb && tb.offsetHeight && getComputedStyle(tb).display !== 'none' ? tb.offsetHeight : 0;
       const [up, dn] = cur.pops.map(p => p.d);
-      Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(60, rc.top - 12) + 'px' });
-      up.style.top = (rc.top - 6 - up.offsetHeight) + 'px';
-      Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (rc.bottom + 6) + 'px', maxHeight: Math.max(80, bot - rc.bottom - 6) + 'px' });
+      Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(44, T - 6 - (vy + 4)) + 'px' });
+      up.style.top = (T - 6 - up.offsetHeight) + 'px';
+      Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (B + 6) + 'px', maxHeight: Math.max(60, vy + vh - tbh - 6 - (B + 6)) + 'px' });
     };
     const mk = (lb, src) => {
       const d = document.createElement('div'); d.className = 'bz-xhpop';
@@ -1252,6 +1254,7 @@
     let rq = 0;
     addEventListener('scroll', e => { if (!cur || (e.target.closest && e.target.closest('.bz-xhpop'))) return; cancelAnimationFrame(rq); rq = requestAnimationFrame(place); }, true);
     addEventListener('resize', () => { if (cur) place(); });
+    if (window.visualViewport) ['resize', 'scroll'].forEach(k => visualViewport.addEventListener(k, () => { if (cur) { cancelAnimationFrame(rq); rq = requestAnimationFrame(place); } }));
     if (entObs) new MutationObserver(() => { if (cur && !cur.c.isConnected) zfClose(); }).observe(entObs, { childList: true });
     window.__bzXhZf = () => { const i = col('主方'); document.querySelectorAll('.xh-g .xh-c').forEach(x => x.classList.toggle('bz-xhzf', x.dataset.c === String(i))); };
   }
@@ -2711,7 +2714,7 @@
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
-    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl') || pend.xh)) {
+    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl'))) {   // 小黑學長表先不要註（Janet 2026-11-11）
       const gap = COARSE.matches ? 22 : 38;
       hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
