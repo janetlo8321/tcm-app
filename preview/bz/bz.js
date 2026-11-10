@@ -2344,9 +2344,19 @@
       rec(document);   // 先記下現在這一區
       busy = 1; window.__bzSnBack = Date.now();
       go(snap.cur, { scroll: false });
-      const back = () => restore(snap);
-      requestAnimationFrame(() => requestAnimationFrame(back)); [120, 300, 600].forEach(ms => setTimeout(back, ms));
-      setTimeout(() => { busy = 0; SV[g] = snap; }, 650);
+      // 內容（例如經方條文）可能晚一點才載好、頁面變長：持續拉回原位，直到位置穩定或手指／滾輪動了為止（最多 4 秒）
+      const t0 = Date.now(); let ok = 0, stop = false;
+      const quit = () => { stop = true; };
+      ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(k => addEventListener(k, quit, { once: true, capture: true, passive: true }));
+      const end = () => { busy = 0; SV[g] = snap; ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(k => removeEventListener(k, quit, true)); };
+      const tick = () => {
+        if (stop || typeof state === 'undefined' || state.cur !== snap.cur) { end(); return; }
+        restore(snap);
+        ok = Math.abs(scrollY - snap.y) < 3 ? ok + 1 : 0;
+        if (ok >= 4 || Date.now() - t0 > 4000) { end(); return; }
+        setTimeout(tick, 100);
+      };
+      requestAnimationFrame(() => requestAnimationFrame(tick));
     }, true);
   }
 

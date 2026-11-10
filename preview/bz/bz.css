@@ -1506,3 +1506,6 @@ section.zz-sys.bz-zo-on .nb-grid li > .bz-zo-rn:hover { background: #2b6cb0; col
 .bz-xhpop-lb { font-size: 11px; font-weight: 700; color: #6b7280; margin-bottom: 2px; }
 .bz-xhpop.e .bz-xhpop-b { color: #9aa0a8; }
 .bz-xhpop .r { color: #e0302a; } .bz-xhpop .b { color: #1a4fd6; } .bz-xhpop .m { color: #d10fd1; } .bz-xhpop .p { color: #7b2fd6; } .bz-xhpop .g { color: #444746; } .bz-xhpop .k { font-weight: 700; }
+/* 手機底下五格：經・脈 放最左邊，證・藥・方 往右 */
+.tabbar button[data-tgo="jk"] { order: 1; } .tabbar button[data-tgo="mai"] { order: 2; }
+.tabbar button[data-tgo="zz"] { order: 3; } .tabbar button[data-tgo="sheet"] { order: 4; } .tabbar button[data-tgo="chart"] { order: 5; }
