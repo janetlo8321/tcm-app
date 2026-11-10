@@ -1498,3 +1498,11 @@ section.zz-sys.bz-zo-on .nb-grid li > .bz-zo-rn:hover { background: #2b6cb0; col
 .bz-lec-edb em { font-style: normal; }
 .bz-lec [data-lec-x] { flex: none; white-space: nowrap; }
 @media (max-width: 820px) { .bz-doc-bar > .bz-lec-edb { padding: 0 10px; } .bz-lec-edb:not(.on) em { display: none; } .bz-lec-edit .bz-lec-edb em { display: inline; } }
+
+/* 手機：長按小黑學長表「主方」格 → 上面灰框 科中、下面灰框 條文 */
+@media (pointer: coarse) { .xh-g:not(.bz-xhed) .xh-c.bz-xhzf, .xh-g:not(.bz-xhed) .xh-c.bz-xhzf * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
+.xh-c.bz-xhzf-on { box-shadow: inset 0 0 0 2px #8a8f98; }
+.bz-xhpop { position: fixed; z-index: 2147483000; background: rgba(238, 239, 241, .97); color: #1b1b1b; border: 1px solid #c4c8ce; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 6px 10px 8px; font-size: 13px; line-height: 1.55; overflow: auto; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+.bz-xhpop-lb { font-size: 11px; font-weight: 700; color: #6b7280; margin-bottom: 2px; }
+.bz-xhpop.e .bz-xhpop-b { color: #9aa0a8; }
+.bz-xhpop .r { color: #e0302a; } .bz-xhpop .b { color: #1a4fd6; } .bz-xhpop .m { color: #d10fd1; } .bz-xhpop .p { color: #7b2fd6; } .bz-xhpop .g { color: #444746; } .bz-xhpop .k { font-weight: 700; }

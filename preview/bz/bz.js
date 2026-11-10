@@ -1107,6 +1107,7 @@
       if (xhClean(d) !== ed.h) d.innerHTML = ed.h;
       c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
     });
+    if (window.__bzXhZf) window.__bzXhZf();
     window.xhApply();
   }
   // 拉欄寬
@@ -1177,6 +1178,50 @@
     };
     d.addEventListener('blur', done);
     d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
+  }
+  /* 手機：長按「主方」那一格 → 上面浮出灰框顯示同一橫列的「科中」，下面浮出灰框顯示「條文」；點別的地方或捲動就收起 */
+  {
+    const col = h => { try { return XH.cols.findIndex(c => c.h === h); } catch (e) { return -1; } };
+    const rowOf = c => { const a = parseInt(c.style.gridRowStart, 10) || 0, e = c.style.gridRowEnd || '';
+      const sp = /span\s*(\d+)/.exec(e), b = sp ? a + +sp[1] : (parseInt(e, 10) || a + 1); return [a, b]; };
+    const cellAt = (g, ci, r) => [...g.querySelectorAll(`.xh-c[data-c="${ci}"]`)].find(x => { const [a, b] = rowOf(x); return a <= r && r < b; });
+    const pops = [];
+    const zfClose = () => { while (pops.length) pops.pop().remove(); document.querySelectorAll('.xh-c.bz-xhzf-on').forEach(x => x.classList.remove('bz-xhzf-on')); };
+    const zfBox = (lb, src) => {
+      const d = document.createElement('div'); d.className = 'bz-xhpop';
+      const h = src && src.firstElementChild ? xhClean(src.firstElementChild) : '';
+      d.innerHTML = `<div class="bz-xhpop-lb"></div><div class="bz-xhpop-b"></div>`;
+      d.firstChild.textContent = lb;
+      if (h) d.lastChild.innerHTML = h; else { d.lastChild.textContent = '（空白）'; d.classList.add('e'); }
+      d.addEventListener('scroll', e => e.stopPropagation()); document.body.appendChild(d); pops.push(d); return d;
+    };
+    function zfShow(c) {
+      zfClose();
+      const g = c.closest('.xh-g'); if (!g) return;
+      const [r] = rowOf(c), kz = cellAt(g, col('科中'), r), tw = cellAt(g, col('條文'), r);
+      const rc = c.getBoundingClientRect(), W = Math.min(innerWidth - 16, 380), x = Math.max(8, Math.min(innerWidth - W - 8, rc.left + rc.width / 2 - W / 2));
+      const tb = document.querySelector('.tabbar'), bot = innerHeight - (tb && tb.offsetHeight ? tb.offsetHeight : 0) - 6;
+      const up = zfBox('科中', kz); Object.assign(up.style, { left: x + 'px', width: W + 'px', maxHeight: Math.max(60, rc.top - 12) + 'px' });
+      up.style.top = Math.max(6, rc.top - 6 - up.offsetHeight) + 'px';
+      const dn = zfBox('條文', tw); Object.assign(dn.style, { left: x + 'px', width: W + 'px', top: (rc.bottom + 6) + 'px', maxHeight: Math.max(80, bot - rc.bottom - 6) + 'px' });
+      c.classList.add('bz-xhzf-on');
+      if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+    }
+    let lp = null, fired = false;
+    document.addEventListener('pointerdown', e => {
+      if (pops.length && !e.target.closest('.bz-xhpop')) zfClose();
+      if (e.pointerType === 'mouse') return;
+      const c = e.target.closest && e.target.closest('.xh-g:not(.bz-xhed) .xh-c'); if (!c || c.dataset.c !== String(col('主方')) || c.classList.contains('e')) return;
+      const [r] = rowOf(c); if (r <= 0) return;
+      fired = false; clearTimeout(lp && lp.t);
+      lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { fired = true; lp = null; try { getSelection().removeAllRanges(); } catch (er) {} zfShow(c); }, 500) };
+    }, true);
+    document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
+    ['pointerup', 'pointercancel'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
+    document.addEventListener('click', e => { if (fired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; } }, true);
+    document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c.bz-xhzf')) e.preventDefault(); });
+    addEventListener('scroll', e => { if (pops.length && !(e.target.closest && e.target.closest('.bz-xhpop'))) zfClose(); }, true);
+    window.__bzXhZf = () => { const i = col('主方'); document.querySelectorAll('.xh-g .xh-c').forEach(x => x.classList.toggle('bz-xhzf', x.dataset.c === String(i))); };
   }
   xhDecorate();
 
