@@ -3807,6 +3807,39 @@ ${hs.length > 1 ? `<div class="bz-lec-toc"><span>本類段落</span>${hs.join(''
     shlGo(a ? shlPageOf(b, a) : 0, true);
     shlDock();
   }
+  /* 手機經方（捲動模式）：兩指捏合放大縮小條文（CSS zoom，字會重新排行、不會左右超出）；比例記在這台裝置 tcm-shl-z */
+  {
+    const ZK = 'tcm-shl-z';
+    let Z = 1; try { Z = Math.min(2.4, Math.max(0.6, parseFloat(localStorage.getItem(ZK)) || 1)); } catch (e) {}
+    const st = document.createElement('style'); st.id = 'bzShlZ';
+    const put = () => { st.textContent = Math.abs(Z - 1) < 0.01 ? '' : `.bz-shl:not(.shl-book) .shl-body{zoom:${Z.toFixed(3)}}`; if (!st.isConnected && document.head) document.head.appendChild(st); };
+    put();
+    const tip = document.createElement('div'); tip.className = 'bz-shlz-tip'; tip.hidden = true;
+    let pz = null, tipT = 0;
+    const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    document.addEventListener('touchstart', e => {
+      if (e.touches.length !== 2) return;
+      const b = e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-body'); if (!b) return;
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2, my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      let a = document.elementFromPoint(mx, my); a = a && a.closest && a.closest('.shl-c, .shl-h');
+      pz = { d: dist(e.touches), z: Z, a, ay: a ? a.getBoundingClientRect().top : 0 };
+      try { getSelection().removeAllRanges(); } catch (er) {}
+    }, { passive: true, capture: true });
+    document.addEventListener('touchmove', e => {
+      if (!pz || e.touches.length !== 2) return;
+      e.preventDefault();
+      Z = Math.min(2.4, Math.max(0.6, pz.z * dist(e.touches) / pz.d)); put();
+      if (pz.a && pz.a.isConnected) scrollBy(0, pz.a.getBoundingClientRect().top - pz.ay);   // 捏合中間那一條留在原位
+      if (!tip.isConnected) document.body.appendChild(tip);
+      tip.textContent = Math.round(Z * 100) + '%'; tip.hidden = false; clearTimeout(tipT);
+    }, { passive: false, capture: true });
+    const end = e => { if (!pz || (e.touches && e.touches.length >= 2)) return; pz = null;
+      if (Math.abs(Z - 1) < 0.04) { Z = 1; put(); }
+      try { localStorage.setItem(ZK, String(Math.round(Z * 1000) / 1000)); } catch (er) {}
+      tipT = setTimeout(() => { tip.hidden = true; }, 700); };
+    document.addEventListener('touchend', end, true); document.addEventListener('touchcancel', end, true);
+    ['gesturestart', 'gesturechange'].forEach(k => document.addEventListener(k, e => { if (e.target.closest && e.target.closest('#bzShl:not(.shl-book) .shl-body')) e.preventDefault(); }, { passive: false }));   // iPhone：不要整頁放大
+  }
   /* 底下的頁面列（像 Mac 的 Dock）：每一格是一個左右兩頁，同一篇同一個顏色；滑過去放大並顯示第幾頁、哪一篇、第幾條到第幾條，點一下翻過去 */
   let shlSpreads = [];
   function shlDock() {

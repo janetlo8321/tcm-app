@@ -1509,3 +1509,6 @@ section.zz-sys.bz-zo-on .nb-grid li > .bz-zo-rn:hover { background: #2b6cb0; col
 /* 手機底下五格：經・脈 放最左邊，證・藥・方 往右 */
 .tabbar button[data-tgo="jk"] { order: 1; } .tabbar button[data-tgo="mai"] { order: 2; }
 .tabbar button[data-tgo="zz"] { order: 3; } .tabbar button[data-tgo="sheet"] { order: 4; } .tabbar button[data-tgo="chart"] { order: 5; }
+
+/* 經方捏合放大縮小時中間顯示比例 */
+.bz-shlz-tip { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 2147483000; padding: 6px 14px; border-radius: 12px; background: rgba(30,30,32,.78); color: #fff; font-size: 16px; font-weight: 600; pointer-events: none; }
