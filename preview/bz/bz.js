@@ -1089,10 +1089,12 @@
     const g = document.querySelector('.xh-g'); if (!g || !xhOK()) return;
     const sec = g.closest('.xh-sec');
     if (sec) {
-      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；長按格子可以編輯，點格子外面就存好。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
+      const note = sec.querySelector('.note'); if (note) note.textContent = '拖曳欄位標頭右邊的分隔線可以調整欄寬；按上面「✎ 編輯」後點格子就能改字，點格子外面就存好，改完按「完成」；平常選字可以畫綠勾黃底、加註。條文欄平常收起，按上面「展開條文」或 I 欄標頭就能展開、收起。紅字、藍字照原表。方名可以點。';
       const rs = sec.querySelector('[data-xhreset]'); if (rs) { rs.textContent = '還原欄寬'; rs.dataset.xhwreset = ''; delete rs.dataset.xhreset; }
       const pg = sec.querySelector('.xh-zoombar .pg');
       if (pg && xhTW() >= 0 && !pg.querySelector('[data-xhtw]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhtw = ''; b.className = 'bz-xhtw'; pg.appendChild(b); }
+      if (pg && !pg.querySelector('[data-xhed]')) { const b = document.createElement('button'); b.type = 'button'; b.dataset.xhed = ''; b.className = 'bz-xhedb'; pg.appendChild(b); }
+      xhEdMode(xhEdOn);
     }
     g.querySelectorAll('.xh-h').forEach(h => {
       h.removeAttribute('draggable'); h.removeAttribute('title');
@@ -1102,7 +1104,7 @@
       c.dataset.xi = i;
       const ed = XS.e[i]; if (!ed) return;
       let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
-      if (d.innerHTML !== ed.h) d.innerHTML = ed.h;
+      if (xhClean(d) !== ed.h) d.innerHTML = ed.h;
       c.classList.toggle('e', !ed.h); c.classList.add('xh-ed');
     });
     window.xhApply();
@@ -1130,18 +1132,34 @@
     e.stopPropagation();
     const t = Date.now(); Object.keys(XS.w).forEach(k => { XS.w[k] = { v: XH.cols[k].w, t }; }); window.xhApply(); xhSave();
   }, true);
-  // 長按格子 → 這一格變成可以編輯
-  let lp = null, lpFired = false;
-  document.addEventListener('pointerdown', e => {
-    const c = e.target.closest && e.target.closest('.xh-c'); if (!c || c.classList.contains('editing')) return;
-    lpFired = false; clearTimeout(lp && lp.t);
-    lp = { c, x: e.clientX, y: e.clientY, t: setTimeout(() => { lpFired = true; xhEdit(c); }, 550) };
-  });
-  document.addEventListener('pointermove', e => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } });
-  ['pointerup', 'pointercancel', 'scroll'].forEach(k => document.addEventListener(k, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true));
-  document.addEventListener('click', e => { if (lpFired && e.target.closest && e.target.closest('.xh-c')) { e.preventDefault(); e.stopPropagation(); lpFired = false; } }, true);
-  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.xh-c.editing')) { e.preventDefault(); e.stopPropagation(); } }, true);
-  document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.xh-c:not(.editing)')) e.preventDefault(); });
+  // 「✎ 編輯」開關：開著時點格子就能改字（方名連結先不跳）；關著時表格鎖住，可以選字畫綠勾、加註（tcm-hl-v1，和這一頁同一份）
+  let xhEdOn = false;
+  function xhEdMode(on) {
+    xhEdOn = !!on;
+    const g = document.querySelector('.xh-g'); if (g) g.classList.toggle('bz-xhed', xhEdOn);
+    document.querySelectorAll('[data-xhed]').forEach(b => { b.textContent = xhEdOn ? '✓ 完成編輯' : '✎ 編輯'; b.setAttribute('aria-pressed', String(xhEdOn)); });
+    if (!xhEdOn) { const c = document.querySelector('.xh-c.editing > div'); if (c) c.blur(); }
+  }
+  // 存格子時把螢光筆、註的標記拿掉（標記另外存在 tcm-hl-v1）
+  function xhClean(d) {
+    if (!d.querySelector('mark.bz-hl')) return d.innerHTML.replace(/<br>$/, '').trim();
+    const x = d.cloneNode(true);
+    x.querySelectorAll('mark.bz-hl').forEach(m => { const p = m.parentNode; while (m.firstChild) p.insertBefore(m.firstChild, m); p.removeChild(m); });
+    x.normalize(); return x.innerHTML.replace(/<br>$/, '').trim();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-xhed]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    if (typeof getSelection === 'function') try { getSelection().removeAllRanges(); } catch (er) {}
+    xhEdMode(!xhEdOn);
+  }, true);
+  document.addEventListener('click', e => {
+    const c = e.target.closest && e.target.closest('.xh-g.bz-xhed .xh-c'); if (!c) return;
+    if (e.target.closest('.xh-rs')) return;
+    if (c.closest('.xh-g.tw-off') && c.dataset.c === String(xhTW())) return;   // 收起的條文格：照舊點了展開
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (!c.classList.contains('editing')) xhEdit(c);
+  }, true);
   function xhEdit(c) {
     let d = c.firstElementChild; if (!d) { d = document.createElement('div'); c.appendChild(d); }
     c.classList.add('editing'); c.classList.remove('e');
@@ -1151,10 +1169,11 @@
     const done = () => {
       d.removeEventListener('blur', done);
       d.contentEditable = 'false'; c.classList.remove('editing');
-      const h = d.innerHTML.replace(/<br>$/, '').trim();
+      const h = xhClean(d);
       const i = +c.dataset.xi;
       if (!(XS.e[i] && XS.e[i].h === h)) { XS.e[i] = { h, t: Date.now() }; c.classList.add('xh-ed'); xhSave(); }
       c.classList.toggle('e', !h);
+      if (typeof hlLater === 'function') hlLater();   // 改完重新畫上綠勾黃底、註
     };
     d.addEventListener('blur', done);
     d.addEventListener('keydown', ev => { if (ev.key === 'Escape') d.blur(); });
@@ -2557,7 +2576,7 @@
     hlOk.classList.toggle('del', pend.act === 'del'); hlOk.title = pend.act === 'del' ? '去掉這段黃底' : '畫上黃底';
     hlOk.hidden = false;
     // 經方條文：綠勾旁邊多一個藍色「註」
-    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl'))) {
+    if ((pend.act === 'add' || pend.nt) && (pend.root.classList.contains('shl-body') || pend.root.classList.contains('bz-lec-body') || pend.root.classList.contains('bz-lec-hl') || pend.xh)) {
       const gap = COARSE.matches ? 22 : 38;
       hlPutNt(); hlNt.style.top = y + 'px'; hlNt.style.left = (x + gap + 22 > innerWidth - 4 ? x - gap : x + gap) + 'px'; hlNt.hidden = false;
     } else hlNt.hidden = true;
@@ -2571,6 +2590,10 @@
       const r = sel.getRangeAt(0), root = hlRoots().find(x => x.contains(r.commonAncestorContainer));
       if (!root || (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest(HL_SKIP)) { hlHide(); return; }
       const key = hlKey(root); if (!key) return;
+      const ca = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+      const sx = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+      if ((ca && ca.closest('.xh-g.bz-xhed, [contenteditable="true"]')) || (sx && sx.closest('.xh-g.bz-xhed'))) { hlHide(); return; }   // 小黑學長表編輯中不畫
+      const inXh = !!(sx && sx.closest('.xh-g'));
       const tsx = hlTexts(root), ix = n => tsx.findIndex(t => t.n === n);   // 端點剛好在標記外那一格時往標記裡挪
       let sn = r.startContainer, en = r.endContainer;
       if (sn.nodeType === 3 && r.startOffset === sn.data.length && tsx[ix(sn) + 1]) sn = tsx[ix(sn) + 1].n;
@@ -2586,7 +2609,7 @@
           const x = s >= 0 && e > s ? hlTexts(root).map(t => t.n.data).join('').slice(s, e) : '';
           if (x.trim()) nt = { s, e, x };
         }
-        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt });
+        hlShow({ top: rc.top, bottom: rc.bottom, right: ms.length > 1 && last.top === rc.top ? last.right : rc.right }, { act: 'del', root, key, id: mk.dataset.hl, nt, xh: inXh });
         return;
       }
       const s = hlOffset(root, r.startContainer, r.startOffset), e = hlOffset(root, r.endContainer, r.endOffset);
@@ -2594,7 +2617,7 @@
       const x = hlTexts(root).map(t => t.n.data).join('').slice(s, e);
       if (!x.trim()) { hlHide(); return; }
       const rs = r.getClientRects(), rc = rs.length ? rs[rs.length - 1] : r.getBoundingClientRect(), r0 = rs.length ? rs[0] : rc;
-      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x });
+      hlShow({ top: r0.top, bottom: r0.bottom, right: rs.length > 1 ? Math.max(r0.right, rc.right) : rc.right }, { act: 'add', root, key, s, e, x, xh: inXh });
     }, 450);
   });
   ['pointerdown', 'touchstart', 'mousedown'].forEach(ev => hlOk.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }));
@@ -3144,7 +3167,7 @@
   });
   function ndOpen(f) {   // 註的延伸筆記
     const id = f.m.dataset.hl, c = { root: f.root, key: f.key, id }, h = ntItem(c); if (!h) return;
-    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.closest('.bz-lec-blk') || f.m.parentElement;
+    const row = f.m.closest('.shl-c') || f.m.closest('[data-shl]') || f.m.closest('.bz-lec-blk') || f.m.closest('.xh-c') || f.m.parentElement;
     ndShow({
       root: f.root, W: f.root.closest('#bzShl'), label: '註：' + (h.x || '').replace(/\s+/g, ' ').slice(0, 30),
       target: () => ({ els: [...f.root.querySelectorAll(`mark.bz-note[data-hl="${id}"]`)], cls: 'cur' }),
